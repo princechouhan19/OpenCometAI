@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS = {
   langSearchKey:       '',
   braveSearchKey:      '',
   serperKey:           '',
+  tavilyKey:           '',
   deepResearchMode:    'browser',
   deepResearchMaxSites: 6,
   deepResearchMaxQueries: 4,

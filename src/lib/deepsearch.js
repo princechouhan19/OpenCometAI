@@ -16,7 +16,75 @@ export async function deepResearch(task, keys, onProgress, callAI, aiSettings) {
     onProgress?.('Using the original query because decomposition failed.');
   }
 
-  return { subQueries, sources: [], keys };
+  // -- API-based search providers (Tavily → LangSearch → Brave → Serper) -----
+  let sources = [];
+
+  if (keys?.tavilyKey) {
+    onProgress?.('Searching with Tavily…');
+    sources = await searchTavily(keys.tavilyKey, subQueries, onProgress);
+  } else if (keys?.langSearchKey) {
+    onProgress?.('Searching with LangSearch…');
+    sources = await searchLangSearch(keys.langSearchKey, subQueries, onProgress);
+  } else if (keys?.braveSearchKey) {
+    onProgress?.('Searching with Brave…');
+    sources = await searchBrave(keys.braveSearchKey, subQueries, onProgress);
+  } else if (keys?.serperKey) {
+    onProgress?.('Searching with Serper…');
+    sources = await searchSerper(keys.serperKey, subQueries, onProgress);
+  }
+
+  return { subQueries, sources, keys };
+}
+
+// -- Tavily Search API --------------------------------------------------------
+async function searchTavily(apiKey, queries, onProgress) {
+  const allResults = [];
+  for (const query of queries) {
+    try {
+      const res = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: apiKey,
+          query,
+          max_results: 5,
+          search_depth: 'advanced',
+          include_answer: false,
+        }),
+      });
+      if (!res.ok) {
+        onProgress?.(`Tavily search failed for "${query}": HTTP ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      for (const r of (data.results || [])) {
+        allResults.push({
+          url: r.url || '',
+          title: r.title || '',
+          snippet: r.content || '',
+          summary: r.content || '',
+        });
+      }
+    } catch (err) {
+      onProgress?.(`Tavily search error for "${query}": ${err.message}`);
+    }
+  }
+  return allResults;
+}
+
+// -- LangSearch API (stub — wired for future implementation) ------------------
+async function searchLangSearch(_apiKey, _queries, _onProgress) {
+  return [];
+}
+
+// -- Brave Search API (stub — wired for future implementation) ----------------
+async function searchBrave(_apiKey, _queries, _onProgress) {
+  return [];
+}
+
+// -- Serper API (stub — wired for future implementation) ----------------------
+async function searchSerper(_apiKey, _queries, _onProgress) {
+  return [];
 }
 
 export function buildDecompositionPrompt(task) {

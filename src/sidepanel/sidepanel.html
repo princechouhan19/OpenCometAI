@@ -570,7 +570,7 @@
         </div>
 
         <!-- Serper (Google) -->
-        <div class="s-field s-field-last">
+        <div class="s-field">
           <label class="s-label">
             Serper API Key <span class="s-hint">(Google results)</span>
             <a class="s-key-link" href="https://serper.dev" target="_blank">Get free key →</a>
@@ -579,6 +579,19 @@
           <div class="api-status-row">
             <span class="api-dot" id="serperDot"></span>
             <span class="api-status-text" id="serperStatusText">Not configured</span>
+          </div>
+        </div>
+
+        <!-- Tavily -->
+        <div class="s-field s-field-last">
+          <label class="s-label">
+            Tavily API Key <span class="s-hint">(preferred provider)</span>
+            <a class="s-key-link" href="https://app.tavily.com" target="_blank">Get free key →</a>
+          </label>
+          <input type="password" class="s-input" id="tavilyKeyInput" placeholder="tvly-…" autocomplete="off"/>
+          <div class="api-status-row">
+            <span class="api-dot" id="tavilyDot"></span>
+            <span class="api-status-text" id="tavilyStatusText">Not configured</span>
           </div>
         </div>
       </div>
