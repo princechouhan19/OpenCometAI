@@ -1475,6 +1475,7 @@ async function loadSettings() {
     const lsInput       = $('langSearchKeyInput');
     const braveInput    = $('braveSearchKeyInput');
     const serperInput   = $('serperKeyInput');
+    const tavilyInput   = $('tavilyKeyInput');
     const drMaxSitesInput = $('deepResearchMaxSitesInput');
     const drMaxQueriesInput = $('deepResearchMaxQueriesInput');
     const drSearchEngineInput = $('deepResearchSearchEngineInput');
@@ -1508,6 +1509,7 @@ async function loadSettings() {
     if (settings.langSearchKey   && lsInput)        lsInput.value       = settings.langSearchKey;
     if (settings.braveSearchKey  && braveInput)     braveInput.value    = settings.braveSearchKey;
     if (settings.serperKey       && serperInput)    serperInput.value   = settings.serperKey;
+    if (settings.tavilyKey       && tavilyInput)    tavilyInput.value   = settings.tavilyKey;
     if (drMaxSitesInput) drMaxSitesInput.value = settings.deepResearchMaxSites || 6;
     if (drMaxQueriesInput) drMaxQueriesInput.value = settings.deepResearchMaxQueries || 4;
     if (drSearchEngineInput) drSearchEngineInput.value = settings.deepResearchSearchEngine || 'google';
@@ -1885,6 +1887,7 @@ async function saveSettings() {
       langSearchKey:   $('langSearchKeyInput')  ? $('langSearchKeyInput').value.trim()  : '',
       braveSearchKey:  $('braveSearchKeyInput') ? $('braveSearchKeyInput').value.trim() : '',
       serperKey:       $('serperKeyInput')       ? $('serperKeyInput').value.trim()       : '',
+      tavilyKey:       $('tavilyKeyInput')       ? $('tavilyKeyInput').value.trim()       : '',
       deepResearchMaxSites: $('deepResearchMaxSitesInput') ? (parseInt($('deepResearchMaxSitesInput').value, 10) || 6) : 6,
       deepResearchMaxQueries: $('deepResearchMaxQueriesInput') ? (parseInt($('deepResearchMaxQueriesInput').value, 10) || 4) : 4,
       deepResearchSearchEngine: $('deepResearchSearchEngineInput') ? $('deepResearchSearchEngineInput').value : 'google',
@@ -1974,6 +1977,12 @@ function updateDrStatus(s) {
   if (sDot && sText) {
     sDot.className  = 'api-dot' + (s.serperKey ? ' ok' : '');
     sText.textContent = s.serperKey ? 'Key configured ✓' : 'Not configured';
+  }
+  // Tavily
+  const tDot  = $('tavilyDot'); const tText  = $('tavilyStatusText');
+  if (tDot && tText) {
+    tDot.className  = 'api-dot' + (s.tavilyKey ? ' ok' : '');
+    tText.textContent = s.tavilyKey ? 'Key configured ✓' : 'Not configured';
   }
 }
 // Legacy alias kept for runDeepResearch check

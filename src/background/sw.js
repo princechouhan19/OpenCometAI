@@ -158,15 +158,16 @@ async function legacyHandleDeepResearchApiProviders(msg, respond) {
 
   // Build keys object for the multi-provider engine
   const searchKeys = {
+    tavilyKey:     settings.tavilyKey      || '',
     langSearchKey: settings.langSearchKey  || '',
     braveSearchKey: settings.braveSearchKey || '',
     serperKey:     settings.serperKey      || '',
   };
 
   // Warn if no paid key — will fall back to DuckDuckGo
-  const hasKey = searchKeys.langSearchKey || searchKeys.braveSearchKey || searchKeys.serperKey;
+  const hasKey = searchKeys.tavilyKey || searchKeys.langSearchKey || searchKeys.braveSearchKey || searchKeys.serperKey;
   if (!hasKey) {
-    onProgress('?? No search API key configured — using DuckDuckGo (limited results). Add LangSearch/Brave/Serper key in Settings for best results.');
+    onProgress('?? No search API key configured — using DuckDuckGo (limited results). Add Tavily/LangSearch/Brave/Serper key in Settings for best results.');
   }
 
   try {
