@@ -79,8 +79,19 @@ We welcome contributions from the community! Whether you're fixing a bug, adding
 
 Open Comet is open-source software licensed under the [**MIT License**](./LICENSE).
 
+## 📈 Star History
+
+<a href="https://star-history.com/#princechouhan19/OpenCometAI&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=princechouhan19/OpenCometAI&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=princechouhan19/OpenCometAI&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=princechouhan19/OpenCometAI&type=Date" />
+  </picture>
+</a>
+
 ---
 
 <p align="center">
   Built with ❤️ for the next generation of autonomous browsing.
 </p>
+
