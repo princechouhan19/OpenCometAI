@@ -1,25 +1,79 @@
-# Node.js
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
-dist/
-build/
-.npm
-npm-debug.log*
+.pnpm-store/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Secrets
+# ── Environment & Secrets ───────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
 *.pem
 *.key
-secrets/
+*.token
 
-# Extension specific
+# ── Production & Release Builds ──────────────────────────────────────────────
+dist/
+build/
+out/
+release/
+download/
 *.zip
 *.crx
+*.xpi
+
+# ── Logs & Debugging ─────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Testing & Playwright Artifacts ──────────────────────────────────────────
+coverage/
+.nyc_output/
+playwright-report/
+blob-report/
+test-results/
+.playwright/
+
+# ── Python (Dashboard & Analysis Scripts) ───────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+.venv/
+env/
+.env/
+
+# ── Operating System & Editor Files ─────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── IDEs & Tooling ──────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*~
+
+# ── Temporary & Scratch Files ───────────────────────────────────────────────
+tmp/
+temp/
+scratch/
+scratch_*.js
+scratch_*.mjs

@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Contacts — Example App</title>
+<style>* { box-sizing: border-box; margin: 0; } body { font: 14px/1.5 system-ui, sans-serif; color: #1a2233; background: #f6f7fb; } header { background: #16213e; color: #fff; padding: 14px 24px; font-size: 18px; font-weight: 600; } main { max-width: 900px; margin: 24px auto; padding: 0 16px; } .card { background: #fff; border: 1px solid #dfe4ef; border-radius: 10px; padding: 20px; margin-bottom: 18px; } label { display: block; margin: 10px 0 4px; font-weight: 600; font-size: 13px; } input { width: 100%; padding: 8px 10px; border: 1px solid #c3cbdd; border-radius: 6px; font: inherit; } button { background: #1d6ef5; border: 0; color: #fff; padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 12px; } .ok-msg { color: #0a7d43; font-weight: 600; display: none; margin-top: 10px; }</style></head>
+<body><header>Contacts — Example App</header><main>
+<div class="card"><h3>New contact</h3>
+  <label>Display name</label><input id="p-name">
+  <label>Email</label><input id="p-email" type="email">
+  <label>Phone</label><input id="p-phone" type="tel">
+  <button id="p-save">Save contact</button>
+  <div class="ok-msg" id="p-ok">Contact saved (synthetic) — added to “Friends”.</div>
+</div></main>
+<script>
+  document.getElementById('p-save').addEventListener('click', () => {
+    const e = document.getElementById('p-email').value, p = document.getElementById('p-phone').value;
+    if (e && p) { document.getElementById('p-ok').style.display = 'block'; document.title = 'Contact saved — Example App'; }
+  });
+</script></body></html>

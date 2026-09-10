@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<!-- ─────────────────────────────────────────────────────────────────────────
+  OpenCometBench/dashboard.html — OpenCometAI SIH v1.14 ADMIN PERFORMANCE MONITOR
+
+  A standalone page for SIH judging / admin inspection of the measured
+  benchmark evidence. It ships pre-loaded with the AUTHORITATIVE
+  real-hardware report (OpenCometBench/results/browser-benchmark-1788724999257.json,
+  embedded via dashboard-data.js) plus the latest UNIT / E2E / ADVERSARIAL /
+  SCENE-CHANGE results — and accepts ANY benchmark result JSON via the
+  Import button or drag-and-drop, routing it by its meta.type.
+
+  Rules this page enforces on itself:
+    • UNIT / BROWSER / E2E-MOCK / E2E-REAL / ADVERSARIAL numbers are displayed
+      in SEPARATE panels and never merged.
+    • Every panel names its artifact file and measurement timestamp.
+    • Tiers that have not been measured yet display NOT YET VERIFIED instead
+      of a number.
+    • Nothing on this page is asserted — every value comes from a result file.
+
+  Open directly (file://) or serve the repo root and open /OpenCometBench/dashboard.html.
+────────────────────────────────────────────────────────────────────────── -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenCometAI SIH — Admin Performance Monitor</title>
+<style>
+  :root {
+    --bg: #0B1220; --panel: #101828; --panel2: #131c33; --line: #263352;
+    --text: #dfe7f5; --dim: #9fb4d8; --accent: #7cd4ff; --blue: #1d6ef5;
+    --ok: #59d499; --warn: #ffb454; --bad: #ff6b6b; --chip: #1a2440;
+  }
+  * { box-sizing: border-box; }
+  body { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px 20px 60px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 20px; color: var(--accent); margin: 0 0 4px; }
+  h2 { font-size: 15px; color: var(--accent); margin: 0 0 10px; }
+  .sub { color: var(--dim); margin: 0 0 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 22px; }
+  .chip { background: var(--chip); border: 1px solid var(--line); color: var(--dim); padding: 3px 10px; border-radius: 20px; font-size: 11.5px; }
+  .chip.hot { color: #06263a; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .kpi .v { font-size: 24px; font-weight: 700; color: #fff; margin: 2px 0; }
+  .kpi .l { color: var(--dim); font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; }
+  .kpi .d { color: var(--dim); font-size: 11.5px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+  .panel .src { color: var(--dim); font-size: 11px; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 4px; }
+  td, th { border: 1px solid var(--line); padding: 5px 9px; text-align: left; font-size: 12.5px; }
+  th { background: var(--panel2); color: var(--dim); font-weight: 600; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); } .dim { color: var(--dim); }
+  .bar-row { display: grid; grid-template-columns: 130px 1fr 90px; gap: 10px; align-items: center; margin: 7px 0; }
+  .bar-track { background: var(--panel2); border-radius: 6px; height: 16px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--accent)); border-radius: 6px; min-width: 2px; }
+  .bar-fill.ocr { background: linear-gradient(90deg, #7a5cd6, #b39dff); }
+  .bar-fill.red { background: linear-gradient(90deg, #1d9e6f, #59d499); }
+  .bar-fill.other { background: #3a4a75; }
+  .note { background: #16203a; border-left: 3px solid var(--accent); padding: 10px 12px; border-radius: 0 8px 8px 0; color: var(--dim); margin: 10px 0; font-size: 12.5px; }
+  .note b, .note strong { color: var(--text); }
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; color: var(--dim); cursor: pointer; }
+  .drop.over { border-color: var(--accent); color: var(--accent); }
+  .btn { background: var(--blue); border: 0; color: #fff; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .btn.secondary { background: #2a3550; }
+  code { background: var(--panel2); padding: 1px 6px; border-radius: 5px; font-size: 12px; color: var(--accent); }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+  .verdict { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-top: 10px; background: var(--panel2); font-size: 12.5px; color: var(--dim); }
+  .verdict b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>OpenCometAI SIH — Admin Performance Monitor</h1>
+  <p class="sub">SIH PS 26171 · on-device visual perception for light-weight browser agents · v1.14.1.
+  Every value below is loaded from a measured result artifact; nothing is asserted. Benchmark tiers
+  (UNIT / BROWSER / E2E-MOCK / E2E-REAL / ADVERSARIAL) are shown separately and never merged.</p>
+  <div class="chips" id="provenance"></div>
+
+  <div class="panel">
+    <h2>Import benchmark reports</h2>
+    <div class="drop" id="drop">Drop any <code>OpenCometBench/results/*.json</code> report here — or
+      <label class="btn secondary" style="display:inline-block;margin-left:6px">Choose file(s)<input id="file" type="file" accept=".json,application/json" multiple style="display:none"></label>
+    </div>
+    <div class="note" id="importLog" style="display:none"></div>
+  </div>
+
+  <div class="grid" id="kpis"></div>
+
+  <div class="panel">
+    <h2>Sanitize pipeline — phase latency (REAL HARDWARE, WebGPU)</h2>
+    <div id="phases"></div>
+    <div class="note"><b>Reading:</b> object detection (YOLO person-only) dominates the sanitize
+    budget; redaction itself is ~1% of the total. This is why v1.14.1 targets <b>unchanged-screen
+    detector reuse</b> — not redaction — as the optimization surface.</div>
+    <div class="src" id="phasesSrc"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Optimization — unchanged-screen detector memo (v1.14.1)</h2>
+    <div id="memo"></div>
+    <div class="src" id="memoSrc"></div>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <h2>Visual perception (12-page real-browser benchmark)</h2>
+      <div id="visual"></div>
+      <div class="src" id="visualSrc"></div>
+    </div>
+    <div class="panel">
+      <h2>OCR — pixel-only PII (honest result)</h2>
+      <div id="ocr"></div>
+      <div class="src" id="ocrSrc"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Redaction matrix (DPR × zoom × scroll × dialog — 72 runs)</h2>
+    <div id="redaction"></div>
+    <div class="src" id="redactionSrc"></div>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <h2>E2E — MOCK decision brain (real extension loop)</h2>
+      <div id="e2eMock"></div>
+      <div class="src" id="e2eMockSrc"></div>
+    </div>
+    <div class="panel">
+      <h2>E2E — REAL model (local / remote VLM)</h2>
+      <div id="e2eReal"></div>
+      <div class="src">Runner: <code>node OpenCometBench/e2e/run-e2e-real.mjs --provider=ollama --model=&lt;vision-model&gt;</code> or <code>--provider=openai --model=… --api-key=…</code></div>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <h2>Adversarial privacy + prompt injection (wire-captured)</h2>
+      <div id="adv"></div>
+      <div class="src" id="advSrc"></div>
+    </div>
+    <div class="panel">
+      <h2>UNIT suites (Node)</h2>
+      <div id="unit"></div>
+      <div class="src" id="unitSrc"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>SIH Scorecard</h2>
+    <table id="scorecard">
+      <thead><tr><th>Metric</th><th class="num">Actual</th><th class="num">n</th><th>Type</th><th>Measured</th><th>Target</th><th>Status</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="verdict" id="verdict"></div>
+  </div>
+</div>
+<script src="./dashboard-data.js"></script>
+<script type="module" src="./dashboard.js"></script>
+</body>
+</html>

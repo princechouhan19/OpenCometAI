@@ -272,16 +272,24 @@
       const cleanText = (s.text || '').replace(/^[^\s]+\s/, '');
       updateStatus(cleanText, msg.stepCount || msg.allSteps?.length || 0);
 
+      // ── SIH: Show on-page redaction visualization ──
+      if (s.payload && s.payload.phase === 'sanitized' && s.payload.stats) {
+        showRedactionViz(s.payload.stats, s.payload.previewDataUrl);
+      }
+
       if (s.type === 'done' || s.type === 'stopped') {
         setTimeout(removeOverlay, 2800);
+        setTimeout(removeRedactionViz, 2800);
       }
       if (s.type === 'error') {
         setTimeout(removeOverlay, 3800);
+        setTimeout(removeRedactionViz, 3800);
       }
     }
 
     if (msg.type === 'AGENT_DONE' || msg.type === 'AGENT_STOPPED' || msg.type === 'AGENT_ERROR') {
       setTimeout(removeOverlay, 3000);
+      setTimeout(removeRedactionViz, 3000);
     }
 
     if (msg.type === 'AGENT_STARTED') {
@@ -291,8 +299,174 @@
 
     if (msg.type === 'CHAT_RESET') {
       removeOverlay();
+      removeRedactionViz();
     }
   });
 
+  // ── SIH: On-page redaction visualization overlay ─────────────────
+  // Shows a small floating card in the bottom-right corner that summarises
+  // what the local vision pipeline redacted on the most recent capture.
+  let redactionVizEl = null;
+
+  function showRedactionViz(stats, previewDataUrl) {
+    removeRedactionViz();
+    if (!stats) return;
+    const c = stats.counts || {};
+    const r = stats.redactionCounts || {};
+    const total = (c.faces || 0) + (c.domSensitive || 0) + (c.textPii || 0);
+
+    const el = document.createElement('div');
+    el.id = 'open-comet-redaction-viz';
+    el.style.cssText = [
+      'position:fixed',
+      'bottom:88px',
+      'right:24px',
+      'z-index:2147483646',
+      'background:rgba(28,25,23,0.92)',
+      'backdrop-filter:blur(20px)',
+      'color:#fff',
+      'font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif',
+      'font-size:11px',
+      'padding:12px 14px',
+      'border-radius:10px',
+      'box-shadow:0 8px 32px rgba(0,0,0,0.3)',
+      'border:0.5px solid rgba(255,255,255,0.12)',
+      'max-width:260px',
+      'animation:nc-pop-in 0.3s cubic-bezier(0.16,1,0.3,1)',
+    ].join(';');
+
+    const rows = Object.entries(r).map(([k, v]) =>
+      `<div style="display:flex;justify-content:space-between;padding:2px 0"><span style="color:rgba(255,255,255,0.6)">${k}</span><span style="font-weight:600">${v}</span></div>`
+    ).join('');
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#d9875a;box-shadow:0 0 8px #d9875a"></div>
+        <span style="font-weight:600;font-size:11px">Privacy pipeline</span>
+        <span style="color:rgba(255,255,255,0.5);margin-left:auto">${stats.totalMs||0}ms · ${stats.backend||''}</span>
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-bottom:6px">
+        Redacted ${total} sensitive region${total===1?'':'s'} before sending
+      </div>
+      ${rows || '<div style="color:rgba(255,255,255,0.5)">No sensitive regions detected</div>'}
+      ${previewDataUrl ? `<img src="${previewDataUrl}" style="width:100%;margin-top:8px;border-radius:4px;border:0.5px solid rgba(255,255,255,0.15);display:block">` : ''}
+    `;
+    document.body.appendChild(el);
+    redactionVizEl = el;
+
+    // Auto-remove after 8 seconds if not refreshed
+    setTimeout(() => { if (redactionVizEl === el) removeRedactionViz(); }, 8000);
+  }
+
+  function removeRedactionViz() {
+    if (redactionVizEl) {
+      redactionVizEl.remove();
+      redactionVizEl = null;
+    }
+  }
+
+})();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PAGE RAG — structured content parts + element registry + highlight.
+// Ported from the gemma4-browser-extension content layer:
+// (extractWebsiteParts.ts + elementRegistry.ts + highlightParagraph.ts)
+//   • h1-h6 start a numbered section, every heading/paragraph gets a stable
+//     "section-paragraph" id ("2-1") that ask_website returns to the agent.
+//   • The registry lets highlight_element scroll to + flash the exact node.
+// ══════════════════════════════════════════════════════════════════════════════
+(() => {
+  if (window.__openCometPageRag) return;   // guard against double injection
+  window.__openCometPageRag = true;
+
+  const registry = new Map();              // id → HTMLElement
+  let highlightEl = null;
+
+  function clearRegistry() {
+    registry.clear();
+    clearHighlight();
+  }
+
+  function clearHighlight() {
+    if (highlightEl) {
+      highlightEl.style.background = highlightEl.__ocPrevBg || '';
+      highlightEl.style.outline = '';
+      highlightEl.style.borderRadius = '';
+      highlightEl.style.transition = '';
+      highlightEl = null;
+    }
+  }
+
+  function extractParts() {
+    const root = document.body;
+    if (!root) return [];
+    const elements = Array.from(root.querySelectorAll('h1, h2, h3, h4, h5, h6, p'));
+    clearRegistry();
+
+    const result = [];
+    let sectionId = 0;
+    let partId = 0;
+
+    for (const element of elements) {
+      // Skip invisible nodes and our own overlay markup.
+      if (element.closest('#open-comet-overlay, .open-comet-hiding, #open-comet-redaction-viz')) continue;
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0 && !element.offsetParent) continue;
+
+      partId += 1;
+      if (/^h[1-6]$/i.test(element.tagName)) {
+        sectionId += 1;
+        partId = 0;
+      }
+
+      const id = `${sectionId}-${partId}`;
+      registry.set(id, element);
+
+      const content = (element.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!content) continue;
+      const sentences = content.split(/(?<=[.!?])\s+/).filter(s => s.length > 0);
+
+      result.push({
+        id,
+        tagName: element.tagName.toLowerCase(),
+        content,
+        sectionId,
+        paragraphId: partId,
+        sentences,
+      });
+    }
+    return result;
+  }
+
+  function highlightById(id) {
+    const el = registry.get(String(id || ''));
+    if (!el) return { ok: false, error: `unknown id "${id}" (page may have changed — re-run ask_website)` };
+
+    clearHighlight();
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    highlightEl = el;
+    el.__ocPrevBg = el.style.background || '';
+    el.style.transition = 'background .25s ease';
+    el.style.background = 'rgba(255, 213, 79, 0.35)';
+    el.style.outline = '2px solid rgba(255, 179, 0, 0.8)';
+    el.style.borderRadius = '3px';
+    setTimeout(clearHighlight, 6000);
+    return { ok: true, id };
+  }
+
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (!msg || typeof msg.type !== 'string') return;
+
+    if (msg.type === 'OC_EXTRACT_PAGE_PARTS') {
+      try { sendResponse({ ok: true, parts: extractParts(), url: location.href }); }
+      catch (e) { sendResponse({ ok: false, error: String(e?.message || e) }); }
+      return;
+    }
+
+    if (msg.type === 'OC_HIGHLIGHT_PART') {
+      sendResponse(highlightById(msg.id));
+      return;
+    }
+  });
 })();
 

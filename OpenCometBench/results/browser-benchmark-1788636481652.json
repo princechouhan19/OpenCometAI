@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-05T19:27:58.164Z",
+    "tiers": [
+      "ocr"
+    ],
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites."
+  },
+  "environment": {},
+  "visualContext": null,
+  "redactionMatrix": null,
+  "ocrVisualPii": {
+    "meta": {
+      "type": "browser",
+      "n": 0,
+      "note": "PII exists ONLY as pixels (canvas paint, SVG data-URL image, aria-free absolutely-positioned PDF-like block). The DOM text contains none of it. ocrLoadMs = vendored engine cold start (first use, local files)."
+    },
+    "ocrEngineLoadMs": 627,
+    "ocrOn": {
+      "ocr": true,
+      "score": {
+        "perGt": [],
+        "coverage": 0,
+        "meanIou": 0,
+        "overRedactionPct": 1.28,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 0,
+        "ocrPii": 4
+      },
+      "stats": {
+        "ocrFailed": false
+      }
+    },
+    "ocrOff": {
+      "ocr": false,
+      "score": {
+        "perGt": [],
+        "coverage": 0,
+        "meanIou": 0,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 0,
+        "ocrPii": 0
+      },
+      "stats": {
+        "ocrFailed": false
+      }
+    },
+    "failClosedVerified": true
+  },
+  "resources": null
+}

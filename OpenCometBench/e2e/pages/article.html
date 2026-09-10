@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Example Blog — Posts</title>
+<style>* { box-sizing: border-box; margin: 0; } body { font: 14px/1.5 system-ui, sans-serif; color: #1a2233; background: #f6f7fb; } header { background: #16213e; color: #fff; padding: 14px 24px; font-size: 18px; font-weight: 600; } main { max-width: 900px; margin: 24px auto; padding: 0 16px; } .card { background: #fff; border: 1px solid #dfe4ef; border-radius: 10px; padding: 20px; margin-bottom: 18px; } a { color: #1d6ef5; font-weight: 600; } .article-body { display: none; margin-top: 12px; }</style></head>
+<body><header>Example Blog — Posts</header><main>
+<div class="card"><h3>On-device AI: what actually ships</h3><p class="muted">Posted on March 2026 by the team · 8 minutes read</p>
+  <p style="margin-top:8px"><a href="#full-article" id="a-link">Read the full article</a></p>
+  <div class="article-body" id="a-body">
+    <p>The full article: running perception models inside the browser changed the cost model of privacy. Instead of shipping pixels to a server, the server receives structured, sanitized context. The tradeoff is latency on the client — which adaptive scheduling and model quantization manage.</p>
+  </div>
+</div></main>
+<script>
+  document.getElementById('a-link').addEventListener('click', () => {
+    document.getElementById('a-body').style.display = 'block';
+    document.title = 'On-device AI: what actually ships — Example Blog';
+  });
+</script></body></html>

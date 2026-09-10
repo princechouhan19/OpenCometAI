@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "type": "e2e-real",
+    "benchmark": "real-extension-real-vlm",
+    "vlm": "real:custom/moonshotai/kimi-k3",
+    "generatedAt": "2026-09-07T19:21:10.925Z",
+    "note": "REAL extension loop with a REAL model brain (BYO-provider direct path — the production configuration for bring-your-own-key users). vlmMs here measures TRUE model inference + transport for the sanitized payload. This report is NEVER merged with the mock-VLM e2e benchmark or with UNIT/BROWSER tiers. Runs on real user hardware only — never quoted from headless CI machines.",
+    "provider": {
+      "provider": "custom",
+      "model": "moonshotai/kimi-k3",
+      "endpoint": "https://integrate.api.nvidia.com/v1",
+      "local": false
+    },
+    "scenarios": [
+      {
+        "id": "find-and-open",
+        "task": "Open the Pricing page"
+      }
+    ]
+  },
+  "aggregate": {
+    "steps": 1,
+    "verifyStates": {
+      "ACTION_VERIFIED": 1,
+      "VERIFICATION_FAILED": 0,
+      "ACTION_EXECUTED": 0,
+      "ACTION_FAILED": 0,
+      "NO_VERIFY_LINE": 0
+    },
+    "verifiedActionRatio": 1,
+    "executionSuccessRatio": 1,
+    "taskSuccessRatio": 1,
+    "sanitizeMs": {
+      "p50": 39372,
+      "p90": 39372,
+      "p95": 39372
+    },
+    "vlmMs_real": {
+      "p50": 6294,
+      "p90": 6294,
+      "p95": 6294
+    },
+    "actionMs": {
+      "p50": 1580,
+      "p90": 1580,
+      "p95": 1580
+    },
+    "stepTotalMs": {
+      "p50": 47300,
+      "p90": 47300,
+      "p95": 47300
+    }
+  },
+  "scenarios": [
+    {
+      "id": "find-and-open",
+      "task": "Open the Pricing page",
+      "page": "/benchmarks/e2e/pages/nav-links.html",
+      "finished": true,
+      "blocked": false,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 47300,
+          "sanitizeMs": 39372,
+          "vlmMs": 6294,
+          "actionMs": 1580,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)"
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 47300,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    }
+  ]
+}

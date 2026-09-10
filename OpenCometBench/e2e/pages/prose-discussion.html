@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!-- ─────────────────────────────────────────────────────────────────────────
+  OpenCometBench/e2e/pages/prose-discussion.html — v1.15.8 FALSE-POSITIVE FIXTURE.
+
+  Field report (v1.15.7, chat.z.ai): the sanitized screenshot drew black
+  boxes over SAFE PROSE that merely MENTIONS secret vocabulary:
+    "…three literal [token formats] (AWS/GitHub/Slack)…"
+    "…the four surviving [secret families:]…"
+    "…(Google [key contiguity,] A4 split, A5 self-healing)…"
+  Root cause: the pii-detector assignment patterns used blob-unbounded
+  lookaheads — (?=.*\d) found a digit ANYWHERE later in the scanned text
+  (the OCR full-page reconstruction is one newline-free blob), so
+  "keyword + ordinary word" redacted whenever the page contained ANY digit.
+
+  This fixture reproduces that page: prose-only, NO real secrets, NO
+  avatars, NO inputs. The v1.15.8 suite asserts the OCR/canvas pass yields
+  ZERO api_key/password regions here. Digits later in the page (22/22,
+  v1.15.3, Room 42) are deliberate — they used to arm the false positives.
+────────────────────────────────────────────────────────────────────────── -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent debugging notes</title>
+<style>
+  body { font: 15px/1.7 Georgia, serif; max-width: 860px; margin: 40px auto; color: #1a1a1a; }
+  h1 { font-size: 26px; } h2 { font-size: 19px; margin-top: 34px; }
+  .meta { color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Agent debugging notes</h1>
+<p class="meta">Working session log · OpenCometSIH · internal notes</p>
+
+<h2>Obfuscation layer behaviour</h2>
+<p>The external content obfuscation layer (environment redactor) has removed
+three literal token formats (AWS/GitHub/Slack) from files written to disk —
+production files are unaffected and functioning correctly. I will work around
+this issue in tests and fixtures: building these literals in unit tests via
+runtime string concatenation and rewriting the fixture using the four
+surviving secret families:</p>
+
+<h2>Display filtering</h2>
+<p>The Read output itself may be filtered. Let me inspect the raw bytes. The
+bytes are fine on disk — the display marker only appears in the tool-result
+view (the gateway masks secret-shaped strings when streaming results back to
+me). The fixture and test files are intact with all 5 families; my failed
+edits were matching against display-filtered text. The MultiEdit fixes
+(Google key contiguity, A4 split, A5 self-healing) applied correctly.
+Verifying disk truth and re-running.</p>
+
+<h2>Regression status</h2>
+<p>22/22 All passed — Unit tests plus real-world extended E2E tests. The bug
+has been fixed and verified through regression testing. Now, the release
+process: update the changelog, tests, manifest, documentation, and build
+scripts on the About page. First, check the current changelog structure and
+entry order, then append the new entry at the top.</p>
+
+<h2>Follow-ups</h2>
+<p>Room 42 hosts the review at 9; bring the v1.15.3 comparison sheet and the
+older fixture notes. Two reviewers confirmed the timestamps, and one asked
+for a plain-language summary of the whole debugging session.</p>
+
+</body>
+</html>

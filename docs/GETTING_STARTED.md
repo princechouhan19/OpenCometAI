@@ -20,33 +20,22 @@ To run Open Comet, you will need:
 
 Since Open Comet is currently in developer preview, it must be installed as an **Unpacked Extension**:
 
-1.  **Get the Source**:
-    - **Download**: Get the [Open Comet v1.1.0 release](https://github.com/princechouhan19/OpenCometAI/releases/tag/v1.1.0) and unzip it.
-    - **Clone**: Alternatively, run `git clone https://github.com/princechouhan19/OpenCometAI.git`
+1.  **Download the Source**: Clone or download the repository to your local machine.
 2.  **Open Extensions Page**: In your browser, navigate to `chrome://extensions`.
 3.  **Enable Developer Mode**: Toggle the switch in the top-right corner.
-4.  **Load Unpacked**: Click the "Load unpacked" button and select the root directory (unzipped folder or cloned repo).
+4.  **Load Unpacked**: Click the "Load unpacked" button and select the `src` folder (or the root folder containing `manifest.json`) from the project directory.
 5.  **Pin Extension**: For the best experience, pin Open Comet to your toolbar.
-
----
-
-## Account & License Setup
-
-1.  **Create an Account**: Visit [opencomet.onrender.com/profile](https://opencomet.onrender.com/profile) to sign up.
-2.  **Generate License Key**: Once logged in, generate a **License Key** from your profile dashboard.
-3.  **Activate in Extension**: Open the Open Comet side panel, log in with your credentials, and paste your **License Key** to activate the agent.
 
 ---
 
 ## Your First Task
 
-1.  **Configure Settings**: Go to **Settings** in the side panel.
-2.  **Select Model**: Choose your preferred provider (OpenAI, Anthropic, etc.) and model.
-3.  **Enter API Key**: Paste your API key for the selected provider.
-4.  **Run a Task**: Go to any website and type a command:
+1.  **Open the Side Panel**: Click the Open Comet icon in your toolbar.
+2.  **Enter API Key**: Go to **Settings** and paste your API key for your preferred provider.
+3.  **Run a Task**: Go to any website (e.g., a news site) and type a command:
     -   *"Summarize this page into 3 bullet points."*
     -   *"Find the cheapest laptop on this page and tell me the price."*
-5.  **Observe**: Watch as the agent captures context and reasons through the steps.
+4.  **Observe**: Watch as the agent captures context, reasons through the steps, and interacts with the page in real-time.
 
 ---
 

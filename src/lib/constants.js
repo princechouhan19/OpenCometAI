@@ -10,7 +10,6 @@ export const STORAGE_KEYS = {
   LANGSEARCH: 'opencometLangSearch',
   EXPORTS:    'opencometExports',
   TOKEN_USAGE:'tokenUsage',
-  LICENSE:     'opencometLicense',
 };
 
 /** Default user settings */
@@ -18,6 +17,7 @@ export const DEFAULT_SETTINGS = {
   provider:            'openai',
   apiKey:              '',
   model:               '',
+  localModelId:        '',
   ollamaBaseUrl:       'http://127.0.0.1:11434',
   providerBaseUrl:     '',
   providerSupportsVision: false,
@@ -25,6 +25,10 @@ export const DEFAULT_SETTINGS = {
   ollamaVisionModel:   '',
   maxSteps:            25,
   screenshotDelay:     1200,
+  // v1.10 — GENERALIZED VLM speed controls (work with ANY provider):
+  vlmSpeedProfile:     'balanced', // fast | balanced | quality (see speed-profile.js)
+  vlmReasoningEffort:  'low',      // low | medium | high | '' (send nothing)
+  vlmMaxTokens:        0,          // decision-turn output cap; 0 = follow profile
   permissionMode:      'ask',
   sitePolicyByHost:    {},
   pageVisibilityByHost:{},
@@ -146,7 +150,7 @@ export const PROVIDER_DEFAULTS = {
   groq:      { model: 'llama-3.3-70b-versatile',   label: 'Groq' },
   mistral:   { model: 'mistral-small-2506',         label: 'Mistral' },
   deepseek:  { model: 'deepseek-chat',              label: 'DeepSeek' },
-  kimi:      { model: 'kimi-k2.5',                  label: 'Kimi' },
+  kimi:      { model: 'kimi-k3',                    label: 'Kimi' },
   glm:       { model: 'glm-4.7',                    label: 'GLM' },
   custom:    { model: '',                           label: 'OpenAI Compatible' },
   ollama:    { model: 'llama3.2:3b',                label: 'Ollama' },
@@ -160,7 +164,7 @@ export const PROVIDER_MODELS = {
   groq:      ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
   mistral:   ['mistral-small-2506', 'mistral-large-latest', 'pixtral-large-2411'],
   deepseek:  ['deepseek-chat', 'deepseek-reasoner'],
-  kimi:      ['kimi-k2.5', 'kimi-k2-thinking', 'kimi-k2-turbo-preview'],
+  kimi:      ['kimi-k3', 'kimi-k2.5', 'kimi-k2-thinking', 'kimi-k2-turbo-preview'],
   glm:       ['glm-4.7', 'glm-4.5-air', 'glm-4.5v'],
   custom:    [],
   ollama:    ['llama3.2:3b', 'qwen2.5vl:7b', 'gemma3:4b', 'llava:7b'],
@@ -204,5 +208,11 @@ export const MODEL_PRICING = {
   'mistral-small-2506': { prompt: 0.20, completion: 0.60 },
   'mistral-large-latest': { prompt: 2.00, completion: 6.00 },
   'pixtral-large-2411': { prompt: 2.00, completion: 6.00 },
+
+  // Kimi (Moonshot AI) — approximate market rates
+  'kimi-k3': { prompt: 0.60, completion: 2.50 },
+  'kimi-k2.5': { prompt: 0.60, completion: 2.50 },
+  'kimi-k2-thinking': { prompt: 0.60, completion: 2.50 },
+  'kimi-k2-turbo-preview': { prompt: 0.15, completion: 0.60 },
 };
 

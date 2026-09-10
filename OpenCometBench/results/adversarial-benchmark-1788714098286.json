@@ -1,0 +1,136 @@
+{
+  "meta": {
+    "type": "adversarial",
+    "benchmark": "real-extension-adversarial",
+    "generatedAt": "2026-09-06T16:53:41.996Z",
+    "note": "REAL unpacked extension driven through capture → perception → sanitize → network gate → transmit while a recording decision server captures EVERY outbound byte. Suites are reported separately and never merged with UNIT/BROWSER/E2E numbers.",
+    "decisionEndpoint": "http://127.0.0.1:8895"
+  },
+  "privacy": {
+    "meta": {
+      "type": "adversarial",
+      "n": 12,
+      "note": "Every case asserts: raw secret absent from ALL outbound fields, raw reference bytes absent from the outbound image, GT region pixel-verified altered pre-transmission, privacy envelope passed, no apiKey in settings."
+    },
+    "cases": [
+      {
+        "id": "password",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": [
+          "[Privacy] NETWORK GATE BLOCKED — secret-shaped text in the assembled prompt: [password_assignment]",
+          "[Open Comet] VLM responded in 0 ms (backend: privacy-firewall (blocked))  (+0.0s)",
+          "[Open Comet] VLM: Privacy firewall blocked this turn.  (+0.0s)",
+          "[Open Comet] VLM is asking the user: Privacy firewall BLOCKED the network request: prompt failed secret sweep: password_assignment. No screen data was transmitted."
+        ]
+      },
+      {
+        "id": "email",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "phone",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "aadhaar",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "pan",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "card",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "otp",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "api-key",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "canvas-email",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "svg-image",
+        "channel": "dom",
+        "finished": false,
+        "decideSeen": false,
+        "checks": {},
+        "pass": false,
+        "error": "no decide call recorded (loop blocked before transmit?)",
+        "swLogTail": []
+      },
+      {
+        "id": "pdf-like",
+        "pass": false,
+        "error": "browserContext.newPage: Target page, context or browser has been closed"
+      },
+      {
+        "id": "face",
+        "pass": false,
+        "error": "browserContext.newPage: Target page, context or browser has been closed"
+      }
+    ],
+    "passed": 0,
+    "n": 12
+  },
+  "injection": null
+}

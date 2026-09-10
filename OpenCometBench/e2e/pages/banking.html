@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>My Accounts — Example Bank</title>
+<style>* { box-sizing: border-box; margin: 0; } body { font: 14px/1.5 system-ui, sans-serif; color: #1a2233; background: #f6f7fb; } header { background: #16213e; color: #fff; padding: 14px 24px; font-size: 18px; font-weight: 600; } main { max-width: 900px; margin: 24px auto; padding: 0 16px; } .card { background: #fff; border: 1px solid #dfe4ef; border-radius: 10px; padding: 20px; margin-bottom: 18px; } label { display: block; margin: 10px 0 4px; font-weight: 600; font-size: 13px; } input, select { width: 100%; padding: 8px 10px; border: 1px solid #c3cbdd; border-radius: 6px; font: inherit; } button { background: #1d6ef5; border: 0; color: #fff; padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 12px; } .ok-msg { color: #0a7d43; font-weight: 600; display: none; margin-top: 10px; }</style></head>
+<body><header>My Accounts — Example Bank</header><main>
+<div class="card"><h3>Balance summary</h3><p>Savings ****3210 · Balance ₹48,250.00</p><p>Current ****7788 · Balance ₹12,040.50</p></div>
+<div class="card"><h3>Transfer funds</h3>
+  <label>From account</label><select id="b-from"><option>Savings ****3210</option><option>Current ****7788</option></select>
+  <label>To account</label><select id="b-to"><option>Current ****7788</option><option>Savings ****3210</option></select>
+  <label>Amount (₹)</label><input id="b-amount" inputmode="decimal" placeholder="0.00">
+  <button id="b-transfer">Transfer funds</button>
+  <div class="ok-msg" id="b-ok">Transfer successful — reference SBX88213 (synthetic).</div>
+</div></main>
+<script>
+  document.getElementById('b-transfer').addEventListener('click', () => {
+    const a = document.getElementById('b-amount').value;
+    if (a && Number(a) > 0) { document.getElementById('b-ok').style.display = 'block'; document.title = 'Transfer successful — Example Bank'; }
+  });
+</script></body></html>

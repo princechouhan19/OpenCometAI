@@ -1,9 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
-import { requestTrialLicense, requestPremiumLicense, validateLicenseKey } from '../lib/license-service.js';
-import { DEFAULT_APP_BACKEND_URL } from '../lib/app-backend.js';
-
 // sidepanel.js — Open Comet UI controller
 // ─────────────────────────────────────────────────────────────────────────────
+import { loadLibrarySkills, peekLibrarySkills } from '../lib/skill-library.js';
+import { createLogger, installGlobalErrorTraps } from '../core/logger.js';
+
+// ── Diagnostics: uncaught sidepanel errors never vanish ──────────────────────
+// They print here with a full stack AND relay to the SW console
+// ([Relay:sidepanel:Sidepanel]), so background DevTools sees them too.
+const logPanel = createLogger('Sidepanel');
+installGlobalErrorTraps(logPanel, 'sidepanel', 'DIAG_LOG_RELAY');
+
 
 const PROVIDER_MODELS = {
   openai:    ['gpt-4o', 'gpt-4o-mini', 'o1'],
@@ -12,16 +18,26 @@ const PROVIDER_MODELS = {
   groq:      ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
   mistral:   ['mistral-small-2506', 'mistral-large-latest', 'pixtral-large-2411'],
   deepseek:  ['deepseek-chat', 'deepseek-reasoner'],
-  kimi:      ['kimi-k2.5', 'kimi-k2-thinking', 'kimi-k2-turbo-preview'],
+  kimi:      ['kimi-k3', 'kimi-k2.5', 'kimi-k2-thinking', 'kimi-k2-turbo-preview'],
   glm:       ['glm-4.7', 'glm-4.5-air', 'glm-4.5v'],
   custom:    [],
   ollama:    ['llama3.2:3b', 'qwen2.5vl:7b', 'gemma3:4b', 'llava:7b'],
+  local:     [],
 };
 
 const PROVIDER_LABELS = {
   openai: 'GPT-4o', anthropic: 'Claude Sonnet',
   gemini: 'Gemini Flash', groq: 'LLaMA 3.3', mistral: 'Mistral Small',
-  deepseek: 'DeepSeek Chat', kimi: 'Kimi', glm: 'GLM', custom: 'OpenAI Compatible', ollama: 'Ollama',
+  deepseek: 'DeepSeek Chat', kimi: 'Kimi', glm: 'GLM', custom: 'OpenAI Compatible', ollama: 'Ollama', local: 'On-device',
+};
+
+const LOCAL_MODEL_NAMES = {
+  'gemma-4-e2b':      'Gemma 4 E2B',
+  'gemma-4-e4b':      'Gemma 4 E4B',
+  'granite-4.0-micro': 'Granite 4.0 Micro 3B',
+  'granite-4.0-1b':   'Granite 4.0 1B',
+  'lfm2-vl-450m':     'LFM2-VL 450M',
+  'all-minilm-l6-v2': 'MiniLM Embeddings',
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -36,6 +52,11 @@ let renderedStepIndexes = new Set();
 let restoredTaskSessionKey = '';
 let ollamaModelCatalog = { all: [], text: [], vision: [], recommended: [] };
 let currentSettingsPage = 'home';
+// Slash-menu state is declared up here (before any top-level code that can call
+// closeSlashMenu, e.g. showView) — otherwise a TDZ crash aborts the whole script.
+let slashMenuOpen = false;
+let slashSelectedIndex = 0;
+let filteredSlashSkills = [];
 
 // ── Sounds ────────────────────────────────────────────────────────────────────
 function playNotificationSound(type = 'complete') {
@@ -59,18 +80,14 @@ const runContextHint = $('runContextHint');
 const researchOptionsBar = $('researchOptionsBar');
 const scrapeOptionsBar = $('scrapeOptionsBar');
 const initialConvoMarkup = $('convoArea')?.innerHTML || '';
-const licenseKeyInput = $('licenseKeyInput');
-const licenseEmailInput = $('licenseEmailInput');
-const requestTrialBtn = $('requestTrialBtn');
-const requestPremiumBtn = $('requestPremiumBtn');
-const validateLicenseBtn = $('validateLicenseBtn');
-const licenseStatusBadge = $('licenseStatusBadge');
-const licenseStatusText = $('licenseStatusText');
 
 function isProviderConfigured(settings = {}) {
   const provider = String(settings.provider || '').toLowerCase();
   if (provider === 'ollama') {
     return Boolean(String(settings.ollamaBaseUrl || 'http://127.0.0.1:11434').trim());
+  }
+  if (provider === 'local') {
+    return Boolean(String(settings.localModelId || '').trim());
   }
   if (['deepseek', 'kimi', 'glm', 'nvidia', 'custom'].includes(provider)) {
     return Boolean(String(settings.apiKey || '').trim()) && Boolean(String(settings.providerBaseUrl || getProviderDefaultBaseUrl(provider)).trim());
@@ -113,26 +130,47 @@ function getDisplayedOllamaModel(settings = {}) {
   return textModel || visionModel || 'Ollama';
 }
 
+// Which provider-type tab does a provider belong to?
+// (Local tab is a merged hub: in-browser Transformers.js models → 'local',
+//  external Ollama server → 'ollama'; both render under the "device" tab.)
+function ptypeFromProvider(provider) {
+  if (provider === 'ollama' || provider === 'local') return 'device';
+  if (provider === 'custom') return 'custom';
+  return 'cloud';
+}
+
+// Single place that syncs the AI & Models tab strip + visible content pane.
+function setPtypeTab(type) {
+  document.querySelectorAll('.ptype-btn').forEach(t => t.classList.toggle('selected', t.dataset.type === type));
+  document.querySelectorAll('.provider-type-content').forEach(c => { c.style.display = 'none'; });
+  const el = $(type === 'cloud' ? 'typeContentCloud'
+    : (type === 'custom' ? 'typeContentCustom' : 'typeContentDevice'));
+  if (el) el.style.display = 'block';
+}
+
+// True while the user is deliberately browsing a tab that may not match the
+// saved provider (e.g. peeking at the Local hub while OpenAI is selected).
+// Set by .ptype-btn clicks; cleared by REAL provider changes (settings load,
+// provider-card click) so the tab follows the provider again.
+let ptypeTabLocked = false;
+
 function updateConnectionFields(provider) {
   const modelInput = $('modelInput');
   const ollamaSection = $('ollamaModelSection');
-  
-  // Decide which type content to show
-  let type = 'cloud';
-  if (provider === 'ollama') type = 'ollama';
-  else if (provider === 'custom') type = 'custom';
-  else if (['deepseek', 'kimi', 'glm'].includes(provider)) type = 'cloud'; // Default cloud for presets
 
-  document.querySelectorAll('.ptype-btn').forEach(tab => {
-    tab.classList.toggle('selected', tab.dataset.type === type);
-  });
-  
-  document.querySelectorAll('.provider-type-content').forEach(content => {
-    content.style.display = 'none';
-  });
-  
-  const contentEl = $(type === 'cloud' ? 'typeContentCloud' : (type === 'custom' ? 'typeContentCustom' : 'typeContentOllama'));
-  if (contentEl) contentEl.style.display = 'block';
+  // Decide which type content to show (Local tab merges in-browser + Ollama).
+  // Tab ownership: while ptypeTabLocked is set, the user's explicit tab choice
+  // wins — auto-syncing the pane from the provider here is what made the
+  // Local tab snap straight back to Cloud the instant it was clicked.
+  const mapped = ptypeFromProvider(provider);
+  const selectedTab = document.querySelector('.ptype-btn.selected')?.dataset.type || 'cloud';
+  const type = ptypeTabLocked ? selectedTab : mapped;
+  if (!ptypeTabLocked) setPtypeTab(type);
+
+  if (type === 'device') {
+    // Merged Local hub — restore the sub-pane that matches the provider.
+    setLocalSubPane(provider === 'ollama' ? 'ollama' : 'inbrowser');
+  }
 
   // Ollama specific visibility
   if (ollamaSection) {
@@ -144,10 +182,18 @@ function updateConnectionFields(provider) {
       ? 'Legacy fallback. Prefer the text/vision model selectors below.'
       : 'Leave blank to use default';
     
-    // Hide default model input if custom is selected (it has its own)
+    // Hide default model input if custom is selected (it has its own).
+    // On the Local hub tab, a cloud provider's model chips are meaningless
+    // noise — only show the Model section there for local/ollama providers
+    // (which render downloaded on-device / Ollama model chips).
+    // Only show it while the AI settings page is open — never from the
+    // settings home (this section lives on the "ai" sub-page).
     const modelSection = modelInput.closest('.s-section');
     if (modelSection) {
-      modelSection.style.display = (provider === 'custom') ? 'none' : 'block';
+      const hideModelSection = provider === 'custom'
+        || (type === 'device' && provider !== 'local' && provider !== 'ollama')
+        || currentSettingsPage !== 'ai';
+      modelSection.style.display = hideModelSection ? 'none' : 'block';
     }
   }
 
@@ -182,15 +228,8 @@ function showView(name) {
   const navEl = document.getElementById(navId);
   if (navEl) navEl.classList.add('active');
   
-  if (name === 'auth') {
-    if (bottomNav) bottomNav.style.display = 'none';
-  } else {
-    // Check if we should show bottom nav (only if logged in)
-    chrome.storage.local.get(['auth', 'opencometLicense'], (data) => {
-      const hasAuth = Boolean(data.auth?.token);
-      if (hasAuth && bottomNav) bottomNav.style.display = 'flex';
-    });
-  }
+  // Bottom nav is always visible — no auth gate in this build.
+  if (bottomNav) bottomNav.style.display = 'flex';
 
   closeModeDropdown();
   closeSlashMenu();
@@ -208,12 +247,13 @@ function openSettingsPage(page = 'home') {
   const labels = {
     home: 'Settings',
     ai: 'AI & Models',
+    privacy: 'Privacy & Vision',
     research: 'Research',
     storage: 'Storage & Exports',
     profile: 'Profile',
     skills: 'Skills',
     usage: 'Token & Cost Usage',
-    license: 'License & Activation',
+    about: 'About',
   };
 
   if (page === 'skills') {
@@ -229,8 +269,15 @@ function openSettingsPage(page = 'home') {
   if (footer) footer.style.display = settingsPagesWithSave.has(page) ? 'block' : 'none';
 
   document.querySelectorAll('.settings-subpage-section').forEach(section => {
-    section.style.display = page === 'home' ? 'none' : (section.dataset.settingsPage === page ? '' : 'none');
+    // Sections are display:none in CSS by default; show the active page explicitly.
+    section.style.display = page === 'home' ? 'none' : (section.dataset.settingsPage === page ? 'block' : 'none');
   });
+
+  // Re-apply provider-dependent visibility (e.g. the Model section is hidden
+  // for the "custom" provider) once the AI page sections are visible.
+  if (page === 'ai' && typeof updateConnectionFields === 'function') {
+    updateConnectionFields(currentProvider);
+  }
 }
 
 const navAgent    = $('navAgent');
@@ -299,13 +346,36 @@ document.querySelectorAll('.mode-option').forEach(opt => {
       const chk = o.querySelector('.mode-check');
       if (chk) chk.classList.toggle('visible', isThis);
     });
+    // v1.15.1: persist the choice — ask mode now genuinely changes behaviour
+    // (it gates every privacy-run action behind an approval card), so losing
+    // it on every panel reload made the feature feel dead.
+    try { localStorage.setItem('opencometAgentMode', currentMode); } catch {}
     closeModeDropdown();
   });
 });
 
-// Set initial state to 'auto'
+// Set initial state to 'auto' …
 if (modeIcon)  modeIcon.textContent  = '⚡';
 if (modeLabel) modeLabel.textContent = 'Act without asking';
+
+// v1.15.1: …then restore the persisted mode (default 'auto').
+try {
+  const savedMode = localStorage.getItem('opencometAgentMode');
+  if (savedMode === 'ask' || savedMode === 'auto') {
+    const savedOpt = document.querySelector(`.mode-option[data-mode="${savedMode}"]`);
+    if (savedOpt) {
+      currentMode = savedMode;
+      if (modeIcon)  modeIcon.textContent  = savedOpt.querySelector('.mode-opt-icon')?.textContent  || '';
+      if (modeLabel) modeLabel.textContent = savedOpt.querySelector('.mode-opt-label')?.textContent || '';
+      document.querySelectorAll('.mode-option').forEach(o => {
+        const isThis = o.dataset.mode === savedMode;
+        o.classList.toggle('selected', isThis);
+        const chk = o.querySelector('.mode-check');
+        if (chk) chk.classList.toggle('visible', isThis);
+      });
+    }
+  }
+} catch {}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MODEL SELECTOR DROPDOWN
@@ -336,19 +406,38 @@ async function toggleModelSelector() {
     ? (settings.ollamaTextModel || settings.model || '') 
     : (settings.model || models[0] || '');
 
-  dropdown.innerHTML = models.map(m => `
-    <div class="model-opt-item${m === currentModel ? ' selected' : ''}" data-model="${esc(m)}">
-      <span>${esc(m)}</span>
-      <svg class="opt-check" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="2,6 5,9 10,3"/>
-      </svg>
-    </div>
-  `).join('') || '<div class="model-opt-item">No models found</div>';
+  let itemsHtml = '';
+  if (provider === 'local') {
+    const downloaded = (localModelCatalog || []).filter(m => m.status === 'downloaded');
+    const activeId = selectedLocalModelId || settings.localModelId || '';
+    itemsHtml = downloaded.length
+      ? downloaded.map(m => `
+        <div class="model-opt-item${m.id === activeId ? ' selected' : ''}" data-model="${esc(m.id)}">
+          <span>${esc(LOCAL_MODEL_NAMES[m.id] || m.name)}${m.vision ? ' · 👁' : ''}</span>
+          <svg class="opt-check" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="2,6 5,9 10,3"/>
+          </svg>
+        </div>`).join('')
+      : '<div class="model-opt-item">No on-device models yet — download one in Settings → AI &amp; Models</div>';
+  } else {
+    itemsHtml = models.map(m => `
+      <div class="model-opt-item${m === currentModel ? ' selected' : ''}" data-model="${esc(m)}">
+        <span>${esc(m)}</span>
+        <svg class="opt-check" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="2,6 5,9 10,3"/>
+        </svg>
+      </div>
+    `).join('') || '<div class="model-opt-item">No models found</div>';
+  }
 
-  dropdown.querySelectorAll('.model-opt-item').forEach(item => {
+  dropdown.innerHTML = itemsHtml;
+
+  dropdown.querySelectorAll('.model-opt-item[data-model]').forEach(item => {
     item.addEventListener('click', () => {
       const selected = item.dataset.model;
-      if (selected) selectDropdownModel(provider, selected);
+      if (!selected) return;
+      if (provider === 'local') selectLocalModel(selected);
+      else selectDropdownModel(provider, selected);
     });
   });
 
@@ -393,7 +482,7 @@ function getComposerPlaceholder() {
     ? 'What topic would you like me to research deeply?'
     : inputTab === 'scrape'
       ? 'Describe what data you want to scrape from this page.'
-    : 'What are we doing today?';
+    : 'Ask anything — type / for skills';
 }
 
 function updateComposerState() {
@@ -430,6 +519,37 @@ function setInputTab(tab) {
 if (tabChat)         tabChat.addEventListener('click',          () => setInputTab('chat'));
 if (tabDeepResearch) tabDeepResearch.addEventListener('click',  () => setInputTab('deep_research'));
 if (tabScrape)       tabScrape.addEventListener('click',        () => setInputTab('scrape'));
+
+// ── Quick-start suggestion chips (empty state) ──
+// Event-delegated on document so handlers survive resetConversationUI()'s
+// innerHTML restore of the empty state markup.
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.suggest-chip');
+  if (!chip) return;
+
+  // 1. Switch composer tab (chat is the default; also re-applies placeholder)
+  setInputTab(chip.dataset.tab === 'deep_research' ? 'deep_research'
+            : chip.dataset.tab === 'scrape'        ? 'scrape'
+            : 'chat');
+
+  // 2. "Private run" chip — make sure Privacy Mode is engaged first
+  if (chip.dataset.privacy === 'on') {
+    const pt = $('privacyModeToggle');
+    if (pt && !pt.checked) {
+      pt.checked = true;
+      pt.dispatchEvent(new Event('change'));
+    }
+  }
+
+  // 3. Prefill the composer and put the caret at the end
+  if (taskInput && chip.dataset.suggest) {
+    taskInput.value = chip.dataset.suggest;
+    autoResizeTA();
+    taskInput.focus();
+    const end = taskInput.value.length;
+    try { taskInput.setSelectionRange(end, end); } catch {}
+  }
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SEND / STOP
@@ -649,9 +769,13 @@ chrome.runtime.onMessage.addListener(msg => {
     case 'AGENT_DONE':
       currentRunKind = null;
       setRunning(false);
-      renderResultCard(msg.answer || 'Task complete.');
+      // v1.15.6: privacy runs now carry the FINAL ANSWER (information/summary
+      // tasks) — render it instead of a bare "Task complete."
+      renderResultCard(msg.answer || msg.summary?.finalAnswer || msg.summary?.finalThought || 'Task complete.');
       renderHistory();
       playNotificationSound('complete');
+      // SIH Phase 26: feed the measured run latency profile to the Scorecard.
+      try { document.dispatchEvent(new CustomEvent('sih-run-finished', { detail: msg.summary || null })); } catch {}
       break;
 
     case 'AGENT_STOPPED':
@@ -660,6 +784,7 @@ chrome.runtime.onMessage.addListener(msg => {
       setRunning(false);
       renderHistory();
       if (msg.error) {
+        logPanel.error('agent task error:', msg.error);
         addStep('error', `❌ ${msg.error}`);
         playNotificationSound('error');
       }
@@ -773,18 +898,24 @@ function renderIncomingStep(step) {
   if (typeof s.index === 'number') renderedStepIndexes.add(s.index);
 
   const text = (s.text || '').replace(/^[\u{1F300}-\u{1FFFF}\u2600-\u27FF][\uFE0F]?\s*/u, '').trim();
+  // Per-step duration chip (dtMs computed SW-side between consecutive steps)
+  const meta = {
+    dtMs: Number.isFinite(s.dtMs) ? s.dtMs : null,
+    time: Number.isFinite(s.time) ? s.time : null,
+    totalMs: Number.isFinite(s.totalMs) ? s.totalMs : (Number.isFinite(s.payload?.totalMs) ? s.payload.totalMs : null),
+  };
 
-  if      (s.type === 'thinking')          addStep('thinking',   text);
-  else if (s.type === 'screenshot')        addScreenshotStep(s.imageDataUrl, text);
-  else if (s.type === 'api')               addStep('bullet',     text);
-  else if (s.type === 'action')            addStep('action',     text);
-  else if (s.type === 'plan_ready')        addStep('bullet',     text);
-  else if (s.type === 'executing')         addStep('spin',       text);
-  else if (s.type === 'done')              addStep('done',       text);
-  else if (s.type === 'error')             addStep('error',      text);
-  else if (s.type === 'stopped')           addStep('stopped',    text);
-  else if (s.type === 'checklist_update')  addStep('checklist',  text);
-  else                                     addStep('bullet',     text);
+  if      (s.type === 'thinking')          addStep('thinking',   text, meta);
+  else if (s.type === 'screenshot')        addScreenshotStep(s.imageDataUrl, text, meta);
+  else if (s.type === 'api')               addStep('bullet',     text, meta);
+  else if (s.type === 'action')            addStep('action',     text, meta);
+  else if (s.type === 'plan_ready')        addStep('bullet',     text, meta);
+  else if (s.type === 'executing')         addStep('spin',       text, meta);
+  else if (s.type === 'done')              addStep('done',       text, meta);
+  else if (s.type === 'error')             addStep('error',      text, meta);
+  else if (s.type === 'stopped')           addStep('stopped',    text, meta);
+  else if (s.type === 'checklist_update')  addStep('checklist',  text, meta);
+  else                                     addStep('bullet',     text, meta);
 }
 
 function syncUiFromAgentState(state) {
@@ -862,9 +993,69 @@ function appendAgentBlock() {
   return el;
 }
 
-function addStep(type, text) {
+// ── Per-step timing chips ────────────────────────────────────────────────────
+// Slow VLM turns (90s+ with image models) used to look like a hung panel.
+// Every step now shows HOW LONG it took; the in-flight step shows a live
+// ticking timer so the user sees the agent is working, not frozen.
+let _lastStepTime = null;
+let _liveTimer = null;   // { int, chipEl, start }
+
+function fmtStepDur(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  if (ms < 1000) return '<1s';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  return `${m}m ${String(s % 60).padStart(2, '0')}s`;
+}
+
+function stopLiveStepTimer() {
+  if (_liveTimer) {
+    clearInterval(_liveTimer.int);
+    // Freeze the chip: drop the live styling and stamp the FINAL duration so
+    // the step keeps an honest "how long did this take" badge.
+    if (_liveTimer.chipEl) {
+      const elapsed = Date.now() - _liveTimer.start;
+      _liveTimer.chipEl.classList.remove('live');
+      _liveTimer.chipEl.title = 'duration of this step';
+      _liveTimer.chipEl.textContent = fmtStepDur(Math.max(500, elapsed));
+    }
+    _liveTimer = null;
+  }
+}
+
+function startLiveStepTimer(chipEl) {
+  stopLiveStepTimer();
+  if (!chipEl) return;
+  const start = Date.now();
+  chipEl.textContent = '0s';
+  chipEl.classList.add('live');
+  _liveTimer = {
+    chipEl,
+    start,
+    int: setInterval(() => {
+      const t = Math.round((Date.now() - start) / 1000);
+      chipEl.textContent = t < 60 ? `${t}s` : `${Math.floor(t / 60)}m ${String(t % 60).padStart(2, '0')}s`;
+    }, 1000),
+  };
+}
+
+function stepTimeChipHtml(meta) {
+  // Explicit total (done/finished steps) wins, then the SW-computed delta,
+  // then a local delta fallback for steps missing dtMs.
+  let ms = null;
+  if (Number.isFinite(meta?.totalMs) && meta.totalMs > 0) ms = meta.totalMs;
+  else if (Number.isFinite(meta?.dtMs) && meta.dtMs > 0) ms = meta.dtMs;
+  else if (Number.isFinite(meta?.time) && _lastStepTime) ms = Math.max(0, meta.time - _lastStepTime);
+  if (Number.isFinite(meta?.time)) _lastStepTime = meta.time;
+  if (!ms) return '';
+  return `<span class="step-time" title="time since previous step">${esc(fmtStepDur(ms))}</span>`;
+}
+
+function addStep(type, text, meta = null) {
   if (!agentBlockEl) agentBlockEl = appendAgentBlock();
   if (!agentBlockEl) return;
+  stopLiveStepTimer();   // the previous in-flight step just completed
   const row = document.createElement('div');
   row.className = 'agent-step';
 
@@ -908,15 +1099,28 @@ function addStep(type, text) {
       iconHtml  = `<div class="step-icon" style="margin-left:2px"><div class="step-bullet"></div></div>`;
   }
 
-  row.innerHTML = `${iconHtml}<span class="${textClass}">${esc(text)}</span>`;
+  const chipHtml = stepTimeChipHtml(meta);
+  row.innerHTML = `${iconHtml}<span class="${textClass}">${esc(text)}</span>${chipHtml}`;
+
+  // In-flight steps (spin / thinking) get a LIVE ticking timer instead of a
+  // static duration — visible proof the agent is working during slow turns.
+  if (type === 'spin' || type === 'thinking') {
+    row.querySelector('.step-time')?.remove();
+    const liveChip = document.createElement('span');
+    liveChip.className = 'step-time';
+    row.appendChild(liveChip);
+    startLiveStepTimer(liveChip);
+  }
+
   agentBlockEl.appendChild(row);
   scrollConvo();
 }
 
 // ── Screenshot step with inline thumbnail ─────────────────────────────────────
-function addScreenshotStep(dataUrl, text) {
+function addScreenshotStep(dataUrl, text, meta = null) {
   if (!agentBlockEl) agentBlockEl = appendAgentBlock();
   if (!agentBlockEl) return;
+  stopLiveStepTimer();
 
   const row = document.createElement('div');
   row.className = 'agent-step screenshot-step';
@@ -933,7 +1137,8 @@ function addScreenshotStep(dataUrl, text) {
         <img class="screenshot-thumb" src="${dataUrl}" alt="Screenshot" title="Click to enlarge"/>
         <span class="screenshot-hint">Click to view</span>
       </div>` : ''}
-    </div>`;
+    </div>
+    ${stepTimeChipHtml(meta)}`;
 
   if (hasImage) {
     const thumb = row.querySelector('.screenshot-thumb');
@@ -1057,26 +1262,37 @@ function renderPlanCard(plan) {
 // ── Approval card ─────────────────────────────────────────────────────────────
 function renderApprovalCard(approval) {
   if (!approval || !agentBlockEl) return;
+  // v1.15.1 ASK-BEFORE-ACTING: kind-aware card. kind:'action' (privacy loop,
+  // ask mode) gets the three Claude-style verdicts; legacy host-access cards
+  // keep Allow once / Cancel.
+  const isAction = approval.kind === 'action';
   const card = document.createElement('div');
   card.className = 'approval-card';
   card.innerHTML = `
-    <div class="approval-title">⚠️ Approval needed</div>
+    <div class="approval-title">${isAction ? '🤔 Ask before acting' : '⚠️ Approval needed'}</div>
     <div class="approval-msg">${esc(approval.message || 'The agent needs permission to continue.')}</div>
     <div class="approval-btns">
       <button class="btn-allow" data-action="allow">Allow once</button>
-      <button class="btn-deny"  data-action="deny">Cancel</button>
+      ${isAction ? '<button class="btn-skip" data-action="skip">Skip</button>' : ''}
+      <button class="btn-deny"  data-action="${isAction ? 'stop' : 'deny'}">${isAction ? 'Stop task' : 'Cancel'}</button>
     </div>`;
   agentBlockEl.appendChild(card);
   scrollConvo();
 
-  card.querySelector('[data-action="allow"]').addEventListener('click', () => {
+  const resolve = (decision) => {
     card.remove();
-    chrome.runtime.sendMessage({ type: 'RESOLVE_APPROVAL', approvalId: approval.id, decision: 'approve_once' });
+    chrome.runtime.sendMessage({ type: 'RESOLVE_APPROVAL', approvalId: approval.id, decision });
+  };
+  card.querySelector('[data-action="allow"]').addEventListener('click', () => {
+    resolve('approve_once');
     agentBlockEl = appendAgentBlock();
   });
-  card.querySelector('[data-action="deny"]').addEventListener('click', () => {
-    card.remove();
-    chrome.runtime.sendMessage({ type: 'RESOLVE_APPROVAL', approvalId: approval.id, decision: 'cancel' });
+  card.querySelector('[data-action="skip"]')?.addEventListener('click', () => {
+    resolve('skip');
+    agentBlockEl = appendAgentBlock();
+  });
+  card.querySelector('[data-action="stop"], [data-action="deny"]').addEventListener('click', () => {
+    resolve(isAction ? 'stop' : 'cancel');
     setRunning(false);
   });
 }
@@ -1283,6 +1499,7 @@ function renderResultCard(answer) {
 function setRunning(on) {
   isRunning = on;
   if (stopBtn) stopBtn.classList.toggle('visible', on);
+  if (!on) stopLiveStepTimer();   // run finished/failed — freeze any live timer
 
   // When running: input area stays pinned at bottom (CSS handles layout),
   // convoArea grows to fill available space naturally.
@@ -1302,6 +1519,7 @@ if (providerGrid) {
     document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
     currentProvider = card.dataset.provider;
+    ptypeTabLocked = false;   // real provider change → the tab follows the provider again
     renderModelChips(currentProvider);
     updateConnectionFields(currentProvider);
     const mi = $('modelInput');
@@ -1309,29 +1527,9 @@ if (providerGrid) {
   });
 }
 
-// Handler for Provider Type Tabs
-document.querySelectorAll('.ptype-btn').forEach(tab => {
-  tab.addEventListener('click', () => {
-    const type = tab.dataset.type;
-    document.querySelectorAll('.ptype-btn').forEach(t => t.classList.remove('selected'));
-    tab.classList.add('selected');
-    
-    // Switch provider based on type
-    if (type === 'ollama') {
-      currentProvider = 'ollama';
-      refreshOllamaModels({ silent: true });
-    } else if (type === 'custom') {
-      currentProvider = 'custom';
-    } else {
-      // Default back to first cloud provider if none selected
-      const selectedCloud = document.querySelector('.provider-card.selected');
-      currentProvider = selectedCloud ? selectedCloud.dataset.provider : 'openai';
-    }
-    
-    renderModelChips(currentProvider);
-    updateConnectionFields(currentProvider);
-  });
-});
+// NOTE: Provider Type Tabs are wired once in the single handler further below
+// (search "Provider Type Switcher"). The earlier duplicate handler that lived here
+// mis-mapped the On-device tab to a cloud provider and broke the tab switching.
 
 function renderModelChips(provider) {
   const chips   = $('modelChips');
@@ -1339,6 +1537,21 @@ function renderModelChips(provider) {
   if (provider === 'ollama') {
     chips.innerHTML = '';
     renderOllamaModelSelectors();
+    return;
+  }
+  if (provider === 'local') {
+    const downloaded = (localModelCatalog || []).filter(m => m.status === 'downloaded');
+    const current = $('modelInput')?.value.trim() || '';
+    if (!downloaded.length) {
+      chips.innerHTML = '<div class="history-empty" style="padding:8px 0">No on-device models downloaded yet — pick one in the On-device section above.</div>';
+      return;
+    }
+    chips.innerHTML = downloaded.map(m =>
+      `<div class="model-chip${m.id === current ? ' active' : ''}" data-model="${m.id}">${esc(LOCAL_MODEL_NAMES[m.id] || m.name)}</div>`
+    ).join('');
+    chips.querySelectorAll('.model-chip').forEach(chip => {
+      chip.addEventListener('click', () => selectLocalModel(chip.dataset.model));
+    });
     return;
   }
   const current = $('modelInput')?.value.trim() || '';
@@ -1457,9 +1670,12 @@ async function loadSettings() {
     if (!settings) return;
     const p = settings.provider || 'openai';
     currentProvider = p;
+    selectedLocalModelId = settings.localModelId || '';
+    ptypeTabLocked = false;   // fresh settings load → tab follows the saved provider
     document.querySelectorAll('.provider-card').forEach(c => c.classList.toggle('selected', c.dataset.provider === p));
     renderModelChips(p);
     updateConnectionFields(p);
+    refreshLocalModelCatalog();
 
     const apiKeyInput   = $('apiKeyInput');
     const customApiKeyInput = $('customApiKeyInput');
@@ -1505,6 +1721,13 @@ async function loadSettings() {
     if (ollamaVisionModelInput) ollamaVisionModelInput.value = settings.ollamaVisionModel || settings.model || '';
     if (settings.maxSteps        && maxStepsInput)  maxStepsInput.value = settings.maxSteps;
     if (settings.screenshotDelay && delayInput)     delayInput.value    = settings.screenshotDelay;
+    // v1.10 — generalized VLM speed controls
+    const vlmSpeedProfileInput    = $('vlmSpeedProfileInput');
+    const vlmReasoningEffortInput = $('vlmReasoningEffortInput');
+    const vlmMaxTokensInput       = $('vlmMaxTokensInput');
+    if (vlmSpeedProfileInput)    vlmSpeedProfileInput.value    = settings.vlmSpeedProfile || 'balanced';
+    if (vlmReasoningEffortInput) vlmReasoningEffortInput.value = settings.vlmReasoningEffort !== undefined ? settings.vlmReasoningEffort : 'low';
+    if (vlmMaxTokensInput)       vlmMaxTokensInput.value       = settings.vlmMaxTokens || 0;
     if (settings.langSearchKey   && lsInput)        lsInput.value       = settings.langSearchKey;
     if (settings.braveSearchKey  && braveInput)     braveInput.value    = settings.braveSearchKey;
     if (settings.serperKey       && serperInput)    serperInput.value   = settings.serperKey;
@@ -1530,101 +1753,14 @@ async function loadSettings() {
     if ($('profileCompanyInput')) $('profileCompanyInput').value = profile.company || '';
     if ($('profileWebsiteInput')) $('profileWebsiteInput').value = profile.website || '';
     if ($('profileNotesInput')) $('profileNotesInput').value = profile.notes || '';
+    renderCustomInfoRows(Array.isArray(profile.customInfo) ? profile.customInfo : []);
 
     updateApiStatus(settings);
     updateDrStatus(settings);
-    updateModelPill(p, p === 'ollama' ? settings : settings.model);
+    updateModelPill(p, p === 'ollama' ? settings : (p === 'local' ? selectedLocalModelId : settings.model));
     renderModelChips(p);
     if (p === 'ollama') refreshOllamaModels({ silent: true });
   });
-}
-
-function setLicenseFeedback({ valid = false, message = '', badgeLabel } = {}) {
-  if (licenseStatusBadge) {
-    licenseStatusBadge.textContent = badgeLabel || (valid ? 'ACTIVE' : 'INACTIVE');
-    licenseStatusBadge.classList.toggle('ok', Boolean(valid));
-    licenseStatusBadge.classList.toggle('inactive', !Boolean(valid));
-  }
-  if (licenseStatusText) {
-    licenseStatusText.textContent = message || (valid ? 'License is active.' : (licenseKeyInput?.value?.trim() ? 'Validate the saved key to refresh status.' : 'Add a key to enable automation.'));
-  }
-}
-
-function updateLicenseFromRecord(record = {}) {
-  const status = record.status || {};
-  const valid = Boolean(status.valid);
-  const expiresAt = status.expiresAt ? new Date(status.expiresAt) : null;
-  const message = expiresAt
-    ? `Expires ${expiresAt.toLocaleString()}`
-    : record.key
-      ? 'Saved key. Validate to refresh status.'
-      : 'Enter a license key to activate the agent.';
-  setLicenseFeedback({ valid, message });
-}
-
-function loadStoredLicense() {
-  chrome.storage.local.get('opencometLicense', data => {
-    const record = data.opencometLicense || {};
-    if (licenseKeyInput && record.key) licenseKeyInput.value = record.key;
-    if (licenseEmailInput && record.email) licenseEmailInput.value = record.email;
-    updateLicenseFromRecord(record);
-  });
-}
-
-async function handleValidateLicense() {
-  if (!licenseKeyInput) return;
-  const key = licenseKeyInput.value.trim();
-  if (!key) {
-    setLicenseFeedback({ valid: false, message: 'Paste a license key above and click validate.' });
-    return;
-  }
-  setLicenseFeedback({ valid: false, message: 'Validating license…' });
-  const result = await validateLicenseKey(key);
-  if (!result.ok) {
-    setLicenseFeedback({ valid: false, message: result.error || 'Validation failed.' });
-    return;
-  }
-  const record = {
-    key,
-    status: result.license || {},
-    email: licenseEmailInput?.value?.trim() || '',
-    lastCheckedAt: Date.now(),
-  };
-  chrome.storage.local.set({ opencometLicense: record });
-  const expiresAt = record.status.expiresAt ? new Date(record.status.expiresAt) : null;
-  const message = expiresAt ? `Expires ${expiresAt.toLocaleString()}` : 'License verified.';
-  setLicenseFeedback({ valid: Boolean(result.valid), message });
-}
-
-async function handleLicenseRequest(action, button, badgeLabel) {
-  if (!licenseEmailInput) return;
-  const email = licenseEmailInput.value.trim();
-  if (!email) {
-    setLicenseFeedback({ valid: false, message: 'Enter an email to request a key.' });
-    return;
-  }
-  button && (button.disabled = true);
-  setLicenseFeedback({ valid: false, message: 'Requesting key…' });
-  const response = await action(email);
-  button && (button.disabled = false);
-  if (!response.ok) {
-    setLicenseFeedback({ valid: false, message: response.error || 'Request failed.' });
-    return;
-  }
-  const data = response.data || {};
-  const key = data.key || '';
-  const license = data.license || {};
-  if (licenseKeyInput && key) licenseKeyInput.value = key;
-  const record = {
-    key,
-    status: license,
-    email,
-    lastCheckedAt: Date.now(),
-  };
-  chrome.storage.local.set({ opencometLicense: record });
-  const expiresAt = license.expiresAt ? new Date(license.expiresAt) : null;
-  const message = expiresAt ? `${badgeLabel} expires ${expiresAt.toLocaleString()}` : `${badgeLabel} issued.`;
-  setLicenseFeedback({ valid: true, message });
 }
 
 const saveSettingsBtn = $('saveSettingsBtn');
@@ -1658,186 +1794,46 @@ $('ollamaVisionModelInput')?.addEventListener('input', () => {
   }
 });
 // ══════════════════════════════════════════════════════════════════════════════
-// AUTH & PROFILE SYNC (New in v1.2)
+// SETTINGS (Profile is stored locally only — no cloud account in this build)
 // ══════════════════════════════════════════════════════════════════════════════
-const API_BASE = `${DEFAULT_APP_BACKEND_URL.replace(/\/+$/, '')}/api`;
 
-async function authFetch(path, options = {}) {
-  const { auth = {} } = await chrome.storage.local.get('auth');
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
-  if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
-  
-  const resp = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || `Request failed with status ${resp.status}`);
-  }
-  return resp.json();
+// ── v1.15.6 Custom info (Settings → Profile): user-defined label/value rows
+// the agent may use for form filling and answering questions about the user.
+function buildCustomInfoRow(key = '', value = '') {
+  const row = document.createElement('div');
+  row.className = 'ci-row';
+  row.innerHTML = `
+    <input type="text" class="s-input ci-key" placeholder="Label (e.g. Age)"/>
+    <input type="text" class="s-input ci-value" placeholder="Value"/>
+    <button type="button" class="ci-remove" title="Remove this field">×</button>`;
+  row.querySelector('.ci-key').value = key;
+  row.querySelector('.ci-value').value = value;
+  row.querySelector('.ci-remove').addEventListener('click', () => row.remove());
+  return row;
 }
 
-function updateAuthUi(user = null) {
-  const brief = $('profileUserBrief');
-  const status = $('profileAuthStatus');
-  if (!brief || !status) return;
-
-  if (user) {
-    brief.style.display = 'block';
-    status.style.display = 'none';
-    if ($('profileUserDisplayName')) $('profileUserDisplayName').textContent = user.fullName || user.name || 'User';
-    if ($('profileUserEmail')) $('profileUserEmail').textContent = user.email || '';
-    if ($('authDot')) $('authDot').className = 'api-dot ok';
-  } else {
-    brief.style.display = 'none';
-    status.style.display = 'block';
-    if ($('authDot')) $('authDot').className = 'api-dot';
-  }
+function renderCustomInfoRows(entries = []) {
+  const list = $('customInfoList');
+  if (!list) return;
+  list.innerHTML = '';
+  (entries || []).forEach(e => list.appendChild(buildCustomInfoRow(String(e?.key || ''), String(e?.value ?? ''))));
 }
 
-async function loadCloudProfile() {
-  try {
-    const { auth = {} } = await chrome.storage.local.get('auth');
-    if (!auth.token) {
-      updateAuthUi(null);
-      return null;
-    }
-
-    const data = await authFetch('/auth/me');
-    if (data.user) {
-      updateAuthUi(data.user);
-      return data.user;
-    }
-  } catch (err) {
-    console.warn('[Auth] Not signed in or session expired');
-    updateAuthUi(null);
-  }
-  return null;
+function collectCustomInfoRows() {
+  return [...document.querySelectorAll('#customInfoList .ci-row')]
+    .map(row => ({
+      key: row.querySelector('.ci-key')?.value.trim() || '',
+      value: row.querySelector('.ci-value')?.value.trim() || '',
+    }))
+    .filter(e => e.key && e.value);
 }
 
-async function ensureOnboarding() {
-  const { auth = {}, opencometLicense = {} } = await chrome.storage.local.get(['auth', 'opencometLicense']);
-  const bottomNav = $('bottomNav');
-
-  if (!auth.token) {
-    showView('auth');
-    if (bottomNav) bottomNav.style.display = 'none';
-    return;
-  }
-
-  // Logged in!
-  if (bottomNav) bottomNav.style.display = 'flex';
-
-  const licenseValid = Boolean(opencometLicense.status?.valid);
-  if (!licenseValid) {
-    showView('settings');
-    openSettingsPage('license');
-    return;
-  }
-
-  // All good
-  showView('agent');
+if ($('addCustomInfoBtn')) {
+  $('addCustomInfoBtn').addEventListener('click', () => {
+    $('customInfoList')?.appendChild(buildCustomInfoRow());
+    $('customInfoList')?.lastElementChild?.querySelector('.ci-key')?.focus();
+  });
 }
-
-async function handleLogin() {
-  const email = $('authEmail')?.value.trim();
-  const password = $('authPassword')?.value;
-  const note = $('authStatusNote');
-  if (!email || !password) return;
-  
-  if (note) { note.style.display = 'block'; note.className = ''; note.textContent = 'Signing in...'; }
-  
-  try {
-    const data = await authFetch('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    await chrome.storage.local.set({ auth: { token: data.token, user: data.user } });
-    if (note) { note.className = 'ok'; note.textContent = 'Signed in successfully!'; }
-    updateAuthUi(data.user);
-    
-    // Check next onboarding step
-    setTimeout(() => {
-        if (note) note.style.display = 'none';
-        ensureOnboarding();
-    }, 1000);
-
-    // Populate fields from sync
-    syncFieldsFromUser(data.user);
-  } catch (err) {
-    if (note) { note.className = 'error'; note.textContent = err.message; }
-  }
-}
-
-async function handleRegister() {
-  const name = $('regName')?.value.trim();
-  const email = $('regEmail')?.value.trim();
-  const password = $('regPassword')?.value;
-  const note = $('authStatusNote');
-  
-  if (!name || !email || !password) return;
-  if (note) { note.style.display = 'block'; note.className = ''; note.textContent = 'Creating account...'; }
-  
-  try {
-    const data = await authFetch('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ name, email, password }),
-    });
-    await chrome.storage.local.set({ auth: { token: data.token, user: data.user } });
-    if (note) { note.className = 'ok'; note.textContent = 'Account created!'; }
-    updateAuthUi(data.user);
-    
-    setTimeout(() => {
-        if (note) note.style.display = 'none';
-        ensureOnboarding();
-    }, 1000);
-  } catch (err) {
-    if (note) { note.className = 'error'; note.textContent = err.message; }
-  }
-}
-
-function syncFieldsFromUser(user) {
-  if (!user) return;
-  if ($('profileFullNameInput')) $('profileFullNameInput').value = user.fullName || user.name || '';
-  if ($('profileEmailInput')) $('profileEmailInput').value = user.email || '';
-  if ($('profilePhoneInput')) $('profilePhoneInput').value = user.phone || '';
-  if ($('profileAddressInput')) $('profileAddressInput').value = user.address || '';
-  if ($('profileCompanyInput')) $('profileCompanyInput').value = user.company || '';
-  if ($('profileWebsiteInput')) $('profileWebsiteInput').value = user.website || '';
-  if ($('profileNotesInput')) $('profileNotesInput').value = user.notes || '';
-}
-
-// Wire up auth UI
-$('btnOpenAuth')?.addEventListener('click', () => {
-    $('loginForm') && ($('loginForm').style.display = 'block');
-    $('registerForm') && ($('registerForm').style.display = 'none');
-    $('view-auth')?.classList.add('active'); // Still works as a modal if called from settings
-});
-// (Auth back btn removed as it's now onboarding view)
-
-$('linkToRegister')?.addEventListener('click', () => {
-  $('loginForm') && ($('loginForm').style.display = 'none');
-  $('registerForm') && ($('registerForm').style.display = 'block');
-});
-$('linkToLogin')?.addEventListener('click', () => {
-  $('loginForm') && ($('loginForm').style.display = 'block');
-  $('registerForm') && ($('registerForm').style.display = 'none');
-});
-$('btnLoginSubmit')?.addEventListener('click', handleLogin);
-$('btnRegisterSubmit')?.addEventListener('click', handleRegister);
-$('btnLogout')?.addEventListener('click', async () => {
-  await chrome.storage.local.remove('auth');
-  updateAuthUi(null);
-  ensureOnboarding();
-});
-$('btnSyncProfile')?.addEventListener('click', async () => {
-  const btn = $('btnSyncProfile');
-  if (btn) btn.textContent = 'Syncing...';
-  const user = await loadCloudProfile();
-  syncFieldsFromUser(user);
-  if (btn) { btn.textContent = 'Synced ✓'; setTimeout(() => btn.textContent = 'Sync from Cloud', 2000); }
-});
 
 async function saveSettings() {
     const apiKeyInput   = $('apiKeyInput');
@@ -1858,6 +1854,7 @@ async function saveSettings() {
       company: $('profileCompanyInput') ? $('profileCompanyInput').value.trim() : '',
       website: $('profileWebsiteInput') ? $('profileWebsiteInput').value.trim() : '',
       notes: $('profileNotesInput') ? $('profileNotesInput').value.trim() : '',
+      customInfo: collectCustomInfoRows(),
     };
 
     const settings = {
@@ -1882,6 +1879,9 @@ async function saveSettings() {
       ollamaVisionModel: currentProvider === 'ollama' ? ($('ollamaVisionModelInput')?.value.trim() || '') : '',
       maxSteps:        maxStepsInput ? (parseInt(maxStepsInput.value) || 20) : 20,
       screenshotDelay: delayInput    ? (parseInt(delayInput.value)    || 1200): 1200,
+      vlmSpeedProfile:    $('vlmSpeedProfileInput') ? $('vlmSpeedProfileInput').value : 'balanced',
+      vlmReasoningEffort: $('vlmReasoningEffortInput') ? $('vlmReasoningEffortInput').value : 'low',
+      vlmMaxTokens:       $('vlmMaxTokensInput') ? (parseInt($('vlmMaxTokensInput').value, 10) || 0) : 0,
       langSearchKey:   $('langSearchKeyInput')  ? $('langSearchKeyInput').value.trim()  : '',
       braveSearchKey:  $('braveSearchKeyInput') ? $('braveSearchKeyInput').value.trim() : '',
       serperKey:       $('serperKeyInput')       ? $('serperKeyInput').value.trim()       : '',
@@ -1898,6 +1898,7 @@ async function saveSettings() {
       exportDiskLabel: $('exportDiskLabelInput') ? $('exportDiskLabelInput').value.trim() : 'Default Downloads',
       exportPrompt: $('exportPromptInput') ? $('exportPromptInput').checked : false,
       autoExportScrapes: $('autoExportScrapesInput') ? $('autoExportScrapesInput').checked : false,
+      localModelId: selectedLocalModelId,
       profileData,
     };
 
@@ -1911,29 +1912,11 @@ async function saveSettings() {
         btn.textContent = 'Saved ✓';
         setTimeout(() => { btn.textContent = 'Save settings'; }, 1800);
       }
-      
-      // If signed in, also sync profile data to cloud
-      chrome.storage.local.get('auth', async ({ auth }) => {
-        if (auth?.token) {
-          try {
-            await authFetch('/auth/profile', {
-              method: 'PATCH',
-              body: JSON.stringify(profileData),
-            });
-          } catch (e) {
-            console.error('[Sync] Profile upload failed:', e);
-          }
-        }
-      });
     });
 }
 if (saveSettingsBtn) {
   saveSettingsBtn.addEventListener('click', saveSettings);
 }
-
-// Initial load
-ensureOnboarding();
-loadCloudProfile();
 
 function updateApiStatus(s) {
   const dot  = $('apiDot');
@@ -1944,16 +1927,20 @@ function updateApiStatus(s) {
   if (!configured) {
     text.textContent = String(s.provider || 'provider') === 'ollama'
       ? 'Set Ollama base URL to connect'
-      : ['deepseek', 'kimi', 'glm', 'custom'].includes(String(s.provider || '').toLowerCase())
-        ? 'Set API key and provider base URL'
-      : 'Not configured';
+      : String(s.provider || '').toLowerCase() === 'local'
+        ? 'Download an on-device model first'
+        : ['deepseek', 'kimi', 'glm', 'custom'].includes(String(s.provider || '').toLowerCase())
+          ? 'Set API key and provider base URL'
+          : 'Not configured';
     return;
   }
   text.textContent = String(s.provider || '').toLowerCase() === 'ollama'
     ? `ollama · ${s.ollamaBaseUrl || 'http://127.0.0.1:11434'}`
-    : ['deepseek', 'kimi', 'glm', 'custom'].includes(String(s.provider || '').toLowerCase())
-      ? `${s.provider} · ${s.providerBaseUrl || getProviderDefaultBaseUrl(s.provider)}`
-    : `${s.provider} · key configured ✓`;
+    : String(s.provider || '').toLowerCase() === 'local'
+      ? `on-device · ${LOCAL_MODEL_NAMES[s.localModelId] || s.localModelId || 'model'} ✓`
+      : ['deepseek', 'kimi', 'glm', 'custom'].includes(String(s.provider || '').toLowerCase())
+        ? `${s.provider} · ${s.providerBaseUrl || getProviderDefaultBaseUrl(s.provider)}`
+        : `${s.provider} · key configured ✓`;
 }
 
 function updateDrStatus(s) {
@@ -1982,6 +1969,10 @@ const updateLsStatus = updateDrStatus;
 function getDisplayedModel(provider, model) {
   if (provider === 'ollama' && typeof model === 'object' && model) {
     return getDisplayedOllamaModel(model);
+  }
+  if (provider === 'local') {
+    const id = typeof model === 'string' && model ? model : selectedLocalModelId;
+    return LOCAL_MODEL_NAMES[id] || id || 'On-device';
   }
   return model || PROVIDER_MODELS[provider]?.[0] || provider || 'GPT-4o';
 }
@@ -2063,6 +2054,14 @@ function fmtTime(ts) {
 
 function autoResizeTA() {
   if (!taskInput) return;
+  // Empty input: pin the resting height (2 rows = 60px) instead of measuring.
+  // Guarantees the composer is pixel-identical on extension open, after send
+  // and after New chat — immune to font-loading / sidepanel open-animation
+  // measurement quirks that could inflate scrollHeight at startup.
+  if (!taskInput.value) {
+    taskInput.style.height = '60px';
+    return;
+  }
   taskInput.style.height = 'auto';
   taskInput.style.height = Math.min(taskInput.scrollHeight, 130) + 'px';
 }
@@ -2076,10 +2075,9 @@ if (taskInput) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SLASH COMMANDS
+// (slashMenuOpen / slashSelectedIndex / filteredSlashSkills are declared in the
+//  top state block so early calls to closeSlashMenu() can never hit the TDZ.)
 // ══════════════════════════════════════════════════════════════════════════════
-let slashMenuOpen = false;
-let slashSelectedIndex = 0;
-let filteredSlashSkills = [];
 
 function handleSlashCommand() {
   const val = taskInput.value;
@@ -2189,7 +2187,8 @@ function updateSlashSelection() {
 // Full CRUD: list, create, edit, delete, activate/deactivate per session
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ── Built-in skills (always available, not stored in chrome.storage) ──────────
+// ── Built-in skills (offline fallback — the folder library in /skills is the
+//    primary source; these are used only if SKILL.md files fail to load) ──────
 const BUILT_IN_SKILLS = [
   {
     id: 'builtin_summarise', name: 'Summarise Page', icon: '📄', category: 'Research', builtIn: true,
@@ -2246,6 +2245,7 @@ function skillToMeta(skill) {
     icon: skill.icon || '⚙️',
     category: skill.category || 'Custom',
     builtIn: Boolean(skill.builtIn),
+    source: skill.source || (skill.builtIn ? 'builtin' : 'user'),
     description: skill.description || '',
     promptPreview: String(skill.prompt || '').substring(0, 280),
     allowedHosts: skill.allowedHosts || [],
@@ -2278,9 +2278,21 @@ window.showView = function(name) {
 };
 
 // ── Load and render skills ────────────────────────────────────────────────────
+let librarySkills = [];
+
 async function loadSkills() {
+  // Primary: the versioned SKILL.md library bundled with the extension.
+  librarySkills = await loadLibrarySkills().catch(() => []);
+  const builtinMeta = librarySkills.length
+    ? librarySkills.map(skillToMeta)
+    : BUILT_IN_SKILL_META; // offline fallback if /skills files failed to load
   const userSkills = await getStoredSkillMeta();
-  allSkillsCache   = [...BUILT_IN_SKILL_META, ...userSkills];
+  const seen = new Set();
+  allSkillsCache = [...builtinMeta, ...userSkills].filter(s => {
+    if (!s?.id || seen.has(s.id)) return false;
+    seen.add(s.id);
+    return true;
+  });
   renderSkillsList(allSkillsCache);
   updateActiveSkillsBar();
 }
@@ -2313,6 +2325,9 @@ async function getStoredSkillById(id) {
 }
 
 async function materializeSkillById(id) {
+  const lib = librarySkills.length ? librarySkills : peekLibrarySkills();
+  const fromLib = lib.find(s => s.id === id);
+  if (fromLib) return fromLib;
   if (BUILT_IN_SKILL_MAP.has(id)) return BUILT_IN_SKILL_MAP.get(id);
   return await getStoredSkillById(id);
 }
@@ -2436,7 +2451,7 @@ function renderSkillCard(skill) {
           <div class="skill-name">${esc(skill.name)}</div>
           <div class="skill-sub">${esc(skill.description || skill.category || '')}</div>
         </div>
-        ${isBuiltIn ? '<span class="skill-builtin-badge">Built-in</span>' : ''}
+        ${skill.source === 'library' ? '<span class="skill-builtin-badge">Library</span>' : isBuiltIn ? '<span class="skill-builtin-badge">Built-in</span>' : ''}
         <button class="skill-toggle${isActive ? ' on' : ''}" title="${isActive ? 'Deactivate' : 'Activate'}"></button>
       </div>
       <div class="skill-card-body">
@@ -2469,21 +2484,44 @@ function toggleSkillActive(id, cardEl = null) {
   updateActiveSkillsBar();
 }
 
-// ── Active skills bar (shown in skills view) ──────────────────────────────────
+// ── Active skills bar (shown in the Agent composer) ────────────────────────────
+// Bounded by design: collapsed state shows at most ASB_COLLAPSED_LIMIT chips
+// (≈2 rows) plus a "+N more" expander; expanded state caps the chip area at
+// 118px and scrolls, so an "all skills active" session can never stretch the
+// composer or push the conversation area away.
+const ASB_COLLAPSED_LIMIT = 6;
+let asbExpanded = false;
+
 function updateActiveSkillsBar() {
   const bar   = $('activeSkillsBar');
   const chips = $('asbChips');
+  const count = $('asbCount');
   if (!bar || !chips) return;
 
   const active = allSkillsCache.filter(s => activeSkillIds.has(s.id));
-  if (!active.length) { bar.style.display = 'none'; return; }
+  if (!active.length) {
+    bar.style.display = 'none';
+    bar.classList.remove('expanded');
+    asbExpanded = false;
+    return;
+  }
 
   bar.style.display = 'flex';
-  chips.innerHTML = active.map(s => `
+  bar.classList.toggle('expanded', asbExpanded);
+  if (count) count.textContent = String(active.length);
+
+  const visible  = asbExpanded ? active : active.slice(0, ASB_COLLAPSED_LIMIT);
+  const overflow = active.length - visible.length;
+
+  chips.innerHTML = visible.map(s => `
     <div class="asb-chip" data-id="${esc(s.id)}">
       ${s.icon || '⚙️'} ${esc(s.name)}
       <button class="asb-chip-remove" data-id="${esc(s.id)}" title="Remove">×</button>
-    </div>`).join('');
+    </div>`).join('') + (overflow > 0
+      ? `<button class="asb-chip asb-more" title="${asbExpanded ? 'Collapse' : 'Show all active skills'}">+${overflow} more</button>`
+      : (asbExpanded && active.length > ASB_COLLAPSED_LIMIT
+          ? `<button class="asb-chip asb-more" title="Collapse">Show less</button>`
+          : ''));
 
   chips.querySelectorAll('.asb-chip-remove').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -2496,11 +2534,20 @@ function updateActiveSkillsBar() {
       if (card) { card.classList.remove('is-active'); card.querySelector('.skill-toggle')?.classList.remove('on'); }
     });
   });
+
+  chips.querySelectorAll('.asb-more').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      asbExpanded = !asbExpanded;
+      updateActiveSkillsBar();
+    });
+  });
 }
 
 const asbClear = $('asbClear');
 if (asbClear) asbClear.addEventListener('click', () => {
   activeSkillIds.clear();
+  asbExpanded = false;
   updateActiveSkillsBar();
   document.querySelectorAll('.skill-card').forEach(c => {
     c.classList.remove('is-active');
@@ -2604,13 +2651,13 @@ async function runAgentWithSkills() {
   const activeSkills = await getActiveSkillsForAgent();
   const skillIds = new Set(activeSkills.map(skill => skill.id));
 
-  if (!task && skillIds.has('builtin_summarise')) task = 'Summarize the current page';
-  if (!task && skillIds.has('builtin_web_scraper')) task = 'Scrape the current page';
+  if (!task && (skillIds.has('builtin_summarise') || skillIds.has('summarize-page'))) task = 'Summarize the current page';
+  if (!task && (skillIds.has('builtin_web_scraper') || skillIds.has('extract-data'))) task = 'Scrape the current page';
   if (!task) return;
 
   appendUserBubble(task);
 
-  if (skillIds.has('builtin_summarise')) {
+  if (skillIds.has('builtin_summarise') || skillIds.has('summarize-page')) {
     agentBlockEl = appendAgentBlock();
     currentRunKind = 'agent';
     setRunning(true);
@@ -2624,7 +2671,7 @@ async function runAgentWithSkills() {
     return;
   }
 
-  if (skillIds.has('builtin_web_scraper')) {
+  if (skillIds.has('builtin_web_scraper') || skillIds.has('extract-data')) {
     agentBlockEl = appendAgentBlock();
     currentRunKind = 'agent';
     setRunning(true);
@@ -2718,19 +2765,19 @@ document.addEventListener('click', e => {
 document.querySelectorAll('.ptype-btn').forEach(tab => {
   tab.addEventListener('click', () => {
     const type = tab.dataset.type;
-    document.querySelectorAll('.ptype-btn').forEach(t => t.classList.remove('selected'));
-    tab.classList.add('selected');
+    // The user now owns the tab choice. Without this lock the generic
+    // updateConnectionFields refresh below would instantly re-sync the visible
+    // pane back to the provider's tab — exactly why the Local tab "never opened".
+    ptypeTabLocked = true;
+    setPtypeTab(type);
 
-    document.querySelectorAll('.provider-type-content').forEach(c => { c.style.display = 'none'; });
-    const contentMap = { cloud: 'typeContentCloud', custom: 'typeContentCustom', ollama: 'typeContentOllama' };
-    const el = $(contentMap[type]);
-    if (el) el.style.display = 'block';
-
-    if (type === 'ollama') {
-      currentProvider = 'ollama';
-      refreshOllamaModels?.({ silent: true });
-    } else if (type === 'custom') {
+    if (type === 'custom') {
       currentProvider = 'custom';
+    } else if (type === 'device') {
+      // Merged Local hub — the provider is picked by the SUB-switcher inside
+      // (In-browser → local, Ollama → ollama), so merely opening the tab to
+      // browse models never yanks the user's provider away.
+      refreshLocalModelCatalog?.();
     } else {
       const sel = document.querySelector('.provider-card.selected');
       currentProvider = sel ? sel.dataset.provider : 'openai';
@@ -2740,15 +2787,231 @@ document.querySelectorAll('.ptype-btn').forEach(tab => {
   });
 });
 
-if (validateLicenseBtn) {
-  validateLicenseBtn.addEventListener('click', handleValidateLicense);
+// ── Local hub sub-switcher (In-browser models ↔ Ollama server) ────────────
+function setLocalSubPane(sub) {
+  document.querySelectorAll('.local-sub-btn').forEach(b => {
+    const on = b.dataset.localSub === sub;
+    b.classList.toggle('selected', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-local-pane]').forEach(p => {
+    p.style.display = p.dataset.localPane === sub ? 'block' : 'none';
+  });
 }
-if (requestTrialBtn) {
-  requestTrialBtn.addEventListener('click', () => handleLicenseRequest(requestTrialLicense, requestTrialBtn, 'Trial key'));
+
+document.querySelectorAll('.local-sub-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sub = btn.dataset.localSub;
+    if (btn.classList.contains('selected')) return;   // already active
+    setLocalSubPane(sub);
+    if (sub === 'ollama') {
+      currentProvider = 'ollama';
+      refreshOllamaModels?.({ silent: true });
+    } else {
+      currentProvider = 'local';
+      refreshLocalModelCatalog?.();
+    }
+    renderModelChips?.(currentProvider);
+    updateConnectionFields?.(currentProvider);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ON-DEVICE MODELS (Transformers.js) — settings UI controller
+// ══════════════════════════════════════════════════════════════════════════════
+let localModelCatalog = [];
+let selectedLocalModelId = '';
+let localDevice = 'wasm';   // authoritative backend reported by LOCAL_MODEL_LIST
+
+async function refreshLocalModelCatalog() {
+  // Populate backend chip + fetch catalog/status from the service worker.
+  try {
+    const resp = await new Promise(res =>
+      chrome.runtime.sendMessage({ type: 'LOCAL_MODEL_LIST' }, r => {
+        if (chrome.runtime.lastError) { res(null); return; }
+        res(r);
+      })
+    );
+    if (resp?.ok) {
+      localModelCatalog = resp.models || [];
+      localDevice = resp.device || 'wasm';
+      const device = localDevice;
+      const dot = $('deviceBackendDot');
+      const label = $('deviceBackendLabel');
+      if (dot) dot.className = 'api-dot ok';
+      if (label) label.textContent = device === 'webgpu' ? 'WebGPU (GPU accelerated)' : 'WASM (CPU fallback)';
+      const hint = $('deviceWebgpuHint');
+      if (hint) hint.style.display = device === 'webgpu' ? 'none' : '';
+    } else {
+      const dot = $('deviceBackendDot');
+      const label = $('deviceBackendLabel');
+      if (dot) dot.className = 'api-dot';
+      if (label) label.textContent = 'unavailable in this context';
+    }
+  } catch {
+    localModelCatalog = [];
+  }
+  renderLocalModelCatalog();
 }
-if (requestPremiumBtn) {
-  requestPremiumBtn.addEventListener('click', () => handleLicenseRequest(requestPremiumLicense, requestPremiumBtn, 'Premium key'));
+
+function renderLocalModelCatalog() {
+  const wrap = $('localModelCatalog');
+  if (!wrap) return;
+  if (!localModelCatalog.length) {
+    wrap.innerHTML = '<div class="history-empty" style="padding:14px 0">Model catalog unavailable.</div>';
+    return;
+  }
+  wrap.innerHTML = localModelCatalog.map(m => {
+    const active = currentProvider === 'local' && selectedLocalModelId === m.id;
+    const badges = [];
+    if (m.vision) badges.push('<span class="dm-badge vision">👁 Vision + Text</span>');
+    else if (m.kind !== 'embeddings') badges.push('<span class="dm-badge text">📝 Text only</span>');
+    if (m.audio)    badges.push('<span class="dm-badge vision">🔊 Audio</span>');
+    if (m.nativeTools) badges.push('<span class="dm-badge rec" title="Emits native tool calls (Gemma 4 / Granite 4 chat template)">🛠 Tools</span>');
+    if (m.recommended) badges.push('<span class="dm-badge rec">★ Recommended</span>');
+    if (m.heavy)    badges.push('<span class="dm-badge heavy">Heavy</span>');
+    if (m.requiresWebGPU) badges.push('<span class="dm-badge heavy" title="Weights ship as q4f16 (fp16 compute) — runs only on WebGPU machines">⚡ WebGPU required</span>');
+    const recBadge = '';
+    const heavyBadge = '';
+
+    let action = '';
+    const gatedHere = m.requiresWebGPU && localDevice !== 'webgpu';
+    if (gatedHere) {
+      // Gate FIRST — even a stale error status must not offer a doomed retry.
+      action = '<button class="dm-btn" disabled>⚡ Needs WebGPU</button>' +
+        '<div class="dm-error">No usable WebGPU adapter on this machine. Use Granite 4.0 1B or LFM2-VL 450M here — both run fully on the WASM (CPU) fallback.</div>';
+    } else if (m.status === 'downloaded') {
+      action = active
+        ? '<button class="dm-btn active" disabled>✓ Active model</button>'
+        : '<button class="dm-btn primary" data-action="use" data-id="' + m.id + '">Use this model</button>';
+      action += ' <button class="dm-btn danger" data-action="delete" data-id="' + m.id + '">Delete</button>';
+    } else if (m.status === 'downloading') {
+      action = '<div class="dm-progress"><div class="dm-progress-bar" style="width:' + (m.progress || 0) + '%"></div></div>' +
+        '<div class="dm-progress-label">Downloading… ' + (m.progress || 0) + '%' +
+        (m.bytesTotal ? ' · ' + Math.round((m.bytesLoaded || 0) / 1048576) + ' / ' + Math.round(m.bytesTotal / 1048576) + ' MB' : '') + '</div>';
+    } else if (m.status === 'paused') {
+      // Interrupted download (browser closed / crashed mid-fetch). Everything
+      // already cached is KEPT — Resume continues from the byte checkpoint.
+      const pct = m.progress || 0;
+      const mb = m.bytesTotal
+        ? ' · ' + Math.round((m.bytesLoaded || 0) / 1048576) + ' / ' + Math.round(m.bytesTotal / 1048576) + ' MB'
+        : '';
+      action = '<div class="dm-progress"><div class="dm-progress-bar" style="width:' + pct + '%"></div></div>' +
+        '<div class="dm-progress-label">⏸ Paused at ' + pct + '%' + mb + '</div>' +
+        '<button class="dm-btn primary" data-action="download" data-id="' + m.id + '" style="margin-top:8px">Resume download</button>' +
+        '<div class="dm-hint" style="margin-top:6px">Already-downloaded files are kept — the download continues from ' + pct + '%, not from zero.</div>';
+    } else if (m.status === 'error') {
+      action = '<button class="dm-btn primary" data-action="download" data-id="' + m.id + '">Retry download</button>' +
+        '<div class="dm-error">' + esc(m.error || 'Download failed') + '</div>';
+    } else {
+      action = '<button class="dm-btn primary" data-action="download" data-id="' + m.id + '">Download</button>';
+    }
+
+    return (
+      '<div class="device-model-card' + (active ? ' active' : '') + '" data-model-card="' + m.id + '">' +
+        '<div class="dm-head">' +
+          '<div class="dm-title-row"><span class="dm-name">' + esc(m.name) + '</span>' + badges.join('') + recBadge + heavyBadge + '</div>' +
+          '<div class="dm-meta">' + esc(m.vendor) + ' · ' + esc(m.params) + ' · ' + esc(m.sizeLabel) + (m.downloadedAt ? ' · downloaded' : '') + '</div>' +
+          '<div class="dm-blurb">' + esc(m.blurb) + '</div>' +
+        '</div>' +
+        '<div class="dm-actions">' + action + '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  wrap.querySelectorAll('.dm-btn[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (action === 'download') {
+        btn.disabled = true;
+        btn.textContent = 'Starting…';
+        chrome.runtime.sendMessage({ type: 'LOCAL_MODEL_DOWNLOAD', modelId: id }, () => void chrome.runtime.lastError);
+        // Optimistic UI; real progress arrives via LOCAL_MODEL_PROGRESS broadcasts.
+        // Keep any existing progress — a RESUME must not snap the bar back to 0.
+        const entry = localModelCatalog.find(m => m.id === id);
+        if (entry) { entry.status = 'downloading'; }
+        renderLocalModelCatalog();
+      } else if (action === 'delete') {
+        if (!confirm('Delete this model from the browser cache?')) return;
+        btn.disabled = true;
+        chrome.runtime.sendMessage({ type: 'LOCAL_MODEL_DELETE', modelId: id }, () => {
+          void chrome.runtime.lastError;
+          refreshLocalModelCatalog();
+        });
+      } else if (action === 'use') {
+        selectLocalModel(id);
+      }
+    });
+  });
 }
+
+async function selectLocalModel(id) {
+  selectedLocalModelId = id;
+  currentProvider = 'local';
+  const settings = await getSettingsBg();
+  settings.provider = 'local';
+  settings.localModelId = id;
+  chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', settings }, () => {
+    if (chrome.runtime.lastError) return;
+    updateModelPill('local', LOCAL_MODEL_NAMES[id] || id);
+    updateApiStatus(settings);
+    renderModelChips('local');
+    renderLocalModelCatalog();
+  });
+}
+
+// Live progress updates pushed by the service worker during downloads.
+// All ML work now runs in the offscreen document — its logs and progress
+// arrive here as broadcasts so the user can follow them in this console.
+chrome.runtime.onMessage.addListener((msg) => {
+  // SW warn/error diagnostics relayed into this console ([Open Comet:<ns>]).
+  if (msg?.type === 'DIAG_LOG' && msg.text) {
+    const style = `color:${msg.level === 'error' ? '#f87171' : '#fbbf24'};font-weight:600;font-family:monospace`;
+    console[msg.level === 'error' ? 'error' : 'warn'](`%c[Open Comet:${msg.ns}]`, style, msg.text);
+    return;
+  }
+  if (msg?.type === 'LOCAL_MODEL_LOG' && msg.text) {
+    const style = msg.level === 'warn'
+      ? 'color:#d97706;font-weight:bold'
+      : 'color:#c4390a;font-weight:bold';
+    console.log('%c[LocalML]', style, msg.text);
+    return;
+  }
+  if (msg?.type === 'LOCAL_MODEL_HEARTBEAT') return;   // keep-alive only
+  // Live on-device token stream (Gemma 4 engine) → append to the active step.
+  if (msg?.type === 'LOCAL_MODEL_TOKEN' && msg.text) {
+    const spinText = document.querySelector('#convoArea .agent-step .step-loader')?.closest('.agent-step')?.querySelector('.step-text');
+    if (spinText && isRunning) {
+      const tail = String(msg.text).slice(-300);
+      spinText.title = 'Streaming from ' + (LOCAL_MODEL_NAMES[msg.modelId] || msg.modelId || 'on-device model');
+      spinText.dataset.stream = tail;
+    }
+    return;
+  }
+  if (msg?.type === 'LOCAL_MODEL_PROGRESS' && msg.modelId) {
+    const pct = msg.progress ?? '';
+    const extra = msg.loaded != null && msg.total
+      ? ` ${(msg.loaded / 1048576).toFixed(1)} / ${(msg.total / 1048576).toFixed(1)} MB`
+      : (msg.error ? ` — ${msg.error}` : '');
+    console.info(`[LocalML] ${msg.modelId}: ${msg.status} ${pct}${pct !== '' ? '%' : ''}${extra}`);
+    const entry = localModelCatalog.find(m => m.id === msg.modelId);
+    if (entry) {
+      entry.status = msg.status || entry.status;
+      entry.progress = msg.progress ?? entry.progress;
+      entry.error = msg.error || '';
+      if (msg.loaded != null) entry.bytesLoaded = msg.loaded;
+      if (msg.total != null) entry.bytesTotal = msg.total;
+      if (msg.status === 'downloaded') { entry.progress = 100; entry.downloadedAt = Date.now(); }
+    }
+    // Update pill if the active model just finished downloading.
+    if (msg.status === 'downloaded' && msg.modelId === selectedLocalModelId && currentProvider === 'local') {
+      updateModelPill('local', LOCAL_MODEL_NAMES[msg.modelId] || msg.modelId);
+    }
+    renderLocalModelCatalog();
+    if (currentProvider === 'local') renderModelChips('local');
+  }
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // USAGE DASHBOARD
@@ -2844,9 +3107,583 @@ renderModelChips('openai');
 updateComposerState();
 renderHistory();
 renderUsageDashboard();
+// Keep the composer at its deterministic resting height no matter when layout
+// settles (fonts, sidepanel open animation, window resize). Without this the
+// textarea could stay oversized on open until the user hit "New chat".
+autoResizeTA();
+window.addEventListener('load', autoResizeTA);
+window.addEventListener('resize', autoResizeTA);
+if (document.fonts?.ready?.then) document.fonts.ready.then(() => autoResizeTA());
+// Initial load — extension runs without any login or license gate.
+// Runs last so every handler (provider tabs, on-device catalog, skills,
+// privacy controller) is registered before the first view renders.
+showView('agent');
 loadSettings();
-loadStoredLicense();
 requestAgentStateHydration({ force: true });
 
 
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRIVACY MODE CONTROLLER (SIH addition)
+// The home page keeps the quick toggle + live stats. All pipeline
+// configuration lives in Settings → Privacy & Vision and applies instantly
+// on change (no Save button needed).
+// ─────────────────────────────────────────────────────────────────────────────
+(function privacyModeController() {
+  const $ = id => document.getElementById(id);
+
+  const toggle       = $('privacyModeToggle');   // toolbar chip checkbox (hidden inside the chip label)
+  const chip         = $('privacyChip');          // the chip itself (off-state styling)
+  const chipState    = $('privacyChipState');     // On/Off badge text
+  const settingsToggle = $('privacyEnabledInput'); // settings master switch
+  // v1.15.1: #privacyConfigureBtn (top-right "sun" icon) removed — the bottom
+  // Settings nav is the single entry point (user request).
+  const testBtn      = $('privacyTestBtn');
+  const statsBox     = $('privacyStats');
+  const psLastMs     = $('psLastMs');
+  const psFaces      = $('psFaces');
+  const psPii        = $('psPii');
+  const psBackend    = $('psBackend');
+  const preview      = $('privacyPreview');
+  const previewImg   = $('privacyPreviewImg');
+  const previewMeta  = $('privacyPreviewMeta');
+  const saveState    = $('privacySaveState');
+
+  let privacyEnabled = true;
+  let privacyConfig = {
+    blurFaces: true,
+    redactDomPii: true,
+    redactTextPii: true,
+    runYolo: false,
+    useNer: false,
+    serverUrl: 'http://127.0.0.1:8787',
+  };
+
+  // Load saved config
+  try {
+    const saved = JSON.parse(localStorage.getItem('opencometPrivacyConfig') || 'null');
+    if (saved) privacyConfig = { ...privacyConfig, ...saved };
+    const savedEnabled = localStorage.getItem('opencometPrivacyEnabled');
+    if (savedEnabled !== null) privacyEnabled = savedEnabled === '1';
+  } catch {}
+
+  // Apply initial UI state
+  if (toggle) toggle.checked = privacyEnabled;
+  if (settingsToggle) settingsToggle.checked = privacyEnabled;
+  updatePrivacyChip();
+  applyConfigToUI();
+
+  // Push initial config to background
+  sendConfigure();
+
+  // ── Event wiring ──
+  toggle?.addEventListener('change', () => {
+    setPrivacyEnabled(toggle.checked);
+  });
+
+  settingsToggle?.addEventListener('change', () => {
+    setPrivacyEnabled(settingsToggle.checked, { fromSettings: true });
+  });
+
+  // Gear icon on the home bar → jump to the dedicated settings page.
+  // v1.15.1: configureBtn listener removed together with the button —
+  // Settings → Privacy & Vision remains reachable via the bottom nav.
+
+  // Auto-apply pipeline option changes instantly.
+  ['optBlurFaces', 'optRedactDom', 'optRedactText', 'optRunYolo', 'optUseNer', 'optOcrPii'].forEach(optId => {
+    $(optId)?.addEventListener('change', () => {
+      privacyConfig = readConfigFromUI();
+      persistConfig();
+      sendConfigure();
+      flashSaved('Applied ✓');
+    });
+  });
+
+  $('optServerUrl')?.addEventListener('change', () => {
+    privacyConfig = readConfigFromUI();
+    persistConfig();
+    sendConfigure();
+    flashSaved('Saved ✓');
+  });
+
+  testBtn?.addEventListener('click', async () => {
+    testBtn.disabled = true;
+    testBtn.textContent = 'Capturing…';
+    try {
+      privacyConfig = readConfigFromUI();
+      persistConfig();
+      sendConfigure();
+      const resp = await new Promise(resolve =>
+        chrome.runtime.sendMessage({ type: 'PRIVACY_CAPTURE', overrides: privacyConfig }, resolve)
+      );
+      if (resp?.ok && resp.result?.sanitizedDataUrl) {
+        preview.style.display = 'block';
+        previewImg.src = resp.result.sanitizedDataUrl;
+        const s = resp.result.stats || {};
+        const c = s.counts || {};
+        previewMeta.textContent =
+          `Total: ${s.totalMs || 0} ms\n` +
+          `Backend: ${s.backend || 'unknown'}\n` +
+          `Faces detected: ${c.faces || 0}\n` +
+          `DOM sensitive: ${c.domSensitive || 0}\n` +
+          `Text PII: ${c.textPii || 0}\n` +
+          `Redactions: ${JSON.stringify(s.redactionCounts || {})}`;
+        updateStats(resp.result);
+      } else {
+        previewMeta.textContent = 'Error: ' + (resp?.error || 'unknown');
+        preview.style.display = 'block';
+      }
+    } catch (err) {
+      previewMeta.textContent = 'Error: ' + err.message;
+      preview.style.display = 'block';
+    } finally {
+      testBtn.disabled = false;
+      testBtn.textContent = 'Test capture + redact';
+    }
+  });
+
+  function setPrivacyEnabled(enabled, { fromSettings = false } = {}) {
+    privacyEnabled = enabled;
+    localStorage.setItem('opencometPrivacyEnabled', privacyEnabled ? '1' : '0');
+    if (toggle) toggle.checked = privacyEnabled;
+    if (settingsToggle) settingsToggle.checked = privacyEnabled;
+    updatePrivacyChip();
+    sendConfigure();
+    flashSaved(privacyEnabled ? 'Privacy Mode on' : 'Privacy Mode off');
+    if (!privacyEnabled && statsBox) statsBox.style.display = 'none';
+  }
+
+  // Sync the compact toolbar chip (badge text + off-state styling)
+  function updatePrivacyChip() {
+    if (chipState) chipState.textContent = privacyEnabled ? 'On' : 'Off';
+    if (chip) chip.classList.toggle('off', !privacyEnabled);
+  }
+
+  function persistConfig() {
+    try { localStorage.setItem('opencometPrivacyConfig', JSON.stringify(privacyConfig)); } catch {}
+  }
+
+  function sendConfigure() {
+    chrome.runtime.sendMessage({
+      type: 'PRIVACY_CONFIGURE',
+      settings: { ...privacyConfig, enabled: privacyEnabled },
+    });
+  }
+
+  function applyConfigToUI() {
+    $('optBlurFaces').checked = privacyConfig.blurFaces;
+    $('optRedactDom').checked  = privacyConfig.redactDomPii;
+    $('optRedactText').checked = privacyConfig.redactTextPii;
+    $('optRunYolo').checked    = privacyConfig.runYolo;
+    $('optUseNer').checked     = privacyConfig.useNer;
+    const ocrEl = $('optOcrPii'); if (ocrEl) ocrEl.checked = Boolean(privacyConfig.ocrPii);
+    $('optServerUrl').value    = privacyConfig.serverUrl || 'http://127.0.0.1:8787';
+  }
+
+  function readConfigFromUI() {
+    return {
+      blurFaces:     $('optBlurFaces').checked,
+      redactDomPii:  $('optRedactDom').checked,
+      redactTextPii: $('optRedactText').checked,
+      runYolo:       $('optRunYolo').checked,
+      useNer:        $('optUseNer').checked,
+      ocrPii:        $('optOcrPii')?.checked || false,
+      serverUrl:     $('optServerUrl').value.trim() || 'http://127.0.0.1:8787',
+    };
+  }
+
+  function updateStats(result) {
+    if (!result?.stats) return;
+    const s = result.stats;
+    const c = s.counts || {};
+    statsBox.style.display = 'grid';
+    psLastMs.textContent  = `${s.totalMs || 0}ms`;
+    psFaces.textContent   = String(c.faces || 0);
+    psPii.textContent     = String((c.domSensitive || 0) + (c.textPii || 0));
+    psBackend.textContent = s.backend || '—';
+    // SIH Phase 25: mirror the REAL firewall envelope into the inspector table.
+    if (result.inspector) renderInspector(result.inspector);
+  }
+
+  // ── SIH Phase 25: Privacy Firewall Inspector (real runtime values only) ──
+  function renderInspector(ins) {
+    const set = (id, v, cls) => {
+      const el = $(id); if (!el) return;
+      el.textContent = v; el.className = cls || '';
+    };
+    set('sihFirewallActive', ins.active ? 'ACTIVE' : 'idle', ins.active ? 'ok' : '');
+    set('sihRawTx', 'NO (structurally impossible)', 'ok');
+    set('sihSanTx', ins.sanitizedTransmitted ? 'YES (redacted)' : 'not sent', ins.sanitizedTransmitted ? 'ok' : 'warn');
+    set('sihFaces', String(ins.faces ?? '—'));
+    set('sihPiiRegions', String(ins.piiRegions ?? '—'));
+    set('sihSecrets', String(ins.secrets ?? '—'));
+    set('sihClientMs', `${ins.clientMs || 0} ms`);
+    set('sihPayload', ins.payloadKb ? `${ins.payloadKb} KB` : '—');
+    set('sihVerify', ins.verification || '—', ins.verification === 'PASSED' ? 'ok' : 'warn');
+  }
+
+  // ── SIH v1.13: Scorecard — score · n · benchmark type · timestamp.
+  // UNIT (Node logic), BROWSER (real Chromium pixels) and E2E (live loop)
+  // results are stored SEPARATELY and never merged into a single number.
+  const SC_TARGETS = {
+    'pii-precision': v => v >= 0.97,
+    'pii-recall': v => v >= 0.95,
+    'redaction-coverage': v => v >= 0.98,
+    'redaction-iou': v => v >= 0.85,
+    'visual-accuracy': v => v >= 0.95,
+    'ocr-visual': v => v >= 0.95,
+    'leak-tests': v => v === 'pass',
+    'fuzz': v => v === 'pass',
+    'server-validation': v => v === 'pass',
+  };
+  function setScorecard(metric, actualText, status, opts = {}) {
+    const bench = opts.bench || 'unit';
+    const row = document.querySelector(`#sihScorecard tr[data-metric="${metric}"][data-bench="${bench}"]`)
+      || document.querySelector(`#sihScorecard tr[data-metric="${metric}"]`);
+    if (!row) return;
+    row.querySelector('.sc-actual').textContent = actualText;
+    const nEl = row.querySelector('.sc-n'); if (nEl) nEl.textContent = opts.n ?? '—';
+    const tEl = row.querySelector('.sc-type'); if (tEl) tEl.textContent = opts.type || bench.toUpperCase();
+    const tsEl = row.querySelector('.sc-ts'); if (tsEl) tsEl.textContent = opts.ts || '—';
+    const st = row.querySelector('.sc-status');
+    st.textContent = status;
+    st.className = `sc-status ${status === 'PASS' ? 'ok' : status === 'FAIL' ? 'warn' : ''}`;
+  }
+  const fmtDate = (iso) => { try { return String(iso).slice(0, 10); } catch { return '—'; } };
+
+  function scorecardFromBenchmarks(data) {
+    // UNIT data = { results: [ {name, pass, metrics}, … ] } from run-all --json
+    const find = (needle) => (data.results || []).find(r => String(r.name || '').toLowerCase().includes(needle));
+    const ts = data.generatedAt || null;
+    const priv = find('pii detection');
+    if (priv?.metrics?.overall) {
+      const n = (priv.metrics.corpusSize?.positives || 0) + (priv.metrics.corpusSize?.negatives || 0) || null;
+      setScorecard('pii-precision', String(priv.metrics.overall.precision), priv.metrics.overall.precision >= 0.97 ? 'PASS' : 'FAIL', { n, type: 'UNIT', ts });
+      setScorecard('pii-recall', String(priv.metrics.overall.recall), priv.metrics.overall.recall >= 0.95 ? 'PASS' : 'FAIL', { n, type: 'UNIT', ts });
+    }
+    const red = find('redaction');
+    if (red?.metrics) setScorecard('redaction-coverage', String(red.metrics.avgCoverage), red.metrics.avgCoverage >= 0.98 ? 'PASS' : 'FAIL', { type: 'UNIT', ts });
+    const vis = find('visual context');
+    if (vis?.metrics) setScorecard('visual-accuracy', String(vis.metrics.accuracy), vis.metrics.accuracy >= 0.95 ? 'PASS' : 'FAIL', { type: 'UNIT', ts });
+    const sec = find('security');
+    if (sec?.metrics) setScorecard('leak-tests', `${sec.metrics.passed}/${sec.metrics.total}`, sec.pass ? 'PASS' : 'FAIL', { n: sec.metrics.total, type: 'UNIT', ts });
+    const fz = find('fuzz');
+    if (fz?.metrics) setScorecard('fuzz', fz.pass ? '0 leaks' : `${fz.metrics.LEAKED} LEAKS`, fz.pass ? 'PASS' : 'FAIL', { n: fz.metrics.totalCases, type: 'UNIT', ts });
+    const sv = find('server inbound');
+    if (sv?.metrics) setScorecard('server-validation', `${sv.metrics.passed}/${sv.metrics.total}`, sv.pass ? 'PASS' : 'FAIL', { n: sv.metrics.total, type: 'UNIT', ts });
+  }
+
+  // BROWSER data = OpenCometBench/results/browser-benchmark-*.json (harness export)
+  // v1.14.1 §14: the source report is STAMPED under the table — environment
+  // (real-hardware-headed = AUTHORITATIVE vs headless-ci = regression only),
+  // generatedAt and file name — so multiple reports can never be silently
+  // substituted for one another.
+  function scorecardFromBrowser(data, sourceName = '') {
+    const ts = data.meta?.generatedAt || null;
+    const vc = data.visualContext?.pageTypeAccuracy;
+    if (vc) setScorecard('visual-accuracy', `DOM ${vc.domDerived}${vc.vitFused != null ? ` / ViT-fused ${vc.vitFused}` : ''}`, vc.domDerived >= 0.95 ? 'PASS' : 'FAIL', { n: vc.n, type: 'BROWSER', ts });
+    const rm = data.redactionMatrix;
+    if (rm) {
+      setScorecard('redaction-coverage', String(rm.coverage.avg), rm.coverage.avg >= 0.98 ? 'PASS' : 'FAIL', { n: rm.coverage.n, type: 'BROWSER', ts });
+      if (rm.meanIou?.avg != null) setScorecard('redaction-iou', String(rm.meanIou.avg), rm.meanIou.avg >= 0.85 ? 'PASS' : 'FAIL', { n: rm.meanIou.n ?? rm.coverage.n, type: 'BROWSER', ts });
+    }
+    const ocr = data.ocrVisualPii;
+    if (ocr) {
+      // v1.14.1 §3: geometric coverage and pixel-regions-altered are DIFFERENT
+      // metrics and are displayed as such. Real hardware measured 0.75 geo
+      // coverage with 4/4 pixel regions altered → the row reads MEASURED with
+      // both numbers visible; a missing pixel redaction would be FAIL.
+      const perGt = ocr.ocrOn?.score?.perGt || [];
+      const altered = perGt.filter(g => g.pixelRedacted).length;
+      const geo = ocr.ocrOn?.score?.coverage;
+      const allAltered = perGt.length > 0 && altered === perGt.length;
+      setScorecard('ocr-visual', `${geo != null ? geo : '—'} (geometric) · ${altered}/${perGt.length} pixel regions altered`, allAltered ? 'MEASURED' : 'FAIL', { n: ocr.meta?.n, type: 'BROWSER', ts });
+    }
+    const res = data.resources;
+    // v1.14.2: when the report carries a changed-frame (memo-MISS) measurement,
+    // BOTH sanitize totals are shown — the warm memo-hit steady state and the
+    // changed-frame full re-detection cost. Never quote one without the other.
+    if (res?.sanitizeTotalMs) setScorecard('sanitize-p50',
+      res.changedFrame
+        ? `${res.sanitizeTotalMs.p50} ms warm · ${res.changedFrame.wallMs} ms changed-frame`
+        : `${res.sanitizeTotalMs.p50} ms`,
+      'MEASURED', { n: res.meta?.n, type: 'BROWSER', ts });
+    if (res?.payloadKb?.mean != null) setScorecard('payload', `${res.payloadKb.mean} KB`, 'MEASURED', { n: res.meta?.n, type: 'BROWSER', ts });
+    stampScorecardSource({
+      kind: 'BROWSER',
+      name: sourceName || data.meta?.sourceFile || '(report)',
+      ts: data.meta?.generatedAt,
+      environment: data.meta?.environment || (data.meta?.headed ? 'headed' : 'unknown'),
+      authoritative: data.meta?.environment === 'real-hardware-headed',
+    });
+  }
+
+  // v1.14.1: single stamp line under the scorecard — which report produced the
+  // current BROWSER rows and whether it is authoritative for production claims.
+  function stampScorecardSource({ kind, name, ts, environment, authoritative }) {
+    const el = document.getElementById('sihScorecardSource');
+    if (!el) return;
+    if (kind !== 'BROWSER') return;   // only the browser tier has an authority question today
+    const env = authoritative
+      ? '<span class="ok">AUTHORITATIVE — real-hardware-headed (valid for production claims)</span>'
+      : `<span class="warn">${String(environment || 'ci').replace(/-/g, ' ')} — regression-only, NOT a production claim</span>`;
+    el.innerHTML = `Source report: <code>${String(name).replace(/[<>&]/g, '')}</code> · measured ${ts ? String(ts).slice(0, 19).replace('T', ' ') : '—'} · ${env}`;
+  }
+
+  function scorecardFromRun(profile, privacy, steps) {
+    // Live values from the last completed privacy run (E2E — live task loop).
+    // v1.15.2: also renders the per-task PRIVACY CENSUS (privacy-loop DONE
+    // summary) into the new live row — what THIS task actually redacted.
+    // Purely measured counters, kept in the E2E tier, never merged with the
+    // UNIT/BROWSER benchmark rows.
+    const ts = new Date().toISOString().slice(0, 10);
+    if (profile?.vlm?.p50) setScorecard('vlm-p50', `${profile.vlm.p50} ms`, 'MEASURED', { bench: 'e2e', type: 'E2E', ts, n: steps });
+    if (profile?.sanitize?.p50) setScorecard('sanitize-p50', `${profile.sanitize.p50} ms`, 'MEASURED', { bench: 'e2e', type: 'E2E', ts, n: steps });
+    if (privacy) {
+      const ins = privacy.inspector || null;
+      const actual =
+        `${privacy.redactions} redactions` +
+        ` (faces ${privacy.faces} · dom ${privacy.dom} · obj ${privacy.objects} · text ${privacy.textPii}${privacy.ocr ? ` · ocr ${privacy.ocr}` : ''})` +
+        ` · ${privacy.frames} frame${privacy.frames === 1 ? '' : 's'}` +
+        (ins?.payloadKb != null ? ` · payload ${ins.payloadKb} KB` : '') +
+        (ins?.verification ? ` · verify ${ins.verification}` : '');
+      setScorecard('live-task-privacy', actual, 'MEASURED', { bench: 'e2e', type: 'E2E', ts, n: steps ?? profile?.steps });
+    }
+  }
+
+  // v1.14: E2E (mock brain) + ADVERSARIAL + E2E-REAL report importers.
+  // Each keeps its OWN benchmark type — rows never merge tiers.
+  function scorecardFromE2e(data) {
+    const ts = data.meta?.generatedAt || null;
+    const agg = data.aggregate || {};
+    if (agg.verifiedActionRatio != null) {
+      setScorecard('e2e-verified', String(agg.verifiedActionRatio), agg.verifiedActionRatio >= 0.95 ? 'PASS' : 'FAIL', { n: agg.steps, type: 'E2E', ts });
+    }
+    if (agg.taskSuccessRatio != null) {
+      setScorecard('e2e-task-success', String(agg.taskSuccessRatio), agg.taskSuccessRatio >= 0.9 ? 'PASS' : 'FAIL', { n: (data.scenarios || []).length, type: 'E2E', ts });
+    }
+    if (agg.sanitizeMs?.p50 != null) setScorecard('sanitize-p50', `${agg.sanitizeMs.p50} ms`, 'MEASURED', { n: agg.steps, type: 'E2E', ts });
+  }
+
+  function scorecardFromAdversarial(data) {
+    const ts = data.meta?.generatedAt || null;
+    const pr = data.privacy;
+    if (pr) setScorecard('adv-privacy', `${pr.passed}/${pr.n}`, pr.passed === pr.n ? 'PASS' : 'FAIL', { n: pr.n, type: 'ADVERSARIAL', ts });
+    const inj = data.injection;
+    if (inj) setScorecard('adv-injection', `${inj.passed}/${inj.n}`, inj.passed === inj.n ? 'PASS' : 'FAIL', { n: inj.n, type: 'ADVERSARIAL', ts });
+  }
+
+  function scorecardFromE2eReal(data) {
+    const ts = data.meta?.generatedAt || null;
+    const agg = data.aggregate || {};
+    const label = String(data.meta?.vlm || 'real');
+    if (agg.verifiedActionRatio != null) {
+      setScorecard('e2e-real-verified', String(agg.verifiedActionRatio), 'MEASURED', { n: agg.steps, type: 'E2E-REAL', ts });
+    }
+    if (agg.vlmMs_real?.p50 != null) {
+      setScorecard('e2e-real-vlm', `${agg.vlmMs_real.p50} / ${agg.vlmMs_real.p95} ms`, 'MEASURED', { n: agg.steps, type: 'E2E-REAL', ts, note: label });
+    }
+  }
+
+  const sihImportBtn = $('sihImportBtn');
+  const sihBenchmarkFile = $('sihBenchmarkFile');
+  sihImportBtn?.addEventListener('click', () => sihBenchmarkFile?.click());
+  sihBenchmarkFile?.addEventListener('change', async (e) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (Array.isArray(data?.results)) {
+        scorecardFromBenchmarks(data);
+        try { localStorage.setItem('opencometSihBenchmarks', JSON.stringify(data)); } catch {}
+        flashSaved('UNIT benchmark imported');
+      } else if (data?.meta?.type === 'browser' || data?.redactionMatrix || data?.visualContext) {
+        scorecardFromBrowser(data, file.name);
+        try {
+          localStorage.setItem('opencometSihBrowserBenchmarks', JSON.stringify(data));
+          localStorage.setItem('opencometSihBrowserBenchmarksName', file.name);
+        } catch {}
+        flashSaved('BROWSER benchmark imported');
+      } else if (data?.meta?.type === 'e2e' && !String(data?.meta?.vlm || '').startsWith('real')) {
+        scorecardFromE2e(data);
+        try { localStorage.setItem('opencometSihE2eBenchmarks', JSON.stringify(data)); } catch {}
+        flashSaved('E2E (mock-VLM) benchmark imported');
+      } else if (data?.meta?.type === 'adversarial') {
+        scorecardFromAdversarial(data);
+        try { localStorage.setItem('opencometSihAdversarialBenchmarks', JSON.stringify(data)); } catch {}
+        flashSaved('Adversarial benchmark imported');
+      } else if (data?.meta?.type === 'e2e-real') {
+        scorecardFromE2eReal(data);
+        try { localStorage.setItem('opencometSihE2eRealBenchmarks', JSON.stringify(data)); } catch {}
+        flashSaved('E2E-REAL benchmark imported (kept separate from mock rows)');
+      } else if (data?.sanitizeMs) {
+        // legacy browser runner export
+        setScorecard('sanitize-p50', `${data.sanitizeMs.p50} ms`, 'MEASURED', { bench: 'browser', type: 'BROWSER', ts: data.generatedAt });
+        if (data.payloadKb) setScorecard('payload', `${data.payloadKb} KB`, 'MEASURED', { bench: 'browser', type: 'BROWSER', ts: data.generatedAt });
+        flashSaved('Browser benchmark imported');
+      } else {
+        flashSaved('Unrecognized benchmark file');
+      }
+    } catch { flashSaved('Invalid JSON'); }
+    e.target.value = '';
+  });
+  // Restore previously imported benchmark JSONs (persisted, still measured data).
+  try {
+    const saved = localStorage.getItem('opencometSihBenchmarks');
+    if (saved) scorecardFromBenchmarks(JSON.parse(saved));
+    const savedBrowser = localStorage.getItem('opencometSihBrowserBenchmarks');
+    if (savedBrowser) scorecardFromBrowser(JSON.parse(savedBrowser), localStorage.getItem('opencometSihBrowserBenchmarksName') || '');
+    const savedE2e = localStorage.getItem('opencometSihE2eBenchmarks');
+    if (savedE2e) scorecardFromE2e(JSON.parse(savedE2e));
+    const savedAdv = localStorage.getItem('opencometSihAdversarialBenchmarks');
+    if (savedAdv) scorecardFromAdversarial(JSON.parse(savedAdv));
+    const savedReal = localStorage.getItem('opencometSihE2eRealBenchmarks');
+    if (savedReal) scorecardFromE2eReal(JSON.parse(savedReal));
+    // v1.15.2: restore the last live-task report (privacy census + latency).
+    const savedLive = localStorage.getItem('opencometSihLiveRun');
+    if (savedLive) {
+      const lr = JSON.parse(savedLive);
+      scorecardFromRun(lr.latencyProfile, lr.privacy, lr.steps);
+    }
+  } catch { /* ignore corrupt cache */ }
+  // Live run latency profile + privacy census → Scorecard (AGENT_DONE
+  // carries both from the privacy loop's DONE summary). v1.15.2: the last
+  // live report is PERSISTED so the rows survive a panel reload — same
+  // policy as the imported benchmark tiers (measured data only, stored
+  // locally, never fabricated).
+  document.addEventListener('sih-run-finished', (e) => {
+    const summary = e.detail;
+    if (!summary) return;
+    if (summary.latencyProfile || summary.privacy) {
+      scorecardFromRun(summary.latencyProfile, summary.privacy, summary.steps);
+      try {
+        localStorage.setItem('opencometSihLiveRun', JSON.stringify({
+          ts: new Date().toISOString(),
+          steps: summary.steps,
+          latencyProfile: summary.latencyProfile || null,
+          privacy: summary.privacy || null,
+        }));
+      } catch { /* storage blocked — live rows just won't persist */ }
+    }
+  });
+
+    function flashSaved(text) {
+    if (!saveState) return;
+    saveState.textContent = text;
+    saveState.classList.add('visible');
+    clearTimeout(flashSaved._t);
+    flashSaved._t = setTimeout(() => {
+      saveState.classList.remove('visible');
+    }, 1600);
+  }
+
+  // ── Intercept STEP_UPDATE messages to refresh stats during a privacy run ──
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'STEP_UPDATE' && msg.step?.type === 'screenshot') {
+      // v1.8: steps now arrive ONLY in the canonical pushStep shape (payload
+      // spread into the step) — the SW's raw second broadcast was removed.
+      // Accept both shapes for robustness.
+      const phase = msg.step.phase || msg.step.payload?.phase;
+      if (phase === 'sanitized') {
+        const stats = msg.step.stats || msg.step.payload?.stats;
+        const inspector = msg.step.inspector || msg.step.payload?.inspector;
+        if (stats) updateStats({ stats, inspector });
+      }
+    }
+  });
+
+  // ── Intercept the Send button: when privacy is on, route to PRIVACY_START ──
+  const origSend = chrome.runtime.sendMessage.bind(chrome.runtime);
+  chrome.runtime.sendMessage = function patchedSendMessage(msg, ...rest) {
+    if (msg && msg.type === 'START_AGENT' && privacyEnabled) {
+      msg = {
+        type: 'PRIVACY_START',
+        task: msg.task,
+        mode: msg.mode,
+        sessionId: msg.sessionId,
+        privacy: privacyConfig,
+      };
+    }
+    return origSend(msg, ...rest);
+  };
+
+  console.log('[OpenComet-SIH] Privacy Mode controller initialised. Enabled:', privacyEnabled);
+})();
+
+// v1.8 build banner — identifies the exact running build in the sidepanel
+// console (stale unpacked copies were indistinguishable from fresh ones).
+const _ocV = (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getManifest === 'function')
+  ? chrome.runtime.getManifest().version : 'dev';
+console.log(`[OpenComet] v${_ocV} · side panel`);
+
+// ── About page (v1.15.5): live version chip + build-info copy ──────────────
+// The version chip is filled from the ACTUAL loaded manifest, so a stale
+// unpacked copy can never lie about which build is running.
+(function aboutPageController() {
+  const $ = id => document.getElementById(id);
+  const ver = $('aboutVersion');
+  if (ver) ver.textContent = `v${_ocV}`;
+
+  const copyBtn = $('aboutCopyBuildBtn');
+  const copyState = $('aboutCopyState');
+  if (copyBtn && copyState) {
+    copyBtn.addEventListener('click', async () => {
+      const text = [
+        'OpenComet SIH — Privacy Vision Agent',
+        `Version: ${_ocV}`,
+        `User agent: ${navigator.userAgent}`,
+        `Local time: ${new Date().toString()}`,
+      ].join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        copyState.textContent = 'Copied to clipboard';
+      } catch {
+        // Clipboard permission denied (or HTTP test context) — print instead.
+        copyState.textContent = 'Printed to console';
+        console.log('[OpenComet] build info\n' + text);
+      }
+      setTimeout(() => { copyState.textContent = ''; }, 2600);
+    });
+  }
+})();
+
+// ── SIH Competition Mode controller (v1.13) ────────────────────────────────
+(function sihModeController() {
+  const $ = id => document.getElementById(id);
+  const input = $('sihModeInput');
+  const note  = $('sihModeNote');
+  const master = $('privacyEnabledInput');
+  if (!input) return;
+
+  const KEY = 'sihMode';
+  const apply = (on) => {
+    input.checked = on;
+    if (note) note.textContent = on
+      ? 'Enforced: privacy pipeline is always on in this mode; the main agent runs without raw screenshots.'
+      : 'Off: normal diagnostic behaviour (privacy still defaults on; raw paths available for testing).';
+    // While SIH mode is on, the privacy-off master switch is locked ON.
+    if (master) {
+      master.disabled = on;
+      if (on) { master.checked = true; try { localStorage.setItem('opencometPrivacyEnabled', '1'); } catch {} }
+    }
+  };
+
+  // Load (chrome.storage.sync preferred; localStorage fallback for tests).
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
+      chrome.storage.sync.get(KEY, (d) => apply(d?.[KEY] !== false));
+    } else {
+      apply(localStorage.getItem(KEY) !== '0');
+    }
+  } catch { apply(true); }
+
+  input.addEventListener('change', () => {
+    const on = input.checked;
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage?.sync) chrome.storage.sync.set({ [KEY]: on });
+      else localStorage.setItem(KEY, on ? '1' : '0');
+    } catch { /* best effort */ }
+    apply(on);
+  });
+})();

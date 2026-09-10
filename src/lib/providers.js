@@ -5,6 +5,13 @@
 
 import { parseJSON } from './utils.js';
 import { SYSTEM_PROMPT } from './prompts.js';
+import { callLocalAI, callLocalAIRaw, resolveLocalModel } from './local-llm.js';
+import { createLogger, describeHttpError } from '../core/logger.js';
+
+// Diagnostics: every AI request logs [API] start / latency / failure kind
+// (auth · rate-limit · network · server …). warn+error also reach the
+// sidepanel console via the DIAG_LOG relay.
+const logAPI = createLogger('API', { relayType: 'DIAG_LOG', relayLevel: 'warn' });
 
 // ── Capability registry ────────────────────────────────────────────────────────
 export function getProviderCapabilities(settings = {}) {
@@ -41,11 +48,11 @@ export function getProviderCapabilities(settings = {}) {
       defaultModel:     'deepseek-chat',
     },
     kimi: {
-      vision:           supportsModelVision(model || 'kimi-k2.5'),
+      vision:           supportsModelVision(model || 'kimi-k3'),
       json:             true,
-      attachments:      supportsModelVision(model || 'kimi-k2.5'),
-      browserAgentSafe: supportsModelVision(model || 'kimi-k2.5'),
-      defaultModel:     'kimi-k2.5',
+      attachments:      supportsModelVision(model || 'kimi-k3'),
+      browserAgentSafe: supportsModelVision(model || 'kimi-k3'),
+      defaultModel:     'kimi-k3',
     },
     glm: {
       vision:           supportsModelVision(model || 'glm-4.7'),
@@ -61,6 +68,17 @@ export function getProviderCapabilities(settings = {}) {
       browserAgentSafe: customVision || supportsModelVision(model || ''),
       defaultModel:     model || '',
     },
+    local: (() => {
+      const lm = resolveLocalModel(settings);
+      const vision = Boolean(lm?.vision);
+      return {
+        vision,
+        json:             true,
+        attachments:      vision,
+        browserAgentSafe: vision || Boolean(lm?.nativeTools),
+        defaultModel:     lm?.id || 'gemma-4-e2b',
+      };
+    })(),
   };
 
   return registry[provider] ?? { vision: false, json: false, attachments: false, browserAgentSafe: false, defaultModel: '' };
@@ -71,6 +89,9 @@ export function isProviderConfigured(settings = {}) {
   if (provider === 'ollama') {
     return Boolean(resolveOllamaBaseUrl(settings));
   }
+  if (provider === 'local') {
+    return Boolean(String(settings.localModelId || '').trim());
+  }
   if (['deepseek', 'kimi', 'glm', 'custom'].includes(provider)) {
     return Boolean(String(resolveCompatibleBaseUrl(settings)).trim()) && Boolean(String(settings.apiKey || '').trim());
   }
@@ -78,6 +99,37 @@ export function isProviderConfigured(settings = {}) {
 }
 
 // ── Unified entry point ────────────────────────────────────────────────────────
+// v1.15.1 CONSOLE VISIBILITY (user request: "in console also show what data we
+// are sending to VLM/LLM and response also"). Every provider funnels through
+// callAI / callAIRaw, so the exact prompt and the returned payload are logged
+// here — one place, all backends. Pixels are NEVER dumped: images are
+// summarized (name · mime · KB). The raw pre-parse model text is logged by
+// the OpenAI-compatible reader (see readCompatStream).
+function logVlmRequest(tag, prompt, images, options = {}) {
+  try {
+    const imgs = Array.isArray(images) ? images : [];
+    console.groupCollapsed(`[Open Comet][VLM-REQ] → ${tag} · prompt ${prompt?.length ?? 0} chars · ${imgs.length} image(s)`);
+    console.log(prompt || '(empty prompt)');
+    imgs.forEach((im, i) => console.log(`[image ${i + 1}] ${im?.name || 'image'} · ${im?.mimeType || '?'} · ${(String(im?.imageBase64 || '').length / 1024).toFixed(1)} KB base64 (pixels not printed)`));
+    if (options.maxTokens) console.log(`maxTokens=${options.maxTokens}${options.reasoningEffort ? ` · reasoningEffort=${options.reasoningEffort}` : ''}`);
+    console.groupEnd();
+  } catch { /* logging must never break the call */ }
+}
+function logVlmResponse(tag, out, ms) {
+  try {
+    console.groupCollapsed(`[Open Comet][VLM-RES] ← ${tag} · ${ms}ms`);
+    console.log(typeof out === 'string' ? out : JSON.stringify(out, null, 2));
+    console.groupEnd();
+  } catch { /* logging must never break the call */ }
+}
+function logVlmRawText(tag, content) {
+  try {
+    console.groupCollapsed(`[Open Comet][VLM-RAW] ← ${tag} · ${String(content || '').length} chars (model text before JSON parsing)`);
+    console.log(content || '(empty)');
+    console.groupEnd();
+  } catch { /* logging must never break the call */ }
+}
+
 export async function callAI(settings, prompt, screenshotBase64 = null, options = {}) {
   const { provider, apiKey, model } = settings;
   const caps   = getProviderCapabilities(settings);
@@ -89,6 +141,21 @@ export async function callAI(settings, prompt, screenshotBase64 = null, options 
     ? await buildImageInputs(screenshotBase64, options.images || [], { provider, model: targetModel || caps.defaultModel })
     : [];
 
+  const t0 = Date.now();
+  const tag = `${provider}/${targetModel || caps.defaultModel || '?'}`;
+  logAPI.info(`→ ${tag} · prompt=${prompt?.length ?? 0}c${hasImageIntent ? ' · image' : ''}`);
+  logVlmRequest(tag, prompt, images, options);
+  try {
+    const out = await dispatchAI();
+    logAPI.info(`✓ ${tag} · ${Date.now() - t0}ms`);
+    logVlmResponse(tag, out, Date.now() - t0);
+    return out;
+  } catch (err) {
+    logAPI.error(`✗ ${tag} · ${Date.now() - t0}ms · ${describeHttpError(err)} · ${String(err?.message || err).slice(0, 220)}`);
+    throw err;
+  }
+
+  async function dispatchAI() {
   switch (provider) {
     case 'anthropic': return callAnthropic(apiKey, targetModel || caps.defaultModel, prompt, images, options);
     case 'openai':    return callOpenAI   (apiKey, targetModel || caps.defaultModel, prompt, images, options);
@@ -100,7 +167,9 @@ export async function callAI(settings, prompt, screenshotBase64 = null, options 
     case 'glm':
     case 'custom':    return callOpenAICompatible(settings, targetModel || caps.defaultModel, prompt, images, options);
     case 'ollama':    return callOllama   (settings, targetModel || caps.defaultModel, prompt, images, options);
+    case 'local':     return callLocalAI  (settings, prompt, images, options);
     default:          throw new Error(`Unknown provider: ${provider}`);
+  }
   }
 }
 
@@ -115,6 +184,21 @@ export async function callAIRaw(settings, prompt, options = {}) {
     ? resolveOllamaTextModel(settings)
     : (model || caps.defaultModel);
 
+  const t0 = Date.now();
+  const tag = `${provider}/${m || caps.defaultModel || '?'}`;
+  logAPI.info(`→ ${tag} · prompt=${prompt?.length ?? 0}c (raw)`);
+  logVlmRequest(tag, prompt, [], options);
+  try {
+    const out = await dispatchRaw();
+    logAPI.info(`✓ ${tag} · ${Date.now() - t0}ms (raw)`);
+    logVlmResponse(tag, out, Date.now() - t0);
+    return out;
+  } catch (err) {
+    logAPI.error(`✗ ${tag} · ${Date.now() - t0}ms · ${describeHttpError(err)} · ${String(err?.message || err).slice(0, 220)}`);
+    throw err;
+  }
+
+  async function dispatchRaw() {
   switch (provider) {
     case 'openai':
     case 'groq': {
@@ -266,8 +350,11 @@ export async function callAIRaw(settings, prompt, options = {}) {
       }
       return data.choices?.[0]?.message?.content || '';
     }
+    case 'local':
+      return callLocalAIRaw(settings, prompt, options);
     default:
       throw new Error('Unknown provider: ' + provider);
+  }
   }
 }
 
@@ -525,43 +612,236 @@ async function callOllama(settings, model, prompt, images, options = {}) {
   throw lastError ?? new Error('Ollama request failed');
 }
 
-async function callOpenAICompatible(settings, model, prompt, images, options = {}) {
-  const res = await fetch(resolveCompatibleBaseUrl(settings) + '/chat/completions', {
-    method: 'POST',
-    headers: buildCompatibleHeaders(settings),
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: images?.length
-            ? [
-                ...images.map(img => ({
-                  type: 'image_url',
-                  image_url: { url: `data:${normalizeMime(img.mimeType)};base64,${sanitizeB64(img.imageBase64)}` },
-                })),
-                { type: 'text', text: prompt },
-              ]
-            : prompt,
-        },
-      ],
-      temperature: 0.1,
-      max_tokens: 2500,
-      response_format: { type: 'json_object' },
-    }),
-  });
-  await assertOk(res, providerLabel(settings.provider));
-  const data = await res.json();
-  if (options.onUsage && data.usage) {
-    options.onUsage({
-      model,
-      promptTokens: data.usage.prompt_tokens,
-      completionTokens: data.usage.completion_tokens,
-      totalTokens: data.usage.total_tokens,
-    });
+// ── OpenAI-compatible providers (kimi / deepseek / glm / custom) ─────────────
+// v1.9.0 VLM-speed package. Research basis (docs/vlm-speed-research.md):
+//   • Kimi K3 ALWAYS reasons and ignores the old "thinking" switch — the only
+//     control is the TOP-LEVEL `reasoning_effort` field ("low"/"high"/"max")
+//     (platform.kimi.ai → "Thinking Models"). Some OpenRouter-routed providers
+//     (e.g. Novita) run reasoning at MAX by default — that is exactly why
+//     un-tuned kimi-k3 agent turns took 27–93 s in the field.
+//   • OpenRouter normalizes the same control across providers as
+//     `reasoning: { effort: "low"|"high"|…, exclude: true }`.
+//   • Streaming gives us TTFT vs generation-rate split, so a slow turn is
+//     attributable (server queue / reasoning burn vs output throughput) and
+//     the first bytes arrive instead of a silent 90 s wait.
+// All extra params are failure-tolerant: a 400/422 automatically retries
+// without them so strict gateways keep working.
+
+/** Build provider-appropriate reasoning params. Exported for unit tests. */
+export function buildReasoningParam(baseUrl, effort) {
+  if (!effort) return null;
+  let host = '';
+  try { host = new URL(String(baseUrl)).hostname || ''; } catch { return null; }
+  if (/openrouter\.ai$/i.test(host)) {
+    return { reasoning: { effort: String(effort), exclude: true } };
   }
-  return parseJSON(data.choices?.[0]?.message?.content);
+  if (/(^|\.)moonshot\.(ai|cn)$/i.test(host) || /(^|\.)kimi\.ai$/i.test(host) || /moonshot\.cn$/i.test(host)) {
+    return { reasoning_effort: String(effort) };
+  }
+  // Unknown gateway: `reasoning_effort` is the de-facto standard (OpenAI
+  // o-series + Moonshot share the name). callOpenAICompatible strips and
+  // retries automatically if a strict server rejects it.
+  return { reasoning_effort: String(effort) };
+}
+
+function buildCompatMessages(prompt, images) {
+  return [
+    { role: 'system', content: SYSTEM_PROMPT },
+    {
+      role: 'user',
+      content: images?.length
+        ? [
+            ...images.map(img => ({
+              type: 'image_url',
+              image_url: { url: `data:${normalizeMime(img.mimeType)};base64,${sanitizeB64(img.imageBase64)}` },
+            })),
+            { type: 'text', text: prompt },
+          ]
+        : prompt,
+    },
+  ];
+}
+
+/** Parse one SSE buffer slice → { events, rest }. Exported for unit tests. */
+export function consumeSSEChunk(buffer) {
+  const events = [];
+  let rest = buffer;
+  let idx;
+  while ((idx = buffer.indexOf('\n')) >= 0) {
+    const line = buffer.slice(0, idx).replace(/\r$/, '');
+    buffer = buffer.slice(idx + 1);
+    if (!line.startsWith('data:')) continue;
+    const payload = line.slice(5).trim();
+    if (!payload || payload === '[DONE]') { if (payload === '[DONE]') events.push({ done: true }); continue; }
+    try { events.push(JSON.parse(payload)); } catch { /* partial JSON — skip line */ }
+  }
+  rest = buffer;
+  return { events, rest };
+}
+
+function attemptKey(a) {
+  return `s${a.stream ? 1 : 0}r${a.reasoning ? 1 : 0}j${a.jsonMode ? 1 : 0}`;
+}
+
+/**
+ * Streaming/non-streaming OpenAI-compatible chat call with a graceful
+ * attempt ladder:
+ *   1. stream  + json_object + reasoning   (fastest, most informed)
+ *   2. stream  + json_object               (strict gateway: no reasoning)
+ *   3. stream                               (no json mode either)
+ *   4. no-stream                            (legacy behaviour)
+ * Only 400/422 responses advance the ladder — auth/rate/network errors throw.
+ */
+async function callOpenAICompatible(settings, model, prompt, images, options = {}) {
+  const base = resolveCompatibleBaseUrl(settings);
+  const url = base + '/chat/completions';
+  const messages = buildCompatMessages(prompt, images);
+  const maxTokens = Number.isFinite(Number(options.maxTokens)) && Number(options.maxTokens) >= 64
+    ? Math.min(8000, Math.round(Number(options.maxTokens)))
+    : 2500;
+  const reasoning = buildReasoningParam(base, options.reasoningEffort);
+  const wantStream = options.stream !== false;   // default: streaming ON
+
+  const attempts = [];
+  if (wantStream) {
+    if (reasoning) attempts.push({ stream: true, jsonMode: true, reasoning });
+    attempts.push({ stream: true, jsonMode: true });
+    attempts.push({ stream: true, jsonMode: false });
+  } else if (reasoning) {
+    attempts.push({ stream: false, jsonMode: true, reasoning });
+  }
+  attempts.push({ stream: false, jsonMode: false });
+
+  let lastErr = null;
+  for (let i = 0; i < attempts.length; i++) {
+    const a = attempts[i];
+    const body = {
+      model,
+      messages,
+      temperature: 0.1,
+      max_tokens: maxTokens,
+      stream: a.stream,
+    };
+    if (a.jsonMode) body.response_format = { type: 'json_object' };
+    if (a.stream) body.stream_options = { include_usage: true };
+    Object.assign(body, a.reasoning || {});
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: buildCompatibleHeaders(settings),
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      lastErr = err;
+      break; // network failure — retrying with fewer params won't help
+    }
+
+    if (!res.ok) {
+      let errText = '';
+      try { errText = (await res.text()).slice(0, 400); } catch {}
+      lastErr = new Error(`${providerLabel(settings.provider)} ${res.status}${errText ? ': ' + errText : ''}`);
+      // 400/422 usually means "unknown field" / "json mode unsupported" →
+      // try the next, simpler attempt. Everything else is a real error.
+      if ((res.status === 400 || res.status === 422) && i < attempts.length - 1) {
+        logAPI.warn(`${providerLabel(settings.provider)} ${res.status} (${describeHttpError(lastErr)}) on attempt ${attemptKey(a)} — retrying with ${attemptKey(attempts[i + 1])}`);
+        continue;
+      }
+      throw lastErr;
+    }
+
+    if (a.stream) {
+      const out = await readCompatStream(res, { tag: `${providerLabel(settings.provider)}/${model}`, attempt: attemptKey(a), maxTokens });
+      if (options.onUsage && out.usage) {
+        options.onUsage({
+          model,
+          promptTokens: out.usage.prompt_tokens,
+          completionTokens: out.usage.completion_tokens ?? out.usage.completionTokens,
+          totalTokens: out.usage.total_tokens,
+        });
+      }
+      if (out.finishReason === 'length') {
+        logAPI.warn(`Output hit the ${maxTokens}-token cap — response may be truncated. Raise vlm maxTokens if JSON parsing starts failing.`);
+      }
+      logVlmRawText(`${providerLabel(settings.provider)}/${model}`, out.content);
+      return parseJSON(out.content);
+    }
+
+    // ── legacy non-streaming path ──────────────────────────────────────────
+    const t1 = Date.now();
+    const data = await res.json();
+    logAPI.info(`✓ ${providerLabel(settings.provider)}/${model} · non-stream · ${Date.now() - t1}ms${a.reasoning ? ' · reasoning' : ''}`);
+    if (options.onUsage && data.usage) {
+      options.onUsage({
+        model,
+        promptTokens: data.usage.prompt_tokens,
+        completionTokens: data.usage.completion_tokens,
+        totalTokens: data.usage.total_tokens,
+      });
+    }
+    const rawContent = data.choices?.[0]?.message?.content;
+    logVlmRawText(`${providerLabel(settings.provider)}/${model}`, rawContent);
+    return parseJSON(rawContent);
+  }
+
+  throw lastErr ?? new Error('OpenAI-compatible request failed');
+}
+
+/**
+ * Read an OpenAI-compatible SSE stream. Logs TTFT (first token) and total
+ * wall time so slow VLM turns are attributable: TTFT ≫ gen-rate means server
+ * queue / reasoning burn; low chars/sec after TTFT means provider throughput.
+ */
+async function readCompatStream(res, { tag, attempt, maxTokens }) {
+  const t0 = Date.now();
+  let ttftMs = null;
+  let content = '';
+  let usage = null;
+  let finishReason = null;
+  let buffer = '';
+  const reader = res.body?.getReader?.();
+  if (!reader) {
+    // No stream body (odd gateway) → treat as non-stream JSON.
+    const data = await res.json().catch(() => ({}));
+    return { content: data.choices?.[0]?.message?.content || '', usage: data.usage || null, finishReason: data.choices?.[0]?.finish_reason || null, ttftMs: null };
+  }
+  const decoder = new TextDecoder();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { events, rest } = consumeSSEChunk(buffer);
+      buffer = rest;
+      for (const ev of events) {
+        if (ev.done) continue;
+        if (ev.usage) usage = ev.usage;
+        const ch = ev.choices?.[0];
+        if (!ch) continue;
+        if (ch.finish_reason) finishReason = ch.finish_reason;
+        const delta = ch.delta?.content ?? ch.message?.content ?? '';
+        if (delta) {
+          if (ttftMs === null) {
+            ttftMs = Date.now() - t0;
+            logAPI.info(`⚡ ${tag} · TTFT ${ttftMs}ms [${attempt}] — prefill+reasoning done, generating…`);
+            if (ttftMs > 30000) {
+              logAPI.warn(`TTFT ${ttftMs}ms is very high — provider queue or reasoning burn. See the speed guide: a low-reasoning model or :nitro route cuts this dramatically.`);
+            }
+          }
+          content += delta;
+        }
+      }
+    }
+  } catch (err) {
+    if (!content) throw err;            // nothing usable → real failure
+    logAPI.warn(`Stream interrupted after ${content.length} chars (${err?.message || err}) — using partial content`);
+  }
+  const total = Date.now() - t0;
+  const genMs = Math.max(0, total - (ttftMs ?? 0));
+  const rate = genMs > 0 ? Math.round(content.length / (genMs / 1000)) : content.length;
+  logAPI.info(`✓ ${tag} · total ${total}ms · TTFT ${ttftMs ?? '-'}ms · gen ${genMs}ms · ${content.length} chars (~${rate} c/s)${usage?.completion_tokens ? ` · out=${usage.completion_tokens}tok` : ''}${finishReason && finishReason !== 'stop' ? ` · finish=${finishReason}${finishReason === 'length' ? ` (cap ${maxTokens})` : ''}` : ''}`);
+  return { content, usage, finishReason, ttftMs };
 }
 
 // ── Image helpers ──────────────────────────────────────────────────────────────

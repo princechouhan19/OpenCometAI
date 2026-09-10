@@ -1,5 +1,6 @@
 import { AGENT_ROLE, compactPageContext } from './agent-runtime.js';
 import { buildActionPrompt, buildPlanPrompt } from './prompts.js';
+import { peekLibrarySkills } from './skill-library.js';
 
 export function shouldRetryCompactAction(err, settings = {}) {
   const provider = String(settings.provider || '').toLowerCase();
@@ -59,6 +60,7 @@ export function buildPlannerRequest(agentState, pageInfo, screenshot, options = 
         userNotes: agentState?.userNotes || [],
         attachments: agentState?.attachments || [],
         skills: agentState?.skills || [],
+        skillLibrary: peekLibrarySkills(),
         memory: agentState?.taskMemory || {},
         profileData: agentState?.settings?.profileData || {},
       }),
@@ -93,6 +95,7 @@ export function buildNavigatorRequest(agentState, pageInfo, screenshot, options 
           userNotes: agentState?.userNotes || [],
           attachments: agentState?.attachments || [],
           skills: agentState?.skills || [],
+          skillLibrary: peekLibrarySkills(),
           memory: createPromptMemory(agentState),
           profileData: agentState?.settings?.profileData || {},
           workSummary: agentState?.taskMemory?.workSummary || '',

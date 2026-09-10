@@ -1,0 +1,4093 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-06T18:20:59.852Z",
+    "tiers": [
+      "visual",
+      "redaction"
+    ],
+    "environment": "headless-ci",
+    "headed": false,
+    "channel": "chromium",
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites. environment=headless-ci — headless CI (software GL): valid for regression tracking ONLY, never for production claims."
+  },
+  "environment": {},
+  "visualContext": {
+    "meta": {
+      "type": "browser",
+      "n": 12,
+      "note": "DOM-derived = classifyVisualContext on the real DOM census only. ViT-fused = same + real Xenova/vit-base-patch16-224 top-5 labels on the real screenshot. Pixel-only-control pages (canvas-controls, svg-controls) are reported SEPARATELY — they carry no DOM evidence by design."
+    },
+    "pageTypeAccuracy": {
+      "domDerived": 1,
+      "vitFused": null,
+      "n": 12,
+      "rows": [
+        {
+          "page": "login.html",
+          "expect": "login",
+          "pixelsOnlyPage": false,
+          "domType": "login",
+          "domConfidence": 0.92,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "password_field",
+            "email_field",
+            "form",
+            "button",
+            "credential_form"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "signup.html",
+          "expect": "signup",
+          "pixelsOnlyPage": false,
+          "domType": "signup",
+          "domConfidence": 0.55,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "password_field",
+            "email_field",
+            "form",
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "checkout.html",
+          "expect": "checkout",
+          "pixelsOnlyPage": false,
+          "domType": "checkout",
+          "domConfidence": 0.87,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "phone_field",
+            "form",
+            "button",
+            "price_display",
+            "order_summary"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "payment.html",
+          "expect": "payment",
+          "pixelsOnlyPage": false,
+          "domType": "payment",
+          "domConfidence": 0.9,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "form",
+            "button",
+            "price_display",
+            "order_summary"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "banking.html",
+          "expect": "banking",
+          "pixelsOnlyPage": false,
+          "domType": "banking",
+          "domConfidence": 0.87,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button",
+            "price_display"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "dashboard.html",
+          "expect": "dashboard",
+          "pixelsOnlyPage": false,
+          "domType": "dashboard",
+          "domConfidence": 0.53,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "price_display"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": null
+        },
+        {
+          "page": "email.html",
+          "expect": "email",
+          "pixelsOnlyPage": false,
+          "domType": "email",
+          "domConfidence": 0.68,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "article.html",
+          "expect": "article",
+          "pixelsOnlyPage": false,
+          "domType": "article",
+          "domConfidence": 0.83,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "media.html",
+          "expect": "media",
+          "pixelsOnlyPage": false,
+          "domType": "media",
+          "domConfidence": 0.72,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button",
+            "video_player",
+            "media_controls"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "gov-form.html",
+          "expect": "government",
+          "pixelsOnlyPage": false,
+          "domType": "government",
+          "domConfidence": 0.89,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "file_upload",
+            "form",
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "canvas-app.html",
+          "expect": "form",
+          "pixelsOnlyPage": false,
+          "domType": "form",
+          "domConfidence": 0.42,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "mixed-ui.html",
+          "expect": "unknown",
+          "pixelsOnlyPage": false,
+          "domType": "unknown",
+          "domConfidence": 0.28,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button",
+            "link_list"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "canvas-controls.html",
+          "expect": "form",
+          "pixelsOnlyPage": true,
+          "domType": "unknown",
+          "domConfidence": 0.25,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [],
+          "okDom": null,
+          "okFused": null,
+          "pixelControls": {
+            "gt": 3,
+            "foundInDomElements": 0,
+            "censusCanvasSignal": true
+          },
+          "completeness": null
+        },
+        {
+          "page": "svg-controls.html",
+          "expect": "form",
+          "pixelsOnlyPage": true,
+          "domType": "unknown",
+          "domConfidence": 0.25,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [],
+          "okDom": null,
+          "okFused": null,
+          "pixelControls": {
+            "gt": 3,
+            "foundInDomElements": 0,
+            "censusCanvasSignal": false
+          },
+          "completeness": null
+        }
+      ]
+    },
+    "elementSources": {
+      "domSemantic": {
+        "n": 12,
+        "completeness": 1
+      },
+      "pixelsOnly": {
+        "pages": [
+          "canvas-controls.html",
+          "svg-controls.html"
+        ],
+        "gtControls": 6,
+        "foundInDomElements": 0,
+        "censusCanvasSignalPages": 1,
+        "note": "Pixel-only controls are INVISIBLE to DOM-derived elements by design — foundInDomElements=0 is the honest expected value, the same limitation that motivates the OCR and visual-detector paths (measured separately in the ocr tier and the adversarial benchmark)."
+      }
+    },
+    "contextCompleteness": 1,
+    "falsePositives": [],
+    "meanConfidence": 0.705,
+    "vit": {
+      "loadMs": null,
+      "enabled": false
+    }
+  },
+  "redactionMatrix": {
+    "meta": {
+      "type": "browser",
+      "n": 72,
+      "note": "Each run: fresh context at the DPR, CSS-zoom emulating browser zoom, real scroll position, dialog state toggled, real screenshot, real pipeline, GT boxes measured live and pixel-verified."
+    },
+    "coverage": {
+      "avg": 1,
+      "min": 1,
+      "n": 72
+    },
+    "meanIou": {
+      "avg": 0.991,
+      "min": 0.975,
+      "n": 72
+    },
+    "overRedactionPct": {
+      "avg": 0,
+      "max": 0
+    },
+    "pixelLeakage": {
+      "totalLeaks": 0,
+      "totalGtBoxes": 340
+    },
+    "pipelineMs": {
+      "p50": 215,
+      "p90": 272,
+      "p95": 286
+    },
+    "runs": [
+      {
+        "dpr": 1,
+        "zoom": 1,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 188,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 197,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 159,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 178,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 252,
+        "perGt": [
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 198,
+        "perGt": [
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.25,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 193,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.25,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 240,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.25,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 260,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.25,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 247,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.25,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 157,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.25,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 158,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.5,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 164,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.5,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 165,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.5,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 200,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.5,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 185,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.5,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 176,
+        "perGt": [
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1,
+        "zoom": 1.5,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 180,
+        "perGt": [
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 274,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.98,
+            "iou": 0.96,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.98,
+            "iou": 0.96,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.984,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 224,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.98,
+            "iou": 0.96,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.98,
+            "iou": 0.96,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.987,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 272,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.98,
+            "iou": 0.96,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.98,
+            "iou": 0.96,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.984,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 221,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.98,
+            "iou": 0.96,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.98,
+            "iou": 0.96,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.987,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 250,
+        "perGt": [
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 199,
+        "perGt": [
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 1,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.25,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 206,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.988,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.996,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.25,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 182,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.988,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.998,
+            "iou": 0.997,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.996,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.25,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 201,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.983,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.988,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.99,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.25,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 245,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.983,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.988,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.998,
+            "iou": 0.997,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.991,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.25,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 196,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.988,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.995,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.25,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 201,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.988,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.998,
+            "iou": 0.997,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.995,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.5,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 257,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.986,
+            "iou": 0.959,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.986,
+            "iou": 0.959,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.991,
+            "iou": 0.982,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.975,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.5,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 206,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.986,
+            "iou": 0.959,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.991,
+            "iou": 0.982,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.979,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.5,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 196,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.986,
+            "iou": 0.959,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.986,
+            "iou": 0.959,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.991,
+            "iou": 0.982,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.975,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.5,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 207,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.986,
+            "iou": 0.959,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.986,
+            "iou": 0.959,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.991,
+            "iou": 0.982,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.977,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.5,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 192,
+        "perGt": [
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.99,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.25,
+        "zoom": 1.5,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 172,
+        "perGt": [
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 0.986,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.989,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 191,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.987,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 242,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.989,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 173,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.987,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 184,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.989,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 212,
+        "perGt": [
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.983,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 179,
+        "perGt": [
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.983,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.989,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.25,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 177,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.986,
+            "iou": 0.971,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.986,
+            "iou": 0.971,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.99,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.986,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.25,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 186,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.986,
+            "iou": 0.971,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.986,
+            "iou": 0.971,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.99,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.999,
+            "iou": 0.997,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.988,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.25,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 221,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.99,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.997,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.25,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 252,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.99,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.999,
+            "iou": 0.997,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.997,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.25,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 224,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.99,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.996,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.25,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 286,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.999,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.999,
+            "iou": 0.99,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.999,
+            "iou": 0.997,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.996,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.5,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 218,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.993,
+            "iou": 0.985,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.979,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.5,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 215,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.993,
+            "iou": 0.985,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.976,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.5,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 215,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.993,
+            "iou": 0.985,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.983,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.5,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 276,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.993,
+            "iou": 0.985,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.98,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.5,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 203,
+        "perGt": [
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.993,
+            "iou": 0.985,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.982,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 1.5,
+        "zoom": 1.5,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 1261,
+        "perGt": [
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.993,
+            "iou": 0.985,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.988,
+            "iou": 0.966,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.979,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 279,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.99,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 255,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.992,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 295,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.99,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 215,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.992,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 206,
+        "perGt": [
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.987,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 230,
+        "perGt": [
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.987,
+            "iou": 0.975,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 1,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.992,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.25,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 268,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.992,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.99,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.25,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 295,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.992,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.978,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.986,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.25,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 259,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.992,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.99,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.25,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 220,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.992,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.978,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.986,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.25,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 241,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.992,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.99,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.25,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 270,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 0.989,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.992,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 0.978,
+            "iou": 0.967,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.984,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.5,
+        "scroll": "top",
+        "dialogOpen": false,
+        "pipelineMs": 226,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.991,
+            "iou": 0.974,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.994,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.987,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.5,
+        "scroll": "top",
+        "dialogOpen": true,
+        "pipelineMs": 220,
+        "perGt": [
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.994,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.991,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.5,
+        "scroll": "middle",
+        "dialogOpen": false,
+        "pipelineMs": 229,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.991,
+            "iou": 0.974,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.994,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.987,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.5,
+        "scroll": "middle",
+        "dialogOpen": true,
+        "pipelineMs": 272,
+        "perGt": [
+          {
+            "sel": "#rl-pass",
+            "type": "password",
+            "coverage": 0.991,
+            "iou": 0.974,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.994,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.988,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.5,
+        "scroll": "bottom",
+        "dialogOpen": false,
+        "pipelineMs": 256,
+        "perGt": [
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.994,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.991,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      {
+        "dpr": 2,
+        "zoom": 1.5,
+        "scroll": "bottom",
+        "dialogOpen": true,
+        "pipelineMs": 220,
+        "perGt": [
+          {
+            "sel": "#rl-card",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-email",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-phone",
+            "type": "sensitive_input",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#rl-addr",
+            "type": "sensitive_input",
+            "coverage": 0.994,
+            "iou": 0.989,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "#dl-pass",
+            "type": "password",
+            "coverage": 1,
+            "iou": 0.991,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.991,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      }
+    ]
+  },
+  "ocrVisualPii": null,
+  "resources": null
+}

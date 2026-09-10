@@ -1,0 +1,275 @@
+{
+  "meta": {
+    "type": "adversarial",
+    "benchmark": "real-extension-adversarial",
+    "generatedAt": "2026-09-06T16:41:38.578Z",
+    "note": "REAL unpacked extension driven through capture → perception → sanitize → network gate → transmit while a recording decision server captures EVERY outbound byte. Suites are reported separately and never merged with UNIT/BROWSER/E2E numbers.",
+    "decisionEndpoint": "http://127.0.0.1:8895"
+  },
+  "privacy": {
+    "meta": {
+      "type": "adversarial",
+      "n": 12,
+      "note": "Every case asserts: raw secret absent from ALL outbound fields, raw reference bytes absent from the outbound image, GT region pixel-verified altered pre-transmission, privacy envelope passed, no apiKey in settings."
+    },
+    "cases": [
+      {
+        "id": "password",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 3.4,
+        "regionThresh": 20,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "email",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 3,
+        "regionThresh": 20,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "phone",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 2.7,
+        "regionThresh": 20,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "aadhaar",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 2.6,
+        "regionThresh": 20,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "pan",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 3.5,
+        "regionThresh": 20,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "card",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 2.4,
+        "regionThresh": 20,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "otp",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 3.1,
+        "regionThresh": 20,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "api-key",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 3.2,
+        "regionThresh": 20,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "canvas-email",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 0.4,
+        "regionThresh": 15,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "svg-image",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 0.2,
+        "regionThresh": 15,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "pdf-like",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 2,
+        "regionThresh": 15,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "pass": false
+      },
+      {
+        "id": "face",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": false,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": false,
+          "faceStyle": true
+        },
+        "leakedIn": [],
+        "regionMeanDiff": 5.2,
+        "regionThresh": 8,
+        "outboundImageSize": {
+          "w": 1280,
+          "h": 720
+        },
+        "faceRegions": 1,
+        "pass": false
+      }
+    ],
+    "passed": 0,
+    "n": 12
+  },
+  "injection": null
+}

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Skill library index — each id maps to <id>/SKILL.md. MV3 cannot list directories at runtime, so the loader reads this manifest.",
+  "skills": [
+    "summarize-page",
+    "deep-research",
+    "extract-data",
+    "compare-prices",
+    "fill-form",
+    "find-alternatives",
+    "manage-bookmarks",
+    "monitor-page",
+    "organize-tabs",
+    "read-later",
+    "save-page",
+    "screenshot-walkthrough"
+  ]
+}

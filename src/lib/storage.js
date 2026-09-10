@@ -126,29 +126,3 @@ export async function recordTokenUsage(model, promptTokens, completionTokens, to
 export async function clearTokenUsage() {
   await chrome.storage.local.set({ [STORAGE_KEYS.TOKEN_USAGE]: {} });
 }
-
-const DEFAULT_LICENSE_RECORD = {
-  key: '',
-  status: null,
-  email: '',
-  lastCheckedAt: null,
-};
-
-export async function getLicenseInfo() {
-  const data = await chrome.storage.local.get(STORAGE_KEYS.LICENSE);
-  return data[STORAGE_KEYS.LICENSE] || { ...DEFAULT_LICENSE_RECORD };
-}
-
-export async function saveLicenseInfo(info = {}) {
-  const payload = {
-    ...DEFAULT_LICENSE_RECORD,
-    ...info,
-    lastCheckedAt: info.lastCheckedAt || Date.now(),
-  };
-  await chrome.storage.local.set({ [STORAGE_KEYS.LICENSE]: payload });
-  return payload;
-}
-
-export async function clearLicenseInfo() {
-  await chrome.storage.local.set({ [STORAGE_KEYS.LICENSE]: { ...DEFAULT_LICENSE_RECORD } });
-}

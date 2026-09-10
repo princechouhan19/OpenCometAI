@@ -1,0 +1,3314 @@
+{
+  "meta": {
+    "generator": "OpenCometBench/generate-pii-corpus.mjs",
+    "seed": 26171,
+    "generatedAt": "2026-09-05T18:57:15.323Z",
+    "note": "Fully synthetic values. Valid positives use real Luhn/Verhoeff/mod-97 checksums; invalid negatives differ only in the check digit. No real personal data."
+  },
+  "positives": [
+    {
+      "id": "pos-001",
+      "type": "email",
+      "text": "email address: admin@mail.example.in",
+      "expect": "admin@mail.example.in",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-002",
+      "type": "email",
+      "text": "Contact: support@example.com",
+      "expect": "support@example.com",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-003",
+      "type": "email",
+      "text": "மின்னஞ்சல்: divya.bose@test.example.net",
+      "expect": "divya.bose@test.example.net",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-004",
+      "type": "email",
+      "text": "Contact: sales@mail.example.in",
+      "expect": "sales@mail.example.in",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-005",
+      "type": "email",
+      "text": "email address: info@example.com",
+      "expect": "info@example.com",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-006",
+      "type": "email",
+      "text": "ईमेल: ishaan911@example.com",
+      "expect": "ishaan911@example.com",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-007",
+      "type": "email",
+      "text": "Contact: rohan.singh@test.example.net",
+      "expect": "rohan.singh@test.example.net",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-008",
+      "type": "email",
+      "text": "Contact: priya358@example.com",
+      "expect": "priya358@example.com",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-009",
+      "type": "email",
+      "text": "Form field — மின்னஞ்சல்: arjun.patel@mail.example.in (required)",
+      "expect": "arjun.patel@mail.example.in",
+      "variant": "form"
+    },
+    {
+      "id": "pos-010",
+      "type": "email",
+      "text": "Form field — Contact: pooja.iyer@mail.example.in (required)",
+      "expect": "pooja.iyer@mail.example.in",
+      "variant": "form"
+    },
+    {
+      "id": "pos-011",
+      "type": "email",
+      "text": "Form field — E-mail: karan.khan@example.com (required)",
+      "expect": "karan.khan@example.com",
+      "variant": "form"
+    },
+    {
+      "id": "pos-012",
+      "type": "email",
+      "text": "Form field — Contact: noreply@test.example.net (required)",
+      "expect": "noreply@test.example.net",
+      "variant": "form"
+    },
+    {
+      "id": "pos-013",
+      "type": "email",
+      "text": "The parcel note was teamd yesterday. Contact ananya334@test.example.net. please check the memo.",
+      "expect": "ananya334@test.example.net",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-014",
+      "type": "email",
+      "text": "The team memo was letterd yesterday. email address neha.sharma@mail.example.in. please confirm the column.",
+      "expect": "neha.sharma@mail.example.in",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-015",
+      "type": "email",
+      "text": "The note note was parceld yesterday. மின்னஞ்சல் manav.mehta@example.com. please verify the plain.",
+      "expect": "manav.mehta@example.com",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-016",
+      "type": "email",
+      "text": "The record team was plaind yesterday. மின்னஞ்சல் aarav472@test.example.net. please confirm the parcel.",
+      "expect": "aarav472@test.example.net",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-017",
+      "type": "email",
+      "text": "Sign in — மின்னஞ்சல் sales@example.org [Cancel] [OK]",
+      "expect": "sales@example.org",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-018",
+      "type": "email",
+      "text": "Sign in — மின்னஞ்சல் noreply@mail.example.in [Cancel] [OK]",
+      "expect": "noreply@mail.example.in",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-019",
+      "type": "email",
+      "text": "Sign in — email address vikram.verma@example.com [Cancel] [OK]",
+      "expect": "vikram.verma@example.com",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-020",
+      "type": "email",
+      "text": "Sign in — Contact fatima359@example.org [Cancel] [OK]",
+      "expect": "fatima359@example.org",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-021",
+      "type": "email",
+      "text": "| Contact | careers@mail.example.in |  | id | 864155 |",
+      "expect": "careers@mail.example.in",
+      "variant": "table"
+    },
+    {
+      "id": "pos-022",
+      "type": "email",
+      "text": "| Email | sneha.joshi@example.org |  | id | 017331 |",
+      "expect": "sneha.joshi@example.org",
+      "variant": "table"
+    },
+    {
+      "id": "pos-023",
+      "type": "email",
+      "text": "| Email | arjun583@example.org |  | id | 210780 |",
+      "expect": "arjun583@example.org",
+      "variant": "table"
+    },
+    {
+      "id": "pos-024",
+      "type": "email",
+      "text": "| Email | neha.reddy@example.org |  | id | 674684 |",
+      "expect": "neha.reddy@example.org",
+      "variant": "table"
+    },
+    {
+      "id": "pos-025",
+      "type": "email",
+      "text": "மின்னஞ்சல்: rohan.iyer@mail.example.in",
+      "expect": "rohan.iyer@mail.example.in",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-026",
+      "type": "email",
+      "text": "email address: info@test.example.net",
+      "expect": "info@test.example.net",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-027",
+      "type": "email",
+      "text": "email address: kavya34@test.example.net",
+      "expect": "kavya34@test.example.net",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-028",
+      "type": "email",
+      "text": "மின்னஞ்சல்: rohan.das@test.example.net",
+      "expect": "rohan.das@test.example.net",
+      "variant": "tamil"
+    },
+    {
+      "id": "pos-029",
+      "type": "email",
+      "text": "Email: support@mail.example.in",
+      "expect": "support@mail.example.in",
+      "variant": "tamil"
+    },
+    {
+      "id": "pos-030",
+      "type": "email",
+      "text": "email address: help@mail.example.in",
+      "expect": "help@mail.example.in",
+      "variant": "tamil"
+    },
+    {
+      "id": "pos-031",
+      "type": "phone",
+      "text": "मोबाइल: +1 638-683-1636",
+      "expect": "+1 638-683-1636",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-032",
+      "type": "phone",
+      "text": "मोबाइल: +91 67146 39545",
+      "expect": "+91 67146 39545",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-033",
+      "type": "phone",
+      "text": "मोबाइल: (709) 438-2593",
+      "expect": "(709) 438-2593",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-034",
+      "type": "phone",
+      "text": "Phone: +91 68642 46315",
+      "expect": "+91 68642 46315",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-035",
+      "type": "phone",
+      "text": "फ़ोन: +91 75910 26547",
+      "expect": "+91 75910 26547",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-036",
+      "type": "phone",
+      "text": "Contact number: (276) 363-6577",
+      "expect": "(276) 363-6577",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-037",
+      "type": "phone",
+      "text": "फ़ोन: +91-69070-48177",
+      "expect": "+91-69070-48177",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-038",
+      "type": "phone",
+      "text": "Call: +91-89364-60055",
+      "expect": "+91-89364-60055",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-039",
+      "type": "phone",
+      "text": "The record letter was teamd yesterday. फ़ोन +91-85797-85466. please verify the record.",
+      "expect": "+91-85797-85466",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-040",
+      "type": "phone",
+      "text": "The note entry was columnd yesterday. Mobile 8272913860. please review the entry.",
+      "expect": "8272913860",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-041",
+      "type": "phone",
+      "text": "The parcel memo was teamd yesterday. Call +1 461-708-2625. please confirm the notice.",
+      "expect": "+1 461-708-2625",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-042",
+      "type": "phone",
+      "text": "The sample memo was entryd yesterday. Mobile 7761155286. please review the entry.",
+      "expect": "7761155286",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-043",
+      "type": "phone",
+      "text": "Form field — Mobile: +91 91179 01393 (required)",
+      "expect": "+91 91179 01393",
+      "variant": "form"
+    },
+    {
+      "id": "pos-044",
+      "type": "phone",
+      "text": "Form field — Phone: +1 232-077-6048 (required)",
+      "expect": "+1 232-077-6048",
+      "variant": "form"
+    },
+    {
+      "id": "pos-045",
+      "type": "phone",
+      "text": "Form field — फ़ोन: 8110069372 (required)",
+      "expect": "8110069372",
+      "variant": "form"
+    },
+    {
+      "id": "pos-046",
+      "type": "phone",
+      "text": "Form field — Call: +91-71354-79417 (required)",
+      "expect": "+91-71354-79417",
+      "variant": "form"
+    },
+    {
+      "id": "pos-047",
+      "type": "phone",
+      "text": "கைபேசி: +1 755-633-7559",
+      "expect": "+1 755-633-7559",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-048",
+      "type": "phone",
+      "text": "Phone: 041 45953827",
+      "expect": "041 45953827",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-049",
+      "type": "phone",
+      "text": "Call: (809) 636-9566",
+      "expect": "(809) 636-9566",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-050",
+      "type": "phone",
+      "text": "கைபேசி: 6085574590",
+      "expect": "6085574590",
+      "variant": "tamil"
+    },
+    {
+      "id": "pos-051",
+      "type": "phone",
+      "text": "Mobile: 057 94322942",
+      "expect": "057 94322942",
+      "variant": "tamil"
+    },
+    {
+      "id": "pos-052",
+      "type": "phone",
+      "text": "Call: (540) 140-3177",
+      "expect": "(540) 140-3177",
+      "variant": "tamil"
+    },
+    {
+      "id": "pos-053",
+      "type": "phone",
+      "text": "The parcel file was parceld yesterday\nMobile: +91-62662-76939\nplease confirm the team",
+      "expect": "+91-62662-76939",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-054",
+      "type": "phone",
+      "text": "The the notice was paperd yesterday\nCall: +1 929-243-3670\nplease review the the",
+      "expect": "+1 929-243-3670",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-055",
+      "type": "phone",
+      "text": "The letter plain was paperd yesterday\nफ़ोन: (217) 855-1805\nplease review the paper",
+      "expect": "(217) 855-1805",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-056",
+      "type": "phone",
+      "text": "The record parcel was teamd yesterday\nPhone: 024 64748373\nplease confirm the file",
+      "expect": "024 64748373",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-057",
+      "type": "phone",
+      "text": "Sign in — Phone (439) 371-0150 [Cancel] [OK]",
+      "expect": "(439) 371-0150",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-058",
+      "type": "phone",
+      "text": "Sign in — Phone +91 75626 38785 [Cancel] [OK]",
+      "expect": "+91 75626 38785",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-059",
+      "type": "phone",
+      "text": "Sign in — Call (414) 246-5738 [Cancel] [OK]",
+      "expect": "(414) 246-5738",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-060",
+      "type": "phone",
+      "text": "Sign in — Mobile +91-74945-02901 [Cancel] [OK]",
+      "expect": "+91-74945-02901",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-061",
+      "type": "credit_card",
+      "text": "Debit card: 4532058287419946",
+      "expect": "4532058287419946",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-062",
+      "type": "credit_card",
+      "text": "Debit card: 3761-2950-0625-6934-808",
+      "expect": "3761-2950-0625-6934-808",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-063",
+      "type": "credit_card",
+      "text": "Card number: 4532288351941025460",
+      "expect": "4532288351941025460",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-064",
+      "type": "credit_card",
+      "text": "Card no: 3758217738172863",
+      "expect": "3758217738172863",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-065",
+      "type": "credit_card",
+      "text": "Debit card: 4532740375785",
+      "expect": "4532740375785",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-066",
+      "type": "credit_card",
+      "text": "Card no: 4559-1959-3277-859",
+      "expect": "4559-1959-3277-859",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-067",
+      "type": "credit_card",
+      "text": "Card number: 5100-2080-5377-133",
+      "expect": "5100-2080-5377-133",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-068",
+      "type": "credit_card",
+      "text": "Credit card: 3708-3978-2643-6155",
+      "expect": "3708-3978-2643-6155",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-069",
+      "type": "credit_card",
+      "text": "Credit card: 4559911412022696",
+      "expect": "4559911412022696",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-070",
+      "type": "credit_card",
+      "text": "Visa: 601112108964756",
+      "expect": "601112108964756",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-071",
+      "type": "credit_card",
+      "text": "Form field — Debit card: 4532-3586-9654-2373 (required)",
+      "expect": "4532-3586-9654-2373",
+      "variant": "form"
+    },
+    {
+      "id": "pos-072",
+      "type": "credit_card",
+      "text": "Form field — Card no: 5425-3349-1327-2364 (required)",
+      "expect": "5425-3349-1327-2364",
+      "variant": "form"
+    },
+    {
+      "id": "pos-073",
+      "type": "credit_card",
+      "text": "Form field — Credit card: 5264961986949298 (required)",
+      "expect": "5264961986949298",
+      "variant": "form"
+    },
+    {
+      "id": "pos-074",
+      "type": "credit_card",
+      "text": "Form field — Card no: 5264516127623690372 (required)",
+      "expect": "5264516127623690372",
+      "variant": "form"
+    },
+    {
+      "id": "pos-075",
+      "type": "credit_card",
+      "text": "Form field — Visa: 4917 8937 5718 8 (required)",
+      "expect": "4917 8937 5718 8",
+      "variant": "form"
+    },
+    {
+      "id": "pos-076",
+      "type": "credit_card",
+      "text": "Form field — Card number: 6011685815099103768 (required)",
+      "expect": "6011685815099103768",
+      "variant": "form"
+    },
+    {
+      "id": "pos-077",
+      "type": "credit_card",
+      "text": "The record team was letterd yesterday. Credit card 5100 9540 6808 1732. please confirm the the.",
+      "expect": "5100 9540 6808 1732",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-078",
+      "type": "credit_card",
+      "text": "The memo entry was plaind yesterday. Card number 6011070013215923. please confirm the quick.",
+      "expect": "6011070013215923",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-079",
+      "type": "credit_card",
+      "text": "The team quick was paperd yesterday. Debit card 4559876304610. please review the plain.",
+      "expect": "4559876304610",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-080",
+      "type": "credit_card",
+      "text": "The parcel sample was sampled yesterday. Visa 4559673290537175. please review the column.",
+      "expect": "4559673290537175",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-081",
+      "type": "credit_card",
+      "text": "The notice team was quickd yesterday. Card no 4532-0795-0500-5465. please check the note.",
+      "expect": "4532-0795-0500-5465",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-082",
+      "type": "credit_card",
+      "text": "The parcel the was memod yesterday. Visa 4917-6483-4567-3339. please confirm the note.",
+      "expect": "4917-6483-4567-3339",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-083",
+      "type": "credit_card",
+      "text": "Sign in — Visa 3489 9946 0539 7452 [Cancel] [OK]",
+      "expect": "3489 9946 0539 7452",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-084",
+      "type": "credit_card",
+      "text": "Sign in — Card number 4917 2701 7876 6599 847 [Cancel] [OK]",
+      "expect": "4917 2701 7876 6599 847",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-085",
+      "type": "credit_card",
+      "text": "Sign in — Visa 374910077772224 [Cancel] [OK]",
+      "expect": "374910077772224",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-086",
+      "type": "credit_card",
+      "text": "Sign in — Card number 5264-8380-4911-546 [Cancel] [OK]",
+      "expect": "5264-8380-4911-546",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-087",
+      "type": "credit_card",
+      "text": "5100-2198-8534-6050",
+      "expect": "5100-2198-8534-6050",
+      "variant": "bare"
+    },
+    {
+      "id": "pos-088",
+      "type": "credit_card",
+      "text": "4917-6484-6937-4056-675",
+      "expect": "4917-6484-6937-4056-675",
+      "variant": "bare"
+    },
+    {
+      "id": "pos-089",
+      "type": "credit_card",
+      "text": "4532 1522 6073 1",
+      "expect": "4532 1522 6073 1",
+      "variant": "bare"
+    },
+    {
+      "id": "pos-090",
+      "type": "credit_card",
+      "text": "4559704210442129",
+      "expect": "4559704210442129",
+      "variant": "bare"
+    },
+    {
+      "id": "pos-091",
+      "type": "aadhaar",
+      "text": "Aadhaar: 6878 5092 5237",
+      "expect": "6878 5092 5237",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-092",
+      "type": "aadhaar",
+      "text": "UIDAI: 6125 1975 7235",
+      "expect": "6125 1975 7235",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-093",
+      "type": "aadhaar",
+      "text": "Aadhaar: 7127 2899 1058",
+      "expect": "7127 2899 1058",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-094",
+      "type": "aadhaar",
+      "text": "UIDAI: 7500 0452 7092",
+      "expect": "7500 0452 7092",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-095",
+      "type": "aadhaar",
+      "text": "UIDAI: 0850 4525 6449",
+      "expect": "0850 4525 6449",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-096",
+      "type": "aadhaar",
+      "text": "Aadhar: 3480 9534 8279",
+      "expect": "3480 9534 8279",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-097",
+      "type": "aadhaar",
+      "text": "आधार: 1356 4318 2995",
+      "expect": "1356 4318 2995",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-098",
+      "type": "aadhaar",
+      "text": "Aadhaar: 8677 8240 0212",
+      "expect": "8677 8240 0212",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-099",
+      "type": "aadhaar",
+      "text": "Form field — Aadhaar: 5733 1751 7560 (required)",
+      "expect": "5733 1751 7560",
+      "variant": "form"
+    },
+    {
+      "id": "pos-100",
+      "type": "aadhaar",
+      "text": "Form field — आधार: 1166 6547 7052 (required)",
+      "expect": "1166 6547 7052",
+      "variant": "form"
+    },
+    {
+      "id": "pos-101",
+      "type": "aadhaar",
+      "text": "Form field — Aadhar: 7194 5651 9833 (required)",
+      "expect": "7194 5651 9833",
+      "variant": "form"
+    },
+    {
+      "id": "pos-102",
+      "type": "aadhaar",
+      "text": "Form field — आधार: 3674 2595 1213 (required)",
+      "expect": "3674 2595 1213",
+      "variant": "form"
+    },
+    {
+      "id": "pos-103",
+      "type": "aadhaar",
+      "text": "Form field — आधार: 9834 4234 6037 (required)",
+      "expect": "9834 4234 6037",
+      "variant": "form"
+    },
+    {
+      "id": "pos-104",
+      "type": "aadhaar",
+      "text": "Form field — UIDAI: 1015 9171 6435 (required)",
+      "expect": "1015 9171 6435",
+      "variant": "form"
+    },
+    {
+      "id": "pos-105",
+      "type": "aadhaar",
+      "text": "आधार: 9850 7827 5198",
+      "expect": "9850 7827 5198",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-106",
+      "type": "aadhaar",
+      "text": "UIDAI: 6556 6806 1983",
+      "expect": "6556 6806 1983",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-107",
+      "type": "aadhaar",
+      "text": "UIDAI: 0661 3871 6300",
+      "expect": "0661 3871 6300",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-108",
+      "type": "aadhaar",
+      "text": "Aadhar: 2409 1505 3751",
+      "expect": "2409 1505 3751",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-109",
+      "type": "aadhaar",
+      "text": "The quick note was parceld yesterday. Aadhar 8477 5476 4277. please confirm the file.",
+      "expect": "8477 5476 4277",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-110",
+      "type": "aadhaar",
+      "text": "The team entry was quickd yesterday. आधार 7349 1010 6267. please check the parcel.",
+      "expect": "7349 1010 6267",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-111",
+      "type": "aadhaar",
+      "text": "The memo parcel was parceld yesterday. Aadhaar 7380 9313 1076. please confirm the sample.",
+      "expect": "7380 9313 1076",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-112",
+      "type": "aadhaar",
+      "text": "The entry the was noted yesterday. Aadhar 1699 6067 6393. please check the quick.",
+      "expect": "1699 6067 6393",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-113",
+      "type": "aadhaar",
+      "text": "Sign in — UIDAI 2883 6777 2562 [Cancel] [OK]",
+      "expect": "2883 6777 2562",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-114",
+      "type": "aadhaar",
+      "text": "Sign in — Aadhaar 5034 0961 9444 [Cancel] [OK]",
+      "expect": "5034 0961 9444",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-115",
+      "type": "aadhaar",
+      "text": "Sign in — आधार 6895 8205 9326 [Cancel] [OK]",
+      "expect": "6895 8205 9326",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-116",
+      "type": "aadhaar",
+      "text": "Sign in — UIDAI 0878 6182 4531 [Cancel] [OK]",
+      "expect": "0878 6182 4531",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-117",
+      "type": "pan",
+      "text": "PAN card: KNJDG7549D",
+      "expect": "KNJDG7549D",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-118",
+      "type": "pan",
+      "text": "PAN: TJVGM8844Z",
+      "expect": "TJVGM8844Z",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-119",
+      "type": "pan",
+      "text": "PAN: FKGVG3257J",
+      "expect": "FKGVG3257J",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-120",
+      "type": "pan",
+      "text": "PAN card: BZJCX7330G",
+      "expect": "BZJCX7330G",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-121",
+      "type": "pan",
+      "text": "PAN card: ZRGPC7164V",
+      "expect": "ZRGPC7164V",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-122",
+      "type": "pan",
+      "text": "PAN number: LMMDU0194H",
+      "expect": "LMMDU0194H",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-123",
+      "type": "pan",
+      "text": "PAN number: MFFCT8619B",
+      "expect": "MFFCT8619B",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-124",
+      "type": "pan",
+      "text": "PAN: RFTTX5238C",
+      "expect": "RFTTX5238C",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-125",
+      "type": "pan",
+      "text": "Form field — PAN number: TXQPV1125R (required)",
+      "expect": "TXQPV1125R",
+      "variant": "form"
+    },
+    {
+      "id": "pos-126",
+      "type": "pan",
+      "text": "Form field — PAN number: CSYLU1380N (required)",
+      "expect": "CSYLU1380N",
+      "variant": "form"
+    },
+    {
+      "id": "pos-127",
+      "type": "pan",
+      "text": "Form field — PAN number: KWXUM4819Q (required)",
+      "expect": "KWXUM4819Q",
+      "variant": "form"
+    },
+    {
+      "id": "pos-128",
+      "type": "pan",
+      "text": "Form field — PAN number: TYPGH6183Y (required)",
+      "expect": "TYPGH6183Y",
+      "variant": "form"
+    },
+    {
+      "id": "pos-129",
+      "type": "pan",
+      "text": "Form field — PAN: FBWSC2165S (required)",
+      "expect": "FBWSC2165S",
+      "variant": "form"
+    },
+    {
+      "id": "pos-130",
+      "type": "pan",
+      "text": "Form field — PAN number: XWLET6796U (required)",
+      "expect": "XWLET6796U",
+      "variant": "form"
+    },
+    {
+      "id": "pos-131",
+      "type": "pan",
+      "text": "The column notice was parceld yesterday. PAN card TLZHX6305V. please confirm the quick.",
+      "expect": "TLZHX6305V",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-132",
+      "type": "pan",
+      "text": "The record paper was entryd yesterday. PAN GNDSH5292Z. please confirm the memo.",
+      "expect": "GNDSH5292Z",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-133",
+      "type": "pan",
+      "text": "The parcel paper was teamd yesterday. PAN XXCPJ4260B. please review the sample.",
+      "expect": "XXCPJ4260B",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-134",
+      "type": "pan",
+      "text": "The record memo was noticed yesterday. PAN card FNKHY9048F. please check the column.",
+      "expect": "FNKHY9048F",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-135",
+      "type": "pan",
+      "text": "The column note was noticed yesterday. PAN VLTQT9590H. please check the entry.",
+      "expect": "VLTQT9590H",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-136",
+      "type": "pan",
+      "text": "The parcel entry was noticed yesterday. PAN card NQYHE1316W. please confirm the team.",
+      "expect": "NQYHE1316W",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-137",
+      "type": "ssn",
+      "text": "SSN: 463-76-7188",
+      "expect": "463-76-7188",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-138",
+      "type": "ssn",
+      "text": "Social security number: 119-86-5526",
+      "expect": "119-86-5526",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-139",
+      "type": "ssn",
+      "text": "SSN: 624-40-8758",
+      "expect": "624-40-8758",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-140",
+      "type": "ssn",
+      "text": "Social security number: 586-76-7654",
+      "expect": "586-76-7654",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-141",
+      "type": "ssn",
+      "text": "Social Security: 340-20-6940",
+      "expect": "340-20-6940",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-142",
+      "type": "ssn",
+      "text": "Social Security: 636-58-7993",
+      "expect": "636-58-7993",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-143",
+      "type": "ssn",
+      "text": "Social Security: 498-34-0879",
+      "expect": "498-34-0879",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-144",
+      "type": "ssn",
+      "text": "Social security number: 155-13-7737",
+      "expect": "155-13-7737",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-145",
+      "type": "ssn",
+      "text": "Form field — SSN: 191-56-3521 (required)",
+      "expect": "191-56-3521",
+      "variant": "form"
+    },
+    {
+      "id": "pos-146",
+      "type": "ssn",
+      "text": "Form field — SSN: 388-49-2872 (required)",
+      "expect": "388-49-2872",
+      "variant": "form"
+    },
+    {
+      "id": "pos-147",
+      "type": "ssn",
+      "text": "Form field — Social Security: 110-21-3462 (required)",
+      "expect": "110-21-3462",
+      "variant": "form"
+    },
+    {
+      "id": "pos-148",
+      "type": "ssn",
+      "text": "Form field — Social security number: 465-65-1147 (required)",
+      "expect": "465-65-1147",
+      "variant": "form"
+    },
+    {
+      "id": "pos-149",
+      "type": "ssn",
+      "text": "Form field — Social Security: 465-59-2021 (required)",
+      "expect": "465-59-2021",
+      "variant": "form"
+    },
+    {
+      "id": "pos-150",
+      "type": "ssn",
+      "text": "The sample letter was quickd yesterday. Social Security 286-43-1350. please confirm the entry.",
+      "expect": "286-43-1350",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-151",
+      "type": "ssn",
+      "text": "The the quick was columnd yesterday. Social Security 636-97-9058. please review the column.",
+      "expect": "636-97-9058",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-152",
+      "type": "ssn",
+      "text": "The sample sample was sampled yesterday. SSN 359-78-0424. please check the entry.",
+      "expect": "359-78-0424",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-153",
+      "type": "ssn",
+      "text": "The letter letter was plaind yesterday. Social security number 191-74-3408. please confirm the quick.",
+      "expect": "191-74-3408",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-154",
+      "type": "ssn",
+      "text": "The notice letter was quickd yesterday. SSN 374-28-7087. please check the parcel.",
+      "expect": "374-28-7087",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-155",
+      "type": "iban",
+      "text": "Bank account (IBAN): IT741B17R985014K280R8629",
+      "expect": "IT741B17R985014K280R8629",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-156",
+      "type": "iban",
+      "text": "IBAN: FR9570598FCE1ZP1A954S682",
+      "expect": "FR9570598FCE1ZP1A954S682",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-157",
+      "type": "iban",
+      "text": "IBAN: ES15641812704721M80724",
+      "expect": "ES15641812704721M80724",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-158",
+      "type": "iban",
+      "text": "Account IBAN: NL750799687Y1M912450594DX65",
+      "expect": "NL750799687Y1M912450594DX65",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-159",
+      "type": "iban",
+      "text": "Bank account (IBAN): IT4788J3870G49EM095Z6Q7979N",
+      "expect": "IT4788J3870G49EM095Z6Q7979N",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-160",
+      "type": "iban",
+      "text": "Bank account (IBAN): IT49C1D488C0066538311X73088",
+      "expect": "IT49C1D488C0066538311X73088",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-161",
+      "type": "iban",
+      "text": "IBAN: NL416T49B032045YB29HW6",
+      "expect": "NL416T49B032045YB29HW6",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-162",
+      "type": "iban",
+      "text": "Account IBAN: NL38864067252132003259",
+      "expect": "NL38864067252132003259",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-163",
+      "type": "iban",
+      "text": "Form field — Account IBAN: FR4682U0489621P198 (required)",
+      "expect": "FR4682U0489621P198",
+      "variant": "form"
+    },
+    {
+      "id": "pos-164",
+      "type": "iban",
+      "text": "Form field — Account IBAN: FR8376181718HZ25425F514E09C (required)",
+      "expect": "FR8376181718HZ25425F514E09C",
+      "variant": "form"
+    },
+    {
+      "id": "pos-165",
+      "type": "iban",
+      "text": "Form field — Bank account (IBAN): NL563M631984048404Z5F937 (required)",
+      "expect": "NL563M631984048404Z5F937",
+      "variant": "form"
+    },
+    {
+      "id": "pos-166",
+      "type": "iban",
+      "text": "Form field — Bank account (IBAN): IT603175M54752X16404P6 (required)",
+      "expect": "IT603175M54752X16404P6",
+      "variant": "form"
+    },
+    {
+      "id": "pos-167",
+      "type": "iban",
+      "text": "Form field — Bank account (IBAN): FR9194595710H44916 (required)",
+      "expect": "FR9194595710H44916",
+      "variant": "form"
+    },
+    {
+      "id": "pos-168",
+      "type": "iban",
+      "text": "The column quick was noticed yesterday. Bank account (IBAN) GB65654EN341X08J404693. please review the note.",
+      "expect": "GB65654EN341X08J404693",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-169",
+      "type": "iban",
+      "text": "The file letter was noted yesterday. Account IBAN DE1875B77232P023Q70329A0080. please verify the sample.",
+      "expect": "DE1875B77232P023Q70329A0080",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-170",
+      "type": "iban",
+      "text": "The file memo was teamd yesterday. IBAN NL15489L5254287719. please review the parcel.",
+      "expect": "NL15489L5254287719",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-171",
+      "type": "iban",
+      "text": "The sample notice was teamd yesterday. Account IBAN NL5086R20819T790568268. please verify the quick.",
+      "expect": "NL5086R20819T790568268",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-172",
+      "type": "iban",
+      "text": "The paper sample was recordd yesterday. IBAN NL66M6ZM3F5A7040551E4954636. please verify the column.",
+      "expect": "NL66M6ZM3F5A7040551E4954636",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-173",
+      "type": "api_key",
+      "text": "API key: ghp_a1BMAU7cXpyygwoQREmZtQejl",
+      "expect": "ghp_a1BMAU7cXpyygwoQREmZtQejl",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-174",
+      "type": "api_key",
+      "text": "Secret key: pk_live_exYE2B6m0bXe1sUq8o5w7AXc",
+      "expect": "pk_live_exYE2B6m0bXe1sUq8o5w7AXc",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-175",
+      "type": "api_key",
+      "text": "Key: ghp_XNISatECVyipHbF4u8IlQxwBYR3w",
+      "expect": "ghp_XNISatECVyipHbF4u8IlQxwBYR3w",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-176",
+      "type": "api_key",
+      "text": "Key: pk_live_LfuCMt7sRiPRZXa49sWn1NNp",
+      "expect": "pk_live_LfuCMt7sRiPRZXa49sWn1NNp",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-177",
+      "type": "api_key",
+      "text": "api key: xoxb-213233185-264547296-180588758",
+      "expect": "xoxb-213233185-264547296-180588758",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-178",
+      "type": "api_key",
+      "text": "Secret key: xoxb-453167406-134248399-968824666",
+      "expect": "xoxb-453167406-134248399-968824666",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-179",
+      "type": "api_key",
+      "text": "api key: AKIAV2JORPOURVFNWHQ7",
+      "expect": "AKIAV2JORPOURVFNWHQ7",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-180",
+      "type": "api_key",
+      "text": "Key: ghp_u3Oxx1OTEpqv9QjVS0fMUFXN89kvshrEq",
+      "expect": "ghp_u3Oxx1OTEpqv9QjVS0fMUFXN89kvshrEq",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-181",
+      "type": "api_key",
+      "text": "api key: AIza0E0bj_Ys5pltP5OA_DC9VijJrV4HgVR6mED",
+      "expect": "AIza0E0bj_Ys5pltP5OA_DC9VijJrV4HgVR6mED",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-182",
+      "type": "api_key",
+      "text": "api key: AIzad1R39w2lVY33ONpzSgM_JBtfor25UrHJYRD",
+      "expect": "AIzad1R39w2lVY33ONpzSgM_JBtfor25UrHJYRD",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-183",
+      "type": "api_key",
+      "text": "Secret key: AIzaJYcJb0kih2tqJf1b50qIwuur4XEyAu5fwEY",
+      "expect": "AIzaJYcJb0kih2tqJf1b50qIwuur4XEyAu5fwEY",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-184",
+      "type": "api_key",
+      "text": "API key: sk-x8XtRCaCfnSg0vHy8T__kk3FQyY_5bI1cPuq",
+      "expect": "sk-x8XtRCaCfnSg0vHy8T__kk3FQyY_5bI1cPuq",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-185",
+      "type": "api_key",
+      "text": "The entry the was noted yesterday. Key pk_live_kcc1hfhDISO6MWhwlt59JmWs. please confirm the notice.",
+      "expect": "pk_live_kcc1hfhDISO6MWhwlt59JmWs",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-186",
+      "type": "api_key",
+      "text": "The notice sample was memod yesterday. Key sk-q1exWUXR8kaxffkdEw7oMZe. please check the memo.",
+      "expect": "sk-q1exWUXR8kaxffkdEw7oMZe",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-187",
+      "type": "api_key",
+      "text": "The column team was teamd yesterday. Secret key AIza3y9GkE9puXf0he1TwSbrWK4khX15Gv-3rYW. please confirm the paper.",
+      "expect": "AIza3y9GkE9puXf0he1TwSbrWK4khX15Gv-3rYW",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-188",
+      "type": "api_key",
+      "text": "The record notice was sampled yesterday. Key ghp_Zd7I2KnQbKjpkot50Y02tuZDrI. please review the memo.",
+      "expect": "ghp_Zd7I2KnQbKjpkot50Y02tuZDrI",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-189",
+      "type": "api_key",
+      "text": "The note plain was paperd yesterday. api key AIzaix_q99VnVE33B8PsUqWE9jM3PGi2gQKT0es. please review the record.",
+      "expect": "AIzaix_q99VnVE33B8PsUqWE9jM3PGi2gQKT0es",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-190",
+      "type": "api_key",
+      "text": "The note notice was letterd yesterday. Secret key AIzaSj2qBQGQtwRbTuqoPU9yxAOvLL7U5F_veJS. please check the record.",
+      "expect": "AIzaSj2qBQGQtwRbTuqoPU9yxAOvLL7U5F_veJS",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-191",
+      "type": "api_key",
+      "text": "The team file was noted yesterday. Secret key xoxb-925421261-215138292-942497264. please review the quick.",
+      "expect": "xoxb-925421261-215138292-942497264",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-192",
+      "type": "api_key",
+      "text": "The team file was paperd yesterday. api key xoxb-916190764-466161033-346256805. please verify the column.",
+      "expect": "xoxb-916190764-466161033-346256805",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-193",
+      "type": "api_key",
+      "text": "The quick note was letterd yesterday\nSecret key: xoxb-977834175-663234172-246284820\nplease verify the column",
+      "expect": "xoxb-977834175-663234172-246284820",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-194",
+      "type": "api_key",
+      "text": "The letter quick was plaind yesterday\nKey: sk-Oo7Yapo_Vut8PsxVvd3X7Xf8D8P8\nplease check the letter",
+      "expect": "sk-Oo7Yapo_Vut8PsxVvd3X7Xf8D8P8",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-195",
+      "type": "api_key",
+      "text": "The file sample was thed yesterday\napi key: xoxb-724373389-495530854-830180598\nplease review the file",
+      "expect": "xoxb-724373389-495530854-830180598",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-196",
+      "type": "api_key",
+      "text": "The notice entry was recordd yesterday\nSecret key: pk_live_NESIo2ENqyddvgsPo1TRr2MK\nplease confirm the quick",
+      "expect": "pk_live_NESIo2ENqyddvgsPo1TRr2MK",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-197",
+      "type": "api_key",
+      "text": "The sample paper was thed yesterday\nAPI key: AIzadMvwnnse-4eI_EnL7w8_L0nG7B21fpSvlc1\nplease review the parcel",
+      "expect": "AIzadMvwnnse-4eI_EnL7w8_L0nG7B21fpSvlc1",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-198",
+      "type": "api_key",
+      "text": "The quick the was teamd yesterday\napi key: pk_live_8yYY63bw7Hyylgylqvbuziw0\nplease check the entry",
+      "expect": "pk_live_8yYY63bw7Hyylgylqvbuziw0",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-199",
+      "type": "api_key",
+      "text": "Sign in — API key AIzasGIgukJbsDF_7Tjvz_jfppbS8e78lUkCl5C [Cancel] [OK]",
+      "expect": "AIzasGIgukJbsDF_7Tjvz_jfppbS8e78lUkCl5C",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-200",
+      "type": "api_key",
+      "text": "Sign in — Key AIzaVOZDr8o9y2CDwUqdqt7ZuUDoxFavJS81A2q [Cancel] [OK]",
+      "expect": "AIzaVOZDr8o9y2CDwUqdqt7ZuUDoxFavJS81A2q",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-201",
+      "type": "api_key",
+      "text": "Sign in — api key pk_live_u3RwDwbkI0z1P9A8DcfDGkGo [Cancel] [OK]",
+      "expect": "pk_live_u3RwDwbkI0z1P9A8DcfDGkGo",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-202",
+      "type": "api_key",
+      "text": "Sign in — Secret key sk-exuX7XnCKrRdb8EKNN7ki-emAils0J3P3 [Cancel] [OK]",
+      "expect": "sk-exuX7XnCKrRdb8EKNN7ki-emAils0J3P3",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-203",
+      "type": "api_key",
+      "text": "Key: eyHkHaaFthChQEByS1pD0AvdzJe_7SK4cMFZMGE7FQ",
+      "expect": "eyHkHaaFthChQEByS1pD0AvdzJe_7SK4cMFZMGE7FQ",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-204",
+      "type": "api_key",
+      "text": "API key: eybkbyeQdryID2Or0v9mRRy3ufCbVptyCQ0TmQMTqp",
+      "expect": "eybkbyeQdryID2Or0v9mRRy3ufCbVptyCQ0TmQMTqp",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-205",
+      "type": "api_key",
+      "text": "API key: tok_nwdJS4CS6dQxZypo7jX83Y13",
+      "expect": "tok_nwdJS4CS6dQxZypo7jX83Y13",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-206",
+      "type": "api_key",
+      "text": "API key: ey_XowTHXV72BbGspc5dhhPhKriMg0uiAFvq6tSL6d",
+      "expect": "ey_XowTHXV72BbGspc5dhhPhKriMg0uiAFvq6tSL6d",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-207",
+      "type": "api_key",
+      "text": "API key: tok_CgCPwEc08DI80qXNGM8Om652",
+      "expect": "tok_CgCPwEc08DI80qXNGM8Om652",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-208",
+      "type": "api_key",
+      "text": "API key: pat_MXNigZ2C9uM5xnm0uc82OJYuLuDD77",
+      "expect": "pat_MXNigZ2C9uM5xnm0uc82OJYuLuDD77",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-209",
+      "type": "api_key",
+      "text": "API key: tok_Z0R5UMIYRATMaOYEoQrBN732",
+      "expect": "tok_Z0R5UMIYRATMaOYEoQrBN732",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-210",
+      "type": "api_key",
+      "text": "api key: pat_qwkwfkhD1Rwjss7pCTvaPE2AL2Dn58",
+      "expect": "pat_qwkwfkhD1Rwjss7pCTvaPE2AL2Dn58",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-211",
+      "type": "api_key",
+      "text": "Secret key: pat_RFnfF6JcOuo93EeliJwFMxvMqaFv92",
+      "expect": "pat_RFnfF6JcOuo93EeliJwFMxvMqaFv92",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-212",
+      "type": "api_key",
+      "text": "api key: tok_oxWSoiWmWKxmAltHHFPz6S41",
+      "expect": "tok_oxWSoiWmWKxmAltHHFPz6S41",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-213",
+      "type": "api_key",
+      "text": "The plain plain was quickd yesterday. api key pat_uPjrwv8FbHI1v1ZigIMSS9Cv83OI14. please review the the.",
+      "expect": "pat_uPjrwv8FbHI1v1ZigIMSS9Cv83OI14",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-214",
+      "type": "api_key",
+      "text": "The memo the was plaind yesterday. Secret key pat_6CxBm9REdtYrEsEZeA3lLD9REPtx86. please review the team.",
+      "expect": "pat_6CxBm9REdtYrEsEZeA3lLD9REPtx86",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-215",
+      "type": "api_key",
+      "text": "The file memo was paperd yesterday. Key pat_YVtn3qwnR56n5aAE1f7qbsqFA0PF85. please review the parcel.",
+      "expect": "pat_YVtn3qwnR56n5aAE1f7qbsqFA0PF85",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-216",
+      "type": "api_key",
+      "text": "The memo column was letterd yesterday. API key tok_rm6cTrgu9aYHQuf8ma0LVz51. please review the notice.",
+      "expect": "tok_rm6cTrgu9aYHQuf8ma0LVz51",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-217",
+      "type": "api_key",
+      "text": "The file sample was quickd yesterday. api key pat_phltajMEAPDRTHGe0mXOsbTfxElQ17. please verify the record.",
+      "expect": "pat_phltajMEAPDRTHGe0mXOsbTfxElQ17",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-218",
+      "type": "api_key",
+      "text": "The entry notice was filed yesterday. api key tok_s0XGEY5Z0cWfcMva0TM7HK70. please review the memo.",
+      "expect": "tok_s0XGEY5Z0cWfcMva0TM7HK70",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-219",
+      "type": "api_key",
+      "text": "The the the was letterd yesterday. API key eyuh1dCmkLpfZCgU-_qn9CEoDjw9Yc2VxRCgHrKgPT. please confirm the parcel.",
+      "expect": "eyuh1dCmkLpfZCgU-_qn9CEoDjw9Yc2VxRCgHrKgPT",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-220",
+      "type": "api_key",
+      "text": "The the team was sampled yesterday. API key tok_9cMIKDsZIZuHEsgNC7e6aa56. please review the entry.",
+      "expect": "tok_9cMIKDsZIZuHEsgNC7e6aa56",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-221",
+      "type": "api_key",
+      "text": "API key: Bearer ssRDyELcZ_J4CQ0_Jvv.p7IwixS5BK23",
+      "expect": "Bearer ssRDyELcZ_J4CQ0_Jvv.p7IwixS5BK23",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-222",
+      "type": "api_key",
+      "text": "Secret key: Bearer C_MXfekPgeNrBp3isAP4apTw9nve_j9A",
+      "expect": "Bearer C_MXfekPgeNrBp3isAP4apTw9nve_j9A",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-223",
+      "type": "api_key",
+      "text": "api key: Bearer 8GYzq3aZDrg8BeH9oODnEpl4gH5OF4iT",
+      "expect": "Bearer 8GYzq3aZDrg8BeH9oODnEpl4gH5OF4iT",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-224",
+      "type": "api_key",
+      "text": "api key: Bearer nN8i4BsqoyJdTeyEh4jBLdfffTtfwjvA",
+      "expect": "Bearer nN8i4BsqoyJdTeyEh4jBLdfffTtfwjvA",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-225",
+      "type": "api_key",
+      "text": "Key: Bearer I2D6xypTEBQ.w8YjVB0yARQ.gS5b0AOU",
+      "expect": "Bearer I2D6xypTEBQ.w8YjVB0yARQ.gS5b0AOU",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-226",
+      "type": "api_key",
+      "text": "api key: Bearer z29u1CyqNvL23kuP_jAVkIshu2McpOud",
+      "expect": "Bearer z29u1CyqNvL23kuP_jAVkIshu2McpOud",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-227",
+      "type": "api_key",
+      "text": "api key: Bearer wh2a1oULFp9.z.EXobgYFl8FV0UQBOKn",
+      "expect": "Bearer wh2a1oULFp9.z.EXobgYFl8FV0UQBOKn",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-228",
+      "type": "api_key",
+      "text": "API key: Bearer rqYSOT3WmIXBArEKh2.3b2Qig94yrG4U",
+      "expect": "Bearer rqYSOT3WmIXBArEKh2.3b2Qig94yrG4U",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-229",
+      "type": "password",
+      "text": "pwd: \"str0ng527\"",
+      "expect": "\"str0ng527\"",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-230",
+      "type": "password",
+      "text": "pwd: correct-horse-battery-39",
+      "expect": "correct-horse-battery-39",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-231",
+      "type": "password",
+      "text": "password: letter153#",
+      "expect": "letter153#",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-232",
+      "type": "password",
+      "text": "login password: Hunt3r3564!",
+      "expect": "Hunt3r3564!",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-233",
+      "type": "password",
+      "text": "password: file253$",
+      "expect": "file253$",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-234",
+      "type": "password",
+      "text": "login password: \"S3cret494\"",
+      "expect": "\"S3cret494\"",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-235",
+      "type": "password",
+      "text": "password: Hunt3r4010!",
+      "expect": "Hunt3r4010!",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-236",
+      "type": "password",
+      "text": "pwd: correct-horse-battery-10",
+      "expect": "correct-horse-battery-10",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-237",
+      "type": "password",
+      "text": "Form field — password: \"pass1309\" (required)",
+      "expect": "\"pass1309\"",
+      "variant": "form"
+    },
+    {
+      "id": "pos-238",
+      "type": "password",
+      "text": "Form field — login password: \"cor792\" (required)",
+      "expect": "\"cor792\"",
+      "variant": "form"
+    },
+    {
+      "id": "pos-239",
+      "type": "password",
+      "text": "Form field — login password: Hunt3r7711! (required)",
+      "expect": "Hunt3r7711!",
+      "variant": "form"
+    },
+    {
+      "id": "pos-240",
+      "type": "password",
+      "text": "Form field — Password: Hunt3r2311! (required)",
+      "expect": "Hunt3r2311!",
+      "variant": "form"
+    },
+    {
+      "id": "pos-241",
+      "type": "password",
+      "text": "Form field — pwd: Hunt3r8986! (required)",
+      "expect": "Hunt3r8986!",
+      "variant": "form"
+    },
+    {
+      "id": "pos-242",
+      "type": "password",
+      "text": "Form field — Password: correct-horse-battery-13 (required)",
+      "expect": "correct-horse-battery-13",
+      "variant": "form"
+    },
+    {
+      "id": "pos-243",
+      "type": "password",
+      "text": "Sign in — pwd correct-horse-battery-69 [Cancel] [OK]",
+      "expect": "correct-horse-battery-69",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-244",
+      "type": "password",
+      "text": "Sign in — Password plain191! [Cancel] [OK]",
+      "expect": "plain191!",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-245",
+      "type": "password",
+      "text": "Sign in — login password Hunt3r5728! [Cancel] [OK]",
+      "expect": "Hunt3r5728!",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-246",
+      "type": "password",
+      "text": "Sign in — password Hunt3r3311! [Cancel] [OK]",
+      "expect": "Hunt3r3311!",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-247",
+      "type": "password",
+      "text": "Sign in — password plain423! [Cancel] [OK]",
+      "expect": "plain423!",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-248",
+      "type": "password",
+      "text": "Sign in — pwd Hunt3r3864! [Cancel] [OK]",
+      "expect": "Hunt3r3864!",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-249",
+      "type": "otp",
+      "text": "one-time password: 20669473",
+      "expect": "20669473",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-250",
+      "type": "otp",
+      "text": "OTP: 14684350",
+      "expect": "14684350",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-251",
+      "type": "otp",
+      "text": "OTP: 51084958",
+      "expect": "51084958",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-252",
+      "type": "otp",
+      "text": "OTP: 25597771",
+      "expect": "25597771",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-253",
+      "type": "otp",
+      "text": "verification code: 65109493",
+      "expect": "65109493",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-254",
+      "type": "otp",
+      "text": "OTP: 47207838",
+      "expect": "47207838",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-255",
+      "type": "otp",
+      "text": "verification code: 77176311",
+      "expect": "77176311",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-256",
+      "type": "otp",
+      "text": "security code: 97578144",
+      "expect": "97578144",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-257",
+      "type": "otp",
+      "text": "Sign in — security code 82747248 [Cancel] [OK]",
+      "expect": "82747248",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-258",
+      "type": "otp",
+      "text": "Sign in — one-time password 74758379 [Cancel] [OK]",
+      "expect": "74758379",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-259",
+      "type": "otp",
+      "text": "Sign in — verification code 14887989 [Cancel] [OK]",
+      "expect": "14887989",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-260",
+      "type": "otp",
+      "text": "Sign in — OTP 3428375 [Cancel] [OK]",
+      "expect": "3428375",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-261",
+      "type": "otp",
+      "text": "Sign in — verification code 78623010 [Cancel] [OK]",
+      "expect": "78623010",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-262",
+      "type": "otp",
+      "text": "Sign in — verification code 62729720 [Cancel] [OK]",
+      "expect": "62729720",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-263",
+      "type": "otp",
+      "text": "The memo the was noticed yesterday. verification code 54127473. please check the memo.",
+      "expect": "54127473",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-264",
+      "type": "otp",
+      "text": "The parcel sample was parceld yesterday. verification code 29700759. please review the record.",
+      "expect": "29700759",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-265",
+      "type": "otp",
+      "text": "The plain file was parceld yesterday. OTP 4436010. please check the letter.",
+      "expect": "4436010",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-266",
+      "type": "otp",
+      "text": "The memo letter was filed yesterday. one-time password 83742624. please confirm the parcel.",
+      "expect": "83742624",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-267",
+      "type": "url_cred",
+      "text": "Stash: https://rohan:file707@db.example.internal/repo",
+      "expect": "https://rohan:file707@db.example.internal/repo",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-268",
+      "type": "url_cred",
+      "text": "Stash: https://ananya:letter950@git.example.net/backup",
+      "expect": "https://ananya:letter950@git.example.net/backup",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-269",
+      "type": "url_cred",
+      "text": "Clone URL: https://ishaan:memo380@vault.example.com/repo",
+      "expect": "https://ishaan:memo380@vault.example.com/repo",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-270",
+      "type": "url_cred",
+      "text": "Repo URL: https://sneha:record64@vault.example.com/backup",
+      "expect": "https://sneha:record64@vault.example.com/backup",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-271",
+      "type": "url_cred",
+      "text": "Stash: https://meera:file695@db.example.internal/backup",
+      "expect": "https://meera:file695@db.example.internal/backup",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-272",
+      "type": "url_cred",
+      "text": "Stash: https://aditya:file564@git.example.net/backup",
+      "expect": "https://aditya:file564@git.example.net/backup",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-273",
+      "type": "url_cred",
+      "text": "Clone URL: https://karan:the336@vault.example.com/backup",
+      "expect": "https://karan:the336@vault.example.com/backup",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-274",
+      "type": "url_cred",
+      "text": "Repo URL: https://dev:plain845@git.example.net/stash",
+      "expect": "https://dev:plain845@git.example.net/stash",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-275",
+      "type": "url_cred",
+      "text": "The file note was noted yesterday. Clone URL https://neha:letter183@vault.example.com/repo. please confirm the parcel.",
+      "expect": "https://neha:letter183@vault.example.com/repo",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-276",
+      "type": "url_cred",
+      "text": "The sample file was entryd yesterday. Stash https://ishaan:memo527@git.example.net/stash. please check the file.",
+      "expect": "https://ishaan:memo527@git.example.net/stash",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-277",
+      "type": "url_cred",
+      "text": "The the the was entryd yesterday. Repo URL https://divya:quick629@vault.example.com/stash. please review the quick.",
+      "expect": "https://divya:quick629@vault.example.com/stash",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-278",
+      "type": "url_cred",
+      "text": "The plain file was noticed yesterday. Repo URL https://neha:plain891@git.example.net/stash. please review the plain.",
+      "expect": "https://neha:plain891@git.example.net/stash",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-279",
+      "type": "url_cred",
+      "text": "The note the was filed yesterday. Backup endpoint https://ishaan:parcel964@db.example.internal/stash. please verify the column.",
+      "expect": "https://ishaan:parcel964@db.example.internal/stash",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-280",
+      "type": "url_cred",
+      "text": "The the record was plaind yesterday. Clone URL https://arjun:plain720@vault.example.com/stash. please verify the column.",
+      "expect": "https://arjun:plain720@vault.example.com/stash",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-281",
+      "type": "ip",
+      "text": "Last login IP: 29.232.211.26",
+      "expect": "29.232.211.26",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-282",
+      "type": "ip",
+      "text": "Last login IP: 91.115.91.252",
+      "expect": "91.115.91.252",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-283",
+      "type": "ip",
+      "text": "Last login IP: 72.4.137.208",
+      "expect": "72.4.137.208",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-284",
+      "type": "ip",
+      "text": "Last login IP: 106.229.21.54",
+      "expect": "106.229.21.54",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-285",
+      "type": "ip",
+      "text": "Server IP: 194.56.69.200",
+      "expect": "194.56.69.200",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-286",
+      "type": "ip",
+      "text": "Last login IP: 102.16.20.43",
+      "expect": "102.16.20.43",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-287",
+      "type": "ip",
+      "text": "IP address: 19.233.52.235",
+      "expect": "19.233.52.235",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-288",
+      "type": "ip",
+      "text": "IP address: 41.89.53.31",
+      "expect": "41.89.53.31",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-289",
+      "type": "ip",
+      "text": "The parcel parcel was parceld yesterday. Server IP 33.202.187.128. please check the letter.",
+      "expect": "33.202.187.128",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-290",
+      "type": "ip",
+      "text": "The file memo was noticed yesterday. Server IP 131.71.138.196. please check the memo.",
+      "expect": "131.71.138.196",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-291",
+      "type": "ip",
+      "text": "The note memo was recordd yesterday. IP 172.60.19.145. please review the file.",
+      "expect": "172.60.19.145",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-292",
+      "type": "ip",
+      "text": "The letter column was filed yesterday. Last login IP 97.122.233.138. please review the column.",
+      "expect": "97.122.233.138",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-293",
+      "type": "ip",
+      "text": "The note file was quickd yesterday. Last login IP 142.232.119.86. please review the letter.",
+      "expect": "142.232.119.86",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-294",
+      "type": "ip",
+      "text": "The team file was noted yesterday. Last login IP 196.188.135.197. please review the column.",
+      "expect": "196.188.135.197",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-295",
+      "type": "ip",
+      "text": "The record memo was noticed yesterday\nServer IP: 108.156.111.213\nplease verify the letter",
+      "expect": "108.156.111.213",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-296",
+      "type": "ip",
+      "text": "The entry quick was teamd yesterday\nServer IP: 190.143.89.135\nplease verify the letter",
+      "expect": "190.143.89.135",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-297",
+      "type": "ip",
+      "text": "The file note was plaind yesterday\nLast login IP: 36.172.128.119\nplease confirm the parcel",
+      "expect": "36.172.128.119",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-298",
+      "type": "ip",
+      "text": "The file letter was quickd yesterday\nServer IP: 70.193.198.181\nplease check the plain",
+      "expect": "70.193.198.181",
+      "variant": "multiline"
+    },
+    {
+      "id": "pos-299",
+      "type": "dob",
+      "text": "DOB: 18/09/2006",
+      "expect": "18/09/2006",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-300",
+      "type": "dob",
+      "text": "Date of birth: 17/08/1965",
+      "expect": "17/08/1965",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-301",
+      "type": "dob",
+      "text": "Birth date: 25-03-1983",
+      "expect": "25-03-1983",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-302",
+      "type": "dob",
+      "text": "Birth date: 2006-09-14",
+      "expect": "2006-09-14",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-303",
+      "type": "dob",
+      "text": "Birth date: 14/09/1985",
+      "expect": "14/09/1985",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-304",
+      "type": "dob",
+      "text": "DOB: 11/01/1996",
+      "expect": "11/01/1996",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-305",
+      "type": "dob",
+      "text": "Birth date: 27-02-1965",
+      "expect": "27-02-1965",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-306",
+      "type": "dob",
+      "text": "Date of birth: 25/09/1969",
+      "expect": "25/09/1969",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-307",
+      "type": "dob",
+      "text": "Form field — Date of birth: 2003-03-15 (required)",
+      "expect": "2003-03-15",
+      "variant": "form"
+    },
+    {
+      "id": "pos-308",
+      "type": "dob",
+      "text": "Form field — Birth date: 01-12-1981 (required)",
+      "expect": "01-12-1981",
+      "variant": "form"
+    },
+    {
+      "id": "pos-309",
+      "type": "dob",
+      "text": "Form field — DOB: 17-11-1976 (required)",
+      "expect": "17-11-1976",
+      "variant": "form"
+    },
+    {
+      "id": "pos-310",
+      "type": "dob",
+      "text": "Form field — DOB: 1953-01-17 (required)",
+      "expect": "1953-01-17",
+      "variant": "form"
+    },
+    {
+      "id": "pos-311",
+      "type": "dob",
+      "text": "Form field — जन्म तिथि: 1989/10/19 (required)",
+      "expect": "1989/10/19",
+      "variant": "form"
+    },
+    {
+      "id": "pos-312",
+      "type": "dob",
+      "text": "Form field — जन्म तिथि: 1963-01-07 (required)",
+      "expect": "1963-01-07",
+      "variant": "form"
+    },
+    {
+      "id": "pos-313",
+      "type": "dob",
+      "text": "जन्म तिथि: 1960-07-16",
+      "expect": "1960-07-16",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-314",
+      "type": "dob",
+      "text": "DOB: 06-08-1954",
+      "expect": "06-08-1954",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-315",
+      "type": "dob",
+      "text": "Birth date: 1972/09/03",
+      "expect": "1972/09/03",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-316",
+      "type": "dob",
+      "text": "जन्म तिथि: 15/06/1957",
+      "expect": "15/06/1957",
+      "variant": "hindi"
+    },
+    {
+      "id": "pos-317",
+      "type": "dob",
+      "text": "Sign in — जन्म तिथि 1954-04-06 [Cancel] [OK]",
+      "expect": "1954-04-06",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-318",
+      "type": "dob",
+      "text": "Sign in — Date of birth 1951/11/03 [Cancel] [OK]",
+      "expect": "1951/11/03",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-319",
+      "type": "dob",
+      "text": "Sign in — Birth date 11/01/1992 [Cancel] [OK]",
+      "expect": "11/01/1992",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-320",
+      "type": "dob",
+      "text": "Sign in — Date of birth 1952/09/09 [Cancel] [OK]",
+      "expect": "1952/09/09",
+      "variant": "dialog"
+    },
+    {
+      "id": "pos-321",
+      "type": "address",
+      "text": "Address: 509 Lake View Ave, Delhi 110001",
+      "expect": "509 Lake View Ave, Delhi 110001",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-322",
+      "type": "address",
+      "text": "Home address: 120 MG Road, Kolkata 700001",
+      "expect": "120 MG Road, Kolkata 700001",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-323",
+      "type": "address",
+      "text": "Billing address: 8225 Maple Drive, Springfield, IL 35703-3932",
+      "expect": "8225 Maple Drive, Springfield, IL 35703-3932",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-324",
+      "type": "address",
+      "text": "Home address: House 150, Iyer Colony, Delhi 110001",
+      "expect": "House 150, Iyer Colony, Delhi 110001",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-325",
+      "type": "address",
+      "text": "Home address: 3396 Oak Avenue, Springfield, IL 34497-3814",
+      "expect": "3396 Oak Avenue, Springfield, IL 34497-3814",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-326",
+      "type": "address",
+      "text": "Shipping address: House 183, Sector 41, Jaipur 302001",
+      "expect": "House 183, Sector 41, Jaipur 302001",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-327",
+      "type": "address",
+      "text": "Billing address: 1291 Maple Drive, Springfield, IL 39860-4335",
+      "expect": "1291 Maple Drive, Springfield, IL 39860-4335",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-328",
+      "type": "address",
+      "text": "Shipping address: House 126, Reddy Nagar, Jaipur 302001",
+      "expect": "House 126, Reddy Nagar, Jaipur 302001",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-329",
+      "type": "address",
+      "text": "Address: 305 Jubilee Hills, Chennai 600001",
+      "expect": "305 Jubilee Hills, Chennai 600001",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-330",
+      "type": "address",
+      "text": "Home address: 401 Cedar Lane, Hyderabad 500001",
+      "expect": "401 Cedar Lane, Hyderabad 500001",
+      "variant": "labeled"
+    },
+    {
+      "id": "pos-331",
+      "type": "address",
+      "text": "Form field — Home address: Park Street, Apt 14, Delhi 110001 (required)",
+      "expect": "Park Street, Apt 14, Delhi 110001",
+      "variant": "form"
+    },
+    {
+      "id": "pos-332",
+      "type": "address",
+      "text": "Form field — Home address: 379 Jubilee Hills, Pune 411001 (required)",
+      "expect": "379 Jubilee Hills, Pune 411001",
+      "variant": "form"
+    },
+    {
+      "id": "pos-333",
+      "type": "address",
+      "text": "Form field — Address: 520 Hill Road, Delhi 110001 (required)",
+      "expect": "520 Hill Road, Delhi 110001",
+      "variant": "form"
+    },
+    {
+      "id": "pos-334",
+      "type": "address",
+      "text": "Form field — Billing address: House 52, Sector 52, Jaipur 302001 (required)",
+      "expect": "House 52, Sector 52, Jaipur 302001",
+      "variant": "form"
+    },
+    {
+      "id": "pos-335",
+      "type": "address",
+      "text": "Form field — Address: Ringen Road, Apt 26, Kolkata 700001 (required)",
+      "expect": "Ringen Road, Apt 26, Kolkata 700001",
+      "variant": "form"
+    },
+    {
+      "id": "pos-336",
+      "type": "address",
+      "text": "Form field — Address: House 175, Sector 9, Jaipur 302001 (required)",
+      "expect": "House 175, Sector 9, Jaipur 302001",
+      "variant": "form"
+    },
+    {
+      "id": "pos-337",
+      "type": "address",
+      "text": "The parcel the was noted yesterday. Address 5230 Elm Street, Springfield, IL 59013-1924. please review the letter.",
+      "expect": "5230 Elm Street, Springfield, IL 59013-1924",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-338",
+      "type": "address",
+      "text": "The parcel paper was noticed yesterday. Address 595 Cedar Lane, Jaipur 302001. please verify the paper.",
+      "expect": "595 Cedar Lane, Jaipur 302001",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-339",
+      "type": "address",
+      "text": "The parcel entry was recordd yesterday. Home address 821 Jubilee Hills, Pune 411001. please review the paper.",
+      "expect": "821 Jubilee Hills, Pune 411001",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-340",
+      "type": "address",
+      "text": "The plain sample was noted yesterday. Address Park Street, Apt 21, Chennai 600001. please confirm the column.",
+      "expect": "Park Street, Apt 21, Chennai 600001",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-341",
+      "type": "address",
+      "text": "The quick record was filed yesterday. Home address 320 Ringen Road, Pune 411001. please check the entry.",
+      "expect": "320 Ringen Road, Pune 411001",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-342",
+      "type": "address",
+      "text": "The plain column was letterd yesterday. Address 2915 Maple Drive, Springfield, IL 18361-9749. please confirm the column.",
+      "expect": "2915 Maple Drive, Springfield, IL 18361-9749",
+      "variant": "prose"
+    },
+    {
+      "id": "pos-343",
+      "type": "email",
+      "text": "Customer Arjun Joshi — email address: kavya.rao@test.example.net, Call: +91-63769-47155. Card on file 6011 2674 2375 3408.",
+      "expect": "kavya.rao@test.example.net",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-344",
+      "type": "phone",
+      "text": "Customer Arjun Joshi — email address: kavya.rao@test.example.net, Call: +91-63769-47155. Card on file 6011 2674 2375 3408.",
+      "expect": "+91-63769-47155",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-345",
+      "type": "credit_card",
+      "text": "Customer Arjun Joshi — email address: kavya.rao@test.example.net, Call: +91-63769-47155. Card on file 6011 2674 2375 3408.",
+      "expect": "6011 2674 2375 3408",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-346",
+      "type": "email",
+      "text": "Customer Priya Khan — Contact: rahul420@example.org, Phone: +91 63191 11900. Card on file 455919630453455.",
+      "expect": "rahul420@example.org",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-347",
+      "type": "phone",
+      "text": "Customer Priya Khan — Contact: rahul420@example.org, Phone: +91 63191 11900. Card on file 455919630453455.",
+      "expect": "+91 63191 11900",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-348",
+      "type": "credit_card",
+      "text": "Customer Priya Khan — Contact: rahul420@example.org, Phone: +91 63191 11900. Card on file 455919630453455.",
+      "expect": "455919630453455",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-349",
+      "type": "email",
+      "text": "Customer Karan Bose — email address: meera.reddy@example.org, Mobile: 076 97343116. Card on file 5425285407739492.",
+      "expect": "meera.reddy@example.org",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-350",
+      "type": "phone",
+      "text": "Customer Karan Bose — email address: meera.reddy@example.org, Mobile: 076 97343116. Card on file 5425285407739492.",
+      "expect": "076 97343116",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-351",
+      "type": "credit_card",
+      "text": "Customer Karan Bose — email address: meera.reddy@example.org, Mobile: 076 97343116. Card on file 5425285407739492.",
+      "expect": "5425285407739492",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-352",
+      "type": "email",
+      "text": "Customer Aditya Singh — Email: meera218@example.org, Mobile: 054 77131240. Card on file 6011-4199-0572-5.",
+      "expect": "meera218@example.org",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-353",
+      "type": "phone",
+      "text": "Customer Aditya Singh — Email: meera218@example.org, Mobile: 054 77131240. Card on file 6011-4199-0572-5.",
+      "expect": "054 77131240",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-354",
+      "type": "credit_card",
+      "text": "Customer Aditya Singh — Email: meera218@example.org, Mobile: 054 77131240. Card on file 6011-4199-0572-5.",
+      "expect": "6011-4199-0572-5",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-355",
+      "type": "email",
+      "text": "Customer Aditya Khan — மின்னஞ்சல்: karan532@example.com, मोबाइल: (319) 584-0865. Card on file 6011483425568.",
+      "expect": "karan532@example.com",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-356",
+      "type": "phone",
+      "text": "Customer Aditya Khan — மின்னஞ்சல்: karan532@example.com, मोबाइल: (319) 584-0865. Card on file 6011483425568.",
+      "expect": "(319) 584-0865",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-357",
+      "type": "credit_card",
+      "text": "Customer Aditya Khan — மின்னஞ்சல்: karan532@example.com, मोबाइल: (319) 584-0865. Card on file 6011483425568.",
+      "expect": "6011483425568",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-358",
+      "type": "email",
+      "text": "Customer Divya Gupta — Email: support@mail.example.in, मोबाइल: +91 85448 89695. Card on file 5100-3140-7908-1.",
+      "expect": "support@mail.example.in",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-359",
+      "type": "phone",
+      "text": "Customer Divya Gupta — Email: support@mail.example.in, मोबाइल: +91 85448 89695. Card on file 5100-3140-7908-1.",
+      "expect": "+91 85448 89695",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-360",
+      "type": "credit_card",
+      "text": "Customer Divya Gupta — Email: support@mail.example.in, मोबाइल: +91 85448 89695. Card on file 5100-3140-7908-1.",
+      "expect": "5100-3140-7908-1",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-361",
+      "type": "email",
+      "text": "Customer Divya Reddy — Contact: kavya.reddy@example.org, Mobile: 9758932526. Card on file 3478-9820-8064-2370.",
+      "expect": "kavya.reddy@example.org",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-362",
+      "type": "phone",
+      "text": "Customer Divya Reddy — Contact: kavya.reddy@example.org, Mobile: 9758932526. Card on file 3478-9820-8064-2370.",
+      "expect": "9758932526",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-363",
+      "type": "credit_card",
+      "text": "Customer Divya Reddy — Contact: kavya.reddy@example.org, Mobile: 9758932526. Card on file 3478-9820-8064-2370.",
+      "expect": "3478-9820-8064-2370",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-364",
+      "type": "email",
+      "text": "Customer Arjun Nair — Contact: pooja.kulkarni@mail.example.in, Mobile: +91-74055-12974. Card on file 3436-5216-3949-8037-157.",
+      "expect": "pooja.kulkarni@mail.example.in",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-365",
+      "type": "phone",
+      "text": "Customer Arjun Nair — Contact: pooja.kulkarni@mail.example.in, Mobile: +91-74055-12974. Card on file 3436-5216-3949-8037-157.",
+      "expect": "+91-74055-12974",
+      "variant": "mixed"
+    },
+    {
+      "id": "pos-366",
+      "type": "credit_card",
+      "text": "Customer Arjun Nair — Contact: pooja.kulkarni@mail.example.in, Mobile: +91-74055-12974. Card on file 3436-5216-3949-8037-157.",
+      "expect": "3436-5216-3949-8037-157",
+      "variant": "mixed"
+    }
+  ],
+  "negatives": [
+    {
+      "id": "neg-001",
+      "text": "Order confirmation — payment reference 4996 5097 3450 9863 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-002",
+      "text": "Order confirmation — payment reference 4974 9369 0682 4658 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-003",
+      "text": "Order confirmation — payment reference 4150 8805 5574 2630 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-004",
+      "text": "Order confirmation — payment reference 4908 7155 6072 4809 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-005",
+      "text": "Order confirmation — payment reference 4679 8605 6086 8537 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-006",
+      "text": "Order confirmation — payment reference 4782 3704 6006 1492 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-007",
+      "text": "Order confirmation — payment reference 4481 1737 1157 0694 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-008",
+      "text": "Order confirmation — payment reference 4615 1363 0700 6072 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-009",
+      "text": "Order confirmation — payment reference 4520 5871 6414 5180 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-010",
+      "text": "Order confirmation — payment reference 4797 2678 3857 5728 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-011",
+      "text": "Order confirmation — payment reference 4000 6654 7130 5605 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-012",
+      "text": "Order confirmation — payment reference 4165 6355 1167 2176 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-013",
+      "text": "Order confirmation — payment reference 4714 7791 7610 0248 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-014",
+      "text": "Order confirmation — payment reference 4084 5019 5600 2326 has been recorded.",
+      "reason": "Luhn-invalid 16-digit run (order id)"
+    },
+    {
+      "id": "neg-015",
+      "text": "Shipment ID 646681455214843 processed at hub Jaipur 302001.",
+      "reason": "15-digit tracking-like run, not Luhn-valid"
+    },
+    {
+      "id": "neg-016",
+      "text": "Shipment ID 402005461278343 processed at hub Jaipur 302001.",
+      "reason": "15-digit tracking-like run, not Luhn-valid"
+    },
+    {
+      "id": "neg-017",
+      "text": "Shipment ID 301044959148984 processed at hub Jaipur 302001.",
+      "reason": "15-digit tracking-like run, not Luhn-valid"
+    },
+    {
+      "id": "neg-018",
+      "text": "Shipment ID 651371152642097 processed at hub Pune 411001.",
+      "reason": "15-digit tracking-like run, not Luhn-valid"
+    },
+    {
+      "id": "neg-019",
+      "text": "Archive coverage: 2000 2001 2002 — see appendix.",
+      "reason": "year triple (aadhaar shape)"
+    },
+    {
+      "id": "neg-020",
+      "text": "Archive coverage: 2015 2016 2017 — see appendix.",
+      "reason": "year triple (aadhaar shape)"
+    },
+    {
+      "id": "neg-021",
+      "text": "Archive coverage: 2017 2018 2019 — see appendix.",
+      "reason": "year triple (aadhaar shape)"
+    },
+    {
+      "id": "neg-022",
+      "text": "Archive coverage: 2012 2013 2014 — see appendix.",
+      "reason": "year triple (aadhaar shape)"
+    },
+    {
+      "id": "neg-023",
+      "text": "Archive coverage: 2013 2014 2015 — see appendix.",
+      "reason": "year triple (aadhaar shape)"
+    },
+    {
+      "id": "neg-024",
+      "text": "Archive coverage: 1997 1998 1999 — see appendix.",
+      "reason": "year triple (aadhaar shape)"
+    },
+    {
+      "id": "neg-027",
+      "text": "Reference sheet 775658109414 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-028",
+      "text": "Reference sheet 739250520081 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-029",
+      "text": "Reference sheet 455867911528 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-030",
+      "text": "Reference sheet 839568518931 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-031",
+      "text": "Reference sheet 555296061124 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-032",
+      "text": "Reference sheet 004918145769 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-033",
+      "text": "Reference sheet 812279734400 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-034",
+      "text": "Reference sheet 863195391256 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-035",
+      "text": "Reference sheet 662721464191 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-036",
+      "text": "Reference sheet 575431198883 filed under civil records.",
+      "reason": "Verhoeff-invalid aadhaar, no aadhaar keyword"
+    },
+    {
+      "id": "neg-037",
+      "text": "Legacy taxpayer file 000-08-2123 migrated.",
+      "reason": "SSN area 000 implausible"
+    },
+    {
+      "id": "neg-038",
+      "text": "Legacy taxpayer file 666-16-3618 migrated.",
+      "reason": "SSN area 666 implausible"
+    },
+    {
+      "id": "neg-039",
+      "text": "Legacy taxpayer file 900-51-5846 migrated.",
+      "reason": "SSN area 900 implausible"
+    },
+    {
+      "id": "neg-040",
+      "text": "Legacy taxpayer file 987-32-7551 migrated.",
+      "reason": "SSN area 987 implausible"
+    },
+    {
+      "id": "neg-041",
+      "text": "Draft form shows 582-00-0000 pending review.",
+      "reason": "SSN group/serial zeros"
+    },
+    {
+      "id": "neg-042",
+      "text": "Draft form shows 443-00-0000 pending review.",
+      "reason": "SSN group/serial zeros"
+    },
+    {
+      "id": "neg-043",
+      "text": "Draft form shows 348-00-0000 pending review.",
+      "reason": "SSN group/serial zeros"
+    },
+    {
+      "id": "neg-044",
+      "text": "Wire template (unverified): GB060K5Q93VZL435861152 — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-045",
+      "text": "Wire template (unverified): DE8416C21120H556N6V457 — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-046",
+      "text": "Wire template (unverified): GB231L865J4780P26PW19Z — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-047",
+      "text": "Wire template (unverified): GB341B5N5GE8734D840C0P — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-048",
+      "text": "Wire template (unverified): FR845AW74686Z926758Q24 — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-049",
+      "text": "Wire template (unverified): FR1925E35S76902135N170 — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-050",
+      "text": "Wire template (unverified): NL19R3F21376719P6P9838 — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-051",
+      "text": "Wire template (unverified): ES917830307512Q70G6217 — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-052",
+      "text": "Wire template (unverified): NL9877396L198P8998K018 — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-053",
+      "text": "Wire template (unverified): NL71687536Z54W9445ER1K — do not use.",
+      "reason": "mod-97 invalid IBAN"
+    },
+    {
+      "id": "neg-054",
+      "text": "Order 9876543210 was placed",
+      "reason": "digit run in order/invoice/tracking/amount context"
+    },
+    {
+      "id": "neg-055",
+      "text": "Invoice 9876543210 generated",
+      "reason": "digit run in order/invoice/tracking/amount context"
+    },
+    {
+      "id": "neg-056",
+      "text": "Tracking 9876543210 updated",
+      "reason": "digit run in order/invoice/tracking/amount context"
+    },
+    {
+      "id": "neg-057",
+      "text": "Transaction 9876543210 settled",
+      "reason": "digit run in order/invoice/tracking/amount context"
+    },
+    {
+      "id": "neg-058",
+      "text": "Amount due ₹9876543210",
+      "reason": "digit run in order/invoice/tracking/amount context"
+    },
+    {
+      "id": "neg-059",
+      "text": "Reference 9876543210 assigned",
+      "reason": "digit run in order/invoice/tracking/amount context"
+    },
+    {
+      "id": "neg-060",
+      "text": "Build 5551234567 finished",
+      "reason": "digit run in order/invoice/tracking/amount context"
+    },
+    {
+      "id": "neg-061",
+      "text": "Version 1234567890 deployed",
+      "reason": "digit run in order/invoice/tracking/amount context"
+    },
+    {
+      "id": "neg-062",
+      "text": "Milestones 1991 2021 in the timeline.",
+      "reason": "year pair (phone-shaped, implausible cluster)"
+    },
+    {
+      "id": "neg-063",
+      "text": "Milestones 2004 1991 in the timeline.",
+      "reason": "year pair (phone-shaped, implausible cluster)"
+    },
+    {
+      "id": "neg-064",
+      "text": "Milestones 2003 1993 in the timeline.",
+      "reason": "year pair (phone-shaped, implausible cluster)"
+    },
+    {
+      "id": "neg-065",
+      "text": "Milestones 2006 1999 in the timeline.",
+      "reason": "year pair (phone-shaped, implausible cluster)"
+    },
+    {
+      "id": "neg-066",
+      "text": "Milestones 1995 2008 in the timeline.",
+      "reason": "year pair (phone-shaped, implausible cluster)"
+    },
+    {
+      "id": "neg-067",
+      "text": "Invoice due 08-05-1987 — pay by then.",
+      "reason": "date next to invoice/due (not DOB)"
+    },
+    {
+      "id": "neg-068",
+      "text": "Invoice due 1967-09-16 — pay by then.",
+      "reason": "date next to invoice/due (not DOB)"
+    },
+    {
+      "id": "neg-069",
+      "text": "Invoice due 28-10-1984 — pay by then.",
+      "reason": "date next to invoice/due (not DOB)"
+    },
+    {
+      "id": "neg-070",
+      "text": "Invoice due 07-08-1979 — pay by then.",
+      "reason": "date next to invoice/due (not DOB)"
+    },
+    {
+      "id": "neg-071",
+      "text": "Invoice due 16/08/1969 — pay by then.",
+      "reason": "date next to invoice/due (not DOB)"
+    },
+    {
+      "id": "neg-072",
+      "text": "Invoice due 27-12-1965 — pay by then.",
+      "reason": "date next to invoice/due (not DOB)"
+    },
+    {
+      "id": "neg-073",
+      "text": "Article published 1977-02-19 by the desk.",
+      "reason": "date next to published (not DOB)"
+    },
+    {
+      "id": "neg-074",
+      "text": "Article published 12/09/1965 by the desk.",
+      "reason": "date next to published (not DOB)"
+    },
+    {
+      "id": "neg-075",
+      "text": "Article published 1996-11-09 by the desk.",
+      "reason": "date next to published (not DOB)"
+    },
+    {
+      "id": "neg-076",
+      "text": "Article published 27/08/1980 by the desk.",
+      "reason": "date next to published (not DOB)"
+    },
+    {
+      "id": "neg-077",
+      "text": "Deadline 1966/11/11 for the scheme application.",
+      "reason": "date next to deadline (not DOB)"
+    },
+    {
+      "id": "neg-078",
+      "text": "Deadline 02-07-1953 for the scheme application.",
+      "reason": "date next to deadline (not DOB)"
+    },
+    {
+      "id": "neg-079",
+      "text": "Deadline 02/05/1988 for the scheme application.",
+      "reason": "date next to deadline (not DOB)"
+    },
+    {
+      "id": "neg-080",
+      "text": "Deadline 16/12/1966 for the scheme application.",
+      "reason": "date next to deadline (not DOB)"
+    },
+    {
+      "id": "neg-081",
+      "text": "Review the filing dated 31/02/2007 (invalid calendar date).",
+      "reason": "31/02 is not a real date"
+    },
+    {
+      "id": "neg-082",
+      "text": "Review the filing dated 31/02/2025 (invalid calendar date).",
+      "reason": "31/02 is not a real date"
+    },
+    {
+      "id": "neg-083",
+      "text": "Review the filing dated 31/02/1996 (invalid calendar date).",
+      "reason": "31/02 is not a real date"
+    },
+    {
+      "id": "neg-085",
+      "text": "Review the filing dated 31/02/2011 (invalid calendar date).",
+      "reason": "31/02 is not a real date"
+    },
+    {
+      "id": "neg-086",
+      "text": "Review the filing dated 31/02/2029 (invalid calendar date).",
+      "reason": "31/02 is not a real date"
+    },
+    {
+      "id": "neg-087",
+      "text": "Audit window 30/02/2027 — placeholder.",
+      "reason": "30/02 invalid"
+    },
+    {
+      "id": "neg-088",
+      "text": "Audit window 30/02/2014 — placeholder.",
+      "reason": "30/02 invalid"
+    },
+    {
+      "id": "neg-089",
+      "text": "Audit window 30/02/2005 — placeholder.",
+      "reason": "30/02 invalid"
+    },
+    {
+      "id": "neg-090",
+      "text": "Since version 222.153.242.3 of the spec — historical numbering.",
+      "reason": "IP-shaped version context"
+    },
+    {
+      "id": "neg-091",
+      "text": "Since version 153.166.189.164 of the spec — historical numbering.",
+      "reason": "IP-shaped version context"
+    },
+    {
+      "id": "neg-092",
+      "text": "Since version 151.38.223.179 of the spec — historical numbering.",
+      "reason": "IP-shaped version context"
+    },
+    {
+      "id": "neg-093",
+      "text": "Since version 216.198.5.178 of the spec — historical numbering.",
+      "reason": "IP-shaped version context"
+    },
+    {
+      "id": "neg-094",
+      "text": "Since version 108.48.152.181 of the spec — historical numbering.",
+      "reason": "IP-shaped version context"
+    },
+    {
+      "id": "neg-095",
+      "text": "Since version 74.254.86.56 of the spec — historical numbering.",
+      "reason": "IP-shaped version context"
+    },
+    {
+      "id": "neg-096",
+      "text": "See chapter 89.234.202.86 of the manual.",
+      "reason": "IP-shaped chapter reference"
+    },
+    {
+      "id": "neg-097",
+      "text": "See chapter 22.141.252.62 of the manual.",
+      "reason": "IP-shaped chapter reference"
+    },
+    {
+      "id": "neg-098",
+      "text": "See chapter 95.85.26.183 of the manual.",
+      "reason": "IP-shaped chapter reference"
+    },
+    {
+      "id": "neg-099",
+      "text": "Draft id (lowercase) grbwy4077z must still be uppercase.",
+      "reason": "lowercase PAN does not match format"
+    },
+    {
+      "id": "neg-100",
+      "text": "Draft id (lowercase) hngvl1398v must still be uppercase.",
+      "reason": "lowercase PAN does not match format"
+    },
+    {
+      "id": "neg-101",
+      "text": "Draft id (lowercase) flyzt0291w must still be uppercase.",
+      "reason": "lowercase PAN does not match format"
+    },
+    {
+      "id": "neg-102",
+      "text": "Draft id (lowercase) kplqb6054n must still be uppercase.",
+      "reason": "lowercase PAN does not match format"
+    },
+    {
+      "id": "neg-103",
+      "text": "Draft id (lowercase) zqjtj7203n must still be uppercase.",
+      "reason": "lowercase PAN does not match format"
+    },
+    {
+      "id": "neg-104",
+      "text": "PAN verification pending — number not issued yet.",
+      "reason": "prose about PAN without a value"
+    },
+    {
+      "id": "neg-105",
+      "text": "Reach the team at help desk (see portal) for access.",
+      "reason": "no email present"
+    },
+    {
+      "id": "neg-106",
+      "text": "contact admin at example dot com",
+      "reason": "not a valid email literal"
+    },
+    {
+      "id": "neg-107",
+      "text": "user AT example DOT com",
+      "reason": "not a valid email literal"
+    },
+    {
+      "id": "neg-108",
+      "text": "root@localhost",
+      "reason": "not a valid email literal"
+    },
+    {
+      "id": "neg-109",
+      "text": "Handle: manav@record",
+      "reason": "email without TLD"
+    },
+    {
+      "id": "neg-110",
+      "text": "Handle: fatima@file",
+      "reason": "email without TLD"
+    },
+    {
+      "id": "neg-111",
+      "text": "Handle: aarav@column",
+      "reason": "email without TLD"
+    },
+    {
+      "id": "neg-112",
+      "text": "Password: required for login",
+      "reason": "keyword without a secret value"
+    },
+    {
+      "id": "neg-113",
+      "text": "Enter your password to continue",
+      "reason": "keyword without a secret value"
+    },
+    {
+      "id": "neg-114",
+      "text": "token expired — refresh the page",
+      "reason": "keyword without a secret value"
+    },
+    {
+      "id": "neg-115",
+      "text": "API key management lives in settings",
+      "reason": "keyword without a secret value"
+    },
+    {
+      "id": "neg-116",
+      "text": "Your OTP will arrive shortly",
+      "reason": "keyword without a secret value"
+    },
+    {
+      "id": "neg-117",
+      "text": "Verification code sent to your phone",
+      "reason": "keyword without a secret value"
+    },
+    {
+      "id": "neg-118",
+      "text": "Set a strong secret for the vault",
+      "reason": "keyword without a secret value"
+    },
+    {
+      "id": "neg-119",
+      "text": "Confirmation number 341981 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-120",
+      "text": "Confirmation number 560922 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-121",
+      "text": "Confirmation number 18559 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-122",
+      "text": "Confirmation number 93021 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-123",
+      "text": "Confirmation number 990056 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-124",
+      "text": "Confirmation number 192047 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-125",
+      "text": "Confirmation number 34701 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-126",
+      "text": "Confirmation number 625429 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-127",
+      "text": "Confirmation number 963456 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-128",
+      "text": "Confirmation number 154870 — keep for returns.",
+      "reason": "5-6 digit id, no address context"
+    },
+    {
+      "id": "neg-129",
+      "text": "Model 14927 discontinued in 2020.",
+      "reason": "model number, no address context"
+    },
+    {
+      "id": "neg-130",
+      "text": "Model 73682 discontinued in 2019.",
+      "reason": "model number, no address context"
+    },
+    {
+      "id": "neg-131",
+      "text": "Model 91436 discontinued in 2024.",
+      "reason": "model number, no address context"
+    },
+    {
+      "id": "neg-132",
+      "text": "Model 31936 discontinued in 2017.",
+      "reason": "model number, no address context"
+    },
+    {
+      "id": "neg-133",
+      "text": "Total payable ₹1274 including GST.",
+      "reason": "currency amount"
+    },
+    {
+      "id": "neg-134",
+      "text": "Total payable ₹1041622 including GST.",
+      "reason": "currency amount"
+    },
+    {
+      "id": "neg-135",
+      "text": "Total payable ₹8021 including GST.",
+      "reason": "currency amount"
+    },
+    {
+      "id": "neg-136",
+      "text": "Total payable ₹979621 including GST.",
+      "reason": "currency amount"
+    },
+    {
+      "id": "neg-137",
+      "text": "Total payable ₹029569 including GST.",
+      "reason": "currency amount"
+    },
+    {
+      "id": "neg-138",
+      "text": "Total payable ₹016104 including GST.",
+      "reason": "currency amount"
+    },
+    {
+      "id": "neg-139",
+      "text": "Invoice total $406.00 settled.",
+      "reason": "dollar amount"
+    },
+    {
+      "id": "neg-140",
+      "text": "Invoice total $6207.00 settled.",
+      "reason": "dollar amount"
+    },
+    {
+      "id": "neg-141",
+      "text": "Invoice total $060.00 settled.",
+      "reason": "dollar amount"
+    },
+    {
+      "id": "neg-142",
+      "text": "Invoice total $181891.00 settled.",
+      "reason": "dollar amount"
+    },
+    {
+      "id": "neg-143",
+      "text": "Release 2.14.3 ships the new sanitizer.",
+      "reason": "version string"
+    },
+    {
+      "id": "neg-144",
+      "text": "Coordinates 17.42 78.51 mark the site.",
+      "reason": "geo coordinates"
+    },
+    {
+      "id": "neg-145",
+      "text": "Uptime 99.95 percent this quarter.",
+      "reason": "percentage"
+    },
+    {
+      "id": "neg-146",
+      "text": "Latency p50 1.2 p95 3.4 seconds.",
+      "reason": "latency stats"
+    },
+    {
+      "id": "neg-147",
+      "text": "Build 513853 passed all checks.",
+      "reason": "build number"
+    },
+    {
+      "id": "neg-148",
+      "text": "Build 826470 passed all checks.",
+      "reason": "build number"
+    },
+    {
+      "id": "neg-149",
+      "text": "Build 562704 passed all checks.",
+      "reason": "build number"
+    },
+    {
+      "id": "neg-150",
+      "text": "Build 931520 passed all checks.",
+      "reason": "build number"
+    },
+    {
+      "id": "neg-151",
+      "text": "Room 404, Wing B — meeting moved.",
+      "reason": "room number"
+    }
+  ]
+}

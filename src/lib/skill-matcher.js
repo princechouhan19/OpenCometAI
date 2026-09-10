@@ -16,11 +16,20 @@ const AUTO_THRESHOLD = 0.38; // minimum score to auto-activate
 
 // ── Per-skill keyword boosters for built-in skills ────────────────────────────
 const SKILL_KEYWORDS = {
-  builtin_summarise:        ['summarize', 'summarise', 'tldr', 'summary', 'overview', 'brief', 'explain'],
-  builtin_price_check:      ['price', 'cost', 'buy', 'cheap', 'compare', 'shopping', 'deal', 'discount', 'amazon', 'flipkart'],
-  builtin_extract_emails:   ['email', 'contact', 'phone', 'address', 'reach out', 'mail'],
-  builtin_research_deep:    ['research', 'find', 'analyze', 'investigate', 'report', 'deep dive', 'compare', 'versus', 'vs'],
-  builtin_fill_form:        ['fill', 'form', 'apply', 'register', 'signup', 'sign up', 'submit'],
+  // Fallback map for skills without frontmatter keywords (user-created).
+  // Library skills carry their own keywords in skills/<id>/SKILL.md.
+  'summarize-page':         ['summarize', 'summarise', 'tldr', 'summary', 'overview', 'brief', 'explain'],
+  'compare-prices':         ['price', 'cost', 'buy', 'cheap', 'compare', 'shopping', 'deal', 'discount', 'amazon', 'flipkart'],
+  'extract-data':           ['email', 'contact', 'phone', 'address', 'extract', 'scrape', 'table', 'reach out', 'mail'],
+  'deep-research':          ['research', 'find', 'analyze', 'investigate', 'report', 'deep dive', 'compare', 'versus', 'vs'],
+  'fill-form':              ['fill', 'form', 'apply', 'register', 'signup', 'sign up', 'submit'],
+  'find-alternatives':      ['alternative', 'instead of', 'similar to', 'replacement', 'substitute', 'competitor'],
+  'manage-bookmarks':       ['bookmark', 'favorites', 'save link', 'saved pages'],
+  'monitor-page':           ['monitor', 'watch', 'track changes', 'notify', 'alert', 'price drop', 'restock'],
+  'organize-tabs':          ['tabs', 'organize tabs', 'close duplicate', 'group tabs', 'tidy'],
+  'read-later':             ['read later', 'reading list', 'save for later', 'save article'],
+  'save-page':              ['save page', 'archive', 'mhtml', 'offline copy', 'download page'],
+  'screenshot-walkthrough': ['screenshot', 'walkthrough', 'step by step', 'visual guide'],
 };
 
 /**
@@ -70,11 +79,14 @@ function scoreSkill(skill, taskNorm, taskTokens, host) {
     score += 0.55;
   }
 
-  // 2. Keyword match against known keyword lists
-  const keywords = SKILL_KEYWORDS[skill.id] || [];
+  // 2. Keyword match — SKILL.md frontmatter keywords first, then fallback map.
+  //    First hit is a strong intent signal (0.30); extra hits add 0.10.
+  const keywords = (Array.isArray(skill.keywords) && skill.keywords.length)
+    ? skill.keywords.map(kw => String(kw).toLowerCase())
+    : (SKILL_KEYWORDS[skill.id] || []);
   const kwHits = keywords.filter(kw => taskNorm.includes(kw)).length;
   if (kwHits > 0) {
-    score += Math.min(0.45, kwHits * 0.14);
+    score += Math.min(0.5, 0.30 + (kwHits - 1) * 0.10);
   }
 
   // 3. Token overlap with skill name + description
@@ -84,7 +96,8 @@ function scoreSkill(skill, taskNorm, taskTokens, host) {
   score += overlap * 0.30;
 
   // 4. Penalty: user-defined skills with no host/keyword context are ambiguous
-  if (!skill.builtIn && !allowedHosts.length && keywords.length === 0) {
+  const hasOwnKeywords = Array.isArray(skill.keywords) && skill.keywords.length;
+  if (!skill.builtIn && !allowedHosts.length && !hasOwnKeywords && keywords.length === 0) {
     score -= 0.10;
   }
 
@@ -111,7 +124,8 @@ function tokenize(text) {
 }
 
 /**
- * Jaccard-like overlap between two token sets.
+ * Containment-style overlap: hits relative to the SMALLER token set.
+ * Better than Jaccard for short task texts against long skill descriptions.
  */
 function tokenOverlap(a, b) {
   if (!a.size || !b.size) return 0;
@@ -119,7 +133,7 @@ function tokenOverlap(a, b) {
   for (const token of a) {
     if (b.has(token)) hits++;
   }
-  return hits / Math.max(a.size, b.size);
+  return hits / Math.min(a.size, b.size);
 }
 
 function extractHost(url) {

@@ -46,7 +46,7 @@ export function createEmptyAgentState(overrides = {}) {
     attachments: [],
     skills:      [],
     profileData: {},
-    licenseStatus: { valid: false },
+    licenseStatus: { valid: true },
     consecutiveFailures: 0,
 
     // Anti-loop memory

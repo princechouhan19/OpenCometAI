@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------------
 
 import { callAI, callAIRaw, getProviderCapabilities, isProviderConfigured }   from '../lib/providers.js';
+import { isSihMode, sihRawScreenshotDecision } from '../lib/sih-mode.js';
 import {
   deepResearch,
   buildDecompositionPrompt,
@@ -29,18 +30,33 @@ import {
 } from '../lib/agent-runtime.js';
 import { enrichCapturedPageInfo, getLoopPageSignature, getScreenshotOverlayItems } from '../lib/page-state.js';
 import { createEmptyAgentState } from './state.js';
-import { executeAction, describeAction } from './actions.js';
+import { executeAction, describeAction, getMonitors, saveMonitors, fetchPageText } from './actions.js';
+import { toChatTemplateTools } from '../lib/tool-schemas.js';
+import { runPrivacyAgent } from './privacy-loop.js';
+// v1.15 TAB-GROUP SANDBOX: single source of truth for the task boundary
+// (shared with actions.js so grouping + enforcement can never drift apart).
+import { ensureTaskGroup } from '../lib/tab-sandbox.js';
+import { configurePrivacy, getPrivacySettings, captureAndSanitize, getLastPrivacyRun, getCumulativePrivacyStats } from '../lib/privacy-agent.js';
+import { listLocalModels, downloadLocalModel, deleteLocalModel, getLocalDevice } from '../lib/local-llm.js';
+import { ensureOffscreen, sendToOffscreen } from '../lib/offscreen-client.js';
 import { detectSkillsForTask } from '../lib/skill-matcher.js';
 import { getAllSkills } from '../lib/skills.js';
-import { validateLicenseKey } from '../lib/license-service.js';
+import { loadLibrarySkills } from '../lib/skill-library.js';
+import { createLogger, installGlobalErrorTraps } from '../core/logger.js';
+
+// -- Diagnostics loggers -------------------------------------------------------
+// Every context logs with a [Open Comet:<ns>] tag. warn/error lines also reach
+// the sidepanel console through the DIAG_LOG relay, so ONE DevTools window
+// shows downloads, API errors, model-request errors, limits and busy states.
+const logSW     = createLogger('SW',      { relayType: 'DIAG_LOG', relayLevel: 'warn' });
+const logRouter = createLogger('Router',  { relayType: 'DIAG_LOG', relayLevel: 'warn' });
+const logAgent  = createLogger('Agent',   { relayType: 'DIAG_LOG', relayLevel: 'warn' });
+const logLimits = createLogger('Limits',  { relayType: 'DIAG_LOG', relayLevel: 'warn' });
+const logBusy   = createLogger('Busy',    { relayType: 'DIAG_LOG', relayLevel: 'warn' });
+const logML     = createLogger('LocalML', { relayType: 'DIAG_LOG', relayLevel: 'warn' });
 
 // -- Global agent state --------------------------------------------------------
 let agentState = createEmptyAgentState();
-
-async function getStoredLicenseRecord() {
-  const data = await chrome.storage.local.get('opencometLicense');
-  return data?.opencometLicense || {};
-}
 
 function trackUsage(usage) {
   if (!usage) return;
@@ -86,6 +102,19 @@ chrome.tabs.onRemoved.addListener(tabId => {
 
 // -- Message router ------------------------------------------------------------
 chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
+  // Messages addressed to the offscreen ML document are handled there —
+  // never route them here (they would double-execute).
+  if (msg && msg.target === 'offscreen') return;
+
+  // Offscreen runtime asks us to close it after a long idle period.
+  if (msg && msg.type === 'OFFSCREEN_CLOSE_REQUEST') {
+    chrome.offscreen?.closeDocument?.().then(
+      () => console.log('[Open Comet] Offscreen ML runtime closed (idle).'),
+      () => {}
+    );
+    return;
+  }
+
   const routes = {
     [MSG.START_AGENT]:       () => handleStart(msg, respond),
     [MSG.STOP_AGENT]:        () => handleStop(respond),
@@ -106,10 +135,129 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     [MSG.SCRAPE_PAGE]:       () => handleScrapePage(msg, respond),
     [MSG.AUTO_SCRAPE]:       () => handleAutoScrape(msg, respond),
     [MSG.EXPORT_DATA]:       () => handleExportData(msg, respond),
+    'PRIVACY_START':         () => handlePrivacyStart(msg, respond),
+    'PRIVACY_CONFIGURE':     () => { configurePrivacy(msg.settings || {}); respond({ ok: true, settings: getPrivacySettings() }); },
+    'PRIVACY_CAPTURE':       () => handlePrivacyCapture(msg, respond),
+    'PRIVACY_GET_STATS':     () => respond({ last: getLastPrivacyRun(), cumulative: getCumulativePrivacyStats(), settings: getPrivacySettings() }),
+    'LOCAL_MODEL_LIST':      () => handleLocalModelList(respond),
+    'LOCAL_MODEL_DOWNLOAD':  () => handleLocalModelDownload(msg, respond),
+    'LOCAL_MODEL_DELETE':    () => deleteLocalModel(msg.modelId).then(r => respond({ ok: true, ...r })),
+    // Status persistence RPCs — the offscreen document has NO chrome.storage in
+    // Chromium (restricted page-like chrome object), so the engine relays here.
+    'LOCAL_STATUS_READ':     () => chrome.storage.local.get('opencometLocalModels')
+      .then(d => respond({ ok: true, statuses: d?.opencometLocalModels || {} }))
+      .catch(e => respond({ ok: false, error: String(e?.message || e) })),
+    'LOCAL_STATUS_WRITE':    () => (async () => {
+      try {
+        const KEY = 'opencometLocalModels';
+        const d = await chrome.storage.local.get(KEY);
+        const all = d?.[KEY] || {};
+        all[msg.modelId] = { ...(all[msg.modelId] || {}), ...(msg.patch || {}) };
+        await chrome.storage.local.set({ [KEY]: all });
+        respond({ ok: true, statuses: all });
+      } catch (e) { respond({ ok: false, error: String(e?.message || e) }); }
+    })(),
   };
+
+  // Offscreen ML runtime log lines → SW console (single pane of glass).
+  if (msg.type === 'LOCAL_MODEL_LOG' && msg.text) {
+    const style = msg.level === 'error' ? 'color:#f87171;font-weight:bold'
+                : msg.level === 'warn'  ? 'color:#fbbf24;font-weight:bold'
+                : 'color:#c4390a;font-weight:bold';
+    console[msg.level === 'error' ? 'error' : msg.level === 'warn' ? 'warn' : 'log']('%c[LocalML]', style, msg.text);
+    return;
+  }
+  // Uncaught crashes relayed from page contexts (sidepanel / offscreen).
+  if (msg.type === 'DIAG_LOG_RELAY' && msg.text) {
+    const style = `color:${msg.level === 'error' ? '#f87171' : '#fbbf24'};font-weight:600;font-family:monospace`;
+    console[msg.level === 'error' ? 'error' : 'warn'](`%c[Relay:${msg.ctx || 'ctx'}:${msg.ns}]`, style, msg.text);
+    return;
+  }
+
   const handler = routes[msg.type];
-  if (handler) { handler(); return true; }
+  if (handler) {
+    try { handler(); } catch (err) {
+      logRouter.error(`handler for ${msg.type} crashed:`, err?.message || String(err));
+      try { respond({ ok: false, error: String(err?.message || err) }); } catch {}
+    }
+    return true;
+  }
 });
+
+// ── Page monitors (skills/monitor-page) ───────────────────────────────────
+// chrome.alarms fires in the SW even after it was killed. Each alarm re-fetches
+// the monitored URL, diffs against the stored snapshot, and notifies on change.
+chrome.alarms?.onAlarm.addListener(alarm => {
+  if (!alarm?.name?.startsWith('opencomet_monitor_')) return;
+  const id = alarm.name.replace('opencomet_monitor_', '');
+  (async () => {
+    try {
+      const monitors = await getMonitors();
+      const monitor = monitors.get(id);
+      if (!monitor) { chrome.alarms.clear(alarm.name); return; }
+      const text = await fetchPageText(monitor.url);
+      const prev = monitor.lastText || '';
+      const changed = prev && text !== prev;
+      const found = monitor.checkText ? text.toLowerCase().includes(monitor.checkText.toLowerCase()) : false;
+      const shouldNotify = monitor.checkText ? found : changed;
+      if (shouldNotify) {
+        const label = monitor.checkText ? `Found "${monitor.checkText}"` : 'Page content changed';
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('assets/icons/icon128.png'),
+          title: 'Open Comet — page monitor',
+          message: `${label}\n${monitor.url}`,
+        });
+        broadcastMessage({ type: 'MONITOR_ALERT', monitor: { id: monitor.id, url: monitor.url }, reason: label });
+      }
+      monitor.lastText = text.substring(0, 8000);
+      monitor.lastCheckedAt = Date.now();
+      monitors.set(id, monitor);
+      await saveMonitors(monitors);
+    } catch (err) {
+      console.warn('[Open Comet] Monitor check failed:', err.message);
+    }
+  })();
+});
+
+// Warm the skill library cache at SW boot so peekLibrarySkills() has data
+// before the first prompt is built.
+loadLibrarySkills().catch(() => {});
+
+// ── On-device model listing ──────────────────────────────────────────────
+// Statuses come from chrome.storage; the compute backend is reported by the
+// offscreen ML runtime when available (it is the context that actually runs
+// WebGPU/WASM, so it is the source of truth).
+async function handleLocalModelList(respond) {
+  const models = await listLocalModels();
+  let device = getLocalDevice();
+  try {
+    await ensureOffscreen();
+    const ping = await sendToOffscreen({ type: 'OFFSCREEN_PING' }, { timeoutMs: 5000 });
+    if (ping?.ok && ping.device) device = ping.device;
+  } catch { /* offscreen unavailable — fall back to SW-side detection */ }
+  respond({ ok: true, models, device });
+}
+
+// ── On-device (Transformers.js) model downloads ──────────────────────────
+// The download itself streams progress to the UI via LOCAL_MODEL_PROGRESS
+// broadcasts; we answer the caller immediately so the sidepanel never blocks.
+let _localDownloadBusy = false;
+async function handleLocalModelDownload(msg, respond) {
+  if (_localDownloadBusy) {
+    logBusy.warn(`model download already in progress — request for "${msg.modelId}" rejected.`);
+    respond({ ok: false, error: 'Another model download is already in progress.' });
+    return;
+  }
+  _localDownloadBusy = true;
+  respond({ ok: true, started: true });
+  try {
+    const result = await downloadLocalModel(msg.modelId);
+    if (!result.ok) logML.warn(`local model download failed:`, result.error);
+  } finally {
+    _localDownloadBusy = false;
+  }
+}
 
 async function handleGetOllamaModels(msg, respond) {
   try {
@@ -364,6 +512,7 @@ async function legacyHandleSummarizePage(msg, respond) {
     const answer = await callAIRaw(settings, prompt, { onUsage: trackUsage });
     broadcastMessage({ type: MSG.SUMMARIZE_DONE, answer, page });
   } catch (err) {
+    logSW.error('summarize failed:', err?.message || String(err));
     broadcastMessage({ type: MSG.SUMMARIZE_ERROR, error: err.message });
   }
 }
@@ -436,23 +585,18 @@ async function legacyHandleExportData(msg, respond) {
  * @param {Function} respond - Callback to send a response.
  */
 async function handleStart(msg, respond) {
-  if (agentState.running) { respond({ ok: false, error: 'Already running' }); return; }
-
-  const storedLicense = await getStoredLicenseRecord();
-  const licenseKey = String(storedLicense?.key || '').trim();
-  if (!licenseKey) {
-    respond({ ok: false, error: 'No license key saved. Open Settings -> License & Activation first.' });
-    return;
-  }
-
-  const validation = await validateLicenseKey(licenseKey);
-  if (!validation.ok || !validation.valid) {
-    respond({ ok: false, error: validation.error || 'License is inactive.' });
+  if (agentState.running) {
+    logBusy.warn('START_AGENT rejected — an agent task is already running (busy).');
+    respond({ ok: false, error: 'Already running' });
     return;
   }
 
   const settings = await getSettings();
-  if (!isProviderConfigured(settings)) { respond({ ok: false, error: 'No provider configured' }); return; }
+  if (!isProviderConfigured(settings)) {
+    logSW.warn('START_AGENT rejected — no AI provider configured. Set one in Settings → AI & Models.');
+    respond({ ok: false, error: 'No provider configured' });
+    return;
+  }
 
   const caps = getProviderCapabilities(settings);
   if (!caps.browserAgentSafe) {
@@ -461,7 +605,13 @@ async function handleStart(msg, respond) {
   }
 
   const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const startHost   = getHostFromUrl(activeTab?.url);
+
+  // Browser-internal page (chrome://newtab is the DEFAULT landing page) →
+  // open the task's target site in the working tab instead of cloning a
+  // useless internal page the agent can neither capture nor script.
+  const bootstrapped = PRIVILEGED_URL_RE_SW.test(activeTab?.url || '');
+  const workingUrl  = bootstrapped ? inferStartUrlFromTask(msg.task) : (activeTab?.url || 'about:blank');
+  const startHost   = getHostFromUrl(workingUrl);
 
   const isContinuing = msg.sessionId && msg.sessionId === agentState.sessionId;
   let reuseTabId = null;
@@ -486,12 +636,11 @@ async function handleStart(msg, respond) {
     taskProfile:          inferTaskProfile(msg.taskProfile, msg.skills),
     settings,
     maxIterations:        settings.maxSteps || 25,
-    startUrl:             activeTab.url,
+    startUrl:             workingUrl,
     startTitle:           activeTab.title,
     attachments:          cloneAttachments(msg.attachments || []),
     skills:               cloneSkills(msg.skills || []),
     profileData:          { ...(settings.profileData || {}) },
-    licenseStatus:        validation.license || { valid: true },
     sessionApprovedHosts: startHost ? [startHost] : [],
     plannedHosts:         startHost ? [startHost] : [],
     taskMemory: { visitedHosts: startHost ? [startHost] : [], pageSnapshots: [], loopHints: [], workSummary: '' },
@@ -501,6 +650,8 @@ async function handleStart(msg, respond) {
     taskTabGraph:         oldTabGraph,
     agentTabId:           reuseTabId,
   });
+
+  startRunKeepalive();   // MV3: hold the SW alive for the whole run (see helper)
 
   // -- Feature: Skill Auto-Detection ----------------------------------------
   // Automatically activate relevant skills based on task text + current URL,
@@ -527,13 +678,19 @@ async function handleStart(msg, respond) {
   broadcast(MSG.AGENT_STARTED);
   setBadge('AI', '#7c6af7');
 
+  if (bootstrapped) {
+    let bootHost = workingUrl;
+    try { bootHost = new URL(workingUrl).hostname.replace(/^www\./, ''); } catch {}
+    pushStep(STEP_TYPE.THINKING, `Browser-internal page detected — opening ${bootHost} for your task instead…`);
+  }
+
   // Open the working tab
   if (reuseTabId) {
     await chrome.tabs.update(reuseTabId, { active: true });
     await groupTaskTabs([reuseTabId]);
     broadcastToTabs({ type: MSG.AGENT_STARTED, state: agentState });
   } else {
-    const agentTab = await chrome.tabs.create({ url: activeTab.url, active: true });
+    const agentTab = await chrome.tabs.create({ url: workingUrl, active: true });
     agentState.agentTabId = agentTab.id;
     agentState.taskTabIds = [agentTab.id];
     rememberTab(agentTab);
@@ -566,6 +723,7 @@ async function planPhase() {
 
     agentState.plan = normalizePlan(plan);
     syncPlannedHosts();
+    await activatePlannedSkills(plan);
 
     pushStep(STEP_TYPE.PLAN_READY, '?? Plan ready');
 
@@ -601,9 +759,32 @@ function normalizePlan(plan) {
     goal: String(incoming.goal || ''),
     approach: String(incoming.approach || ''),
     sites: Array.isArray(incoming.sites) ? incoming.sites.map(String) : [],
+    skills: Array.isArray(incoming.skills) ? incoming.skills.map(String) : [],
     steps: normalizedSteps,
     estimated_actions: Number.isFinite(Number(incoming.estimated_actions)) ? Number(incoming.estimated_actions) : null,
   };
+}
+
+// -- Planner-chosen skill activation -----------------------------------------
+// The planner lists matching SKILL LIBRARY ids in plan.skills; the loop then
+// executes with those expert instructions injected as ACTIVE SKILLS.
+async function activatePlannedSkills(plan) {
+  const requested = Array.isArray(plan?.skills) ? plan.skills.slice(0, 3) : [];
+  if (!requested.length) return;
+  try {
+    // executeAction is statically imported at the top of this file.
+    // NEVER dynamic-import() here — it is banned on ServiceWorkerGlobalScope.
+    for (const id of requested) {
+      const already = (agentState.skills || []).some(s => s.id === String(id).toLowerCase());
+      if (already) continue;
+      const meta = await executeAction(agentState.agentTabId, { type: 'use_skill', id }, agentState);
+      if (meta?.ok && !meta.alreadyActive) {
+        pushStep(STEP_TYPE.MUTED, `✨ Planner engaged skill: ${meta.skill}`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Open Comet] Planned skill activation failed:', err.message);
+  }
 }
 
 function syncPlannedHosts() {
@@ -671,6 +852,36 @@ function injectRuntimeNudges() {
 // -----------------------------------------------------------------------------
 // PLAN APPROVAL
 // -----------------------------------------------------------------------------
+// ── v1.15.1 ASK-BEFORE-ACTING (user request: the composer's "Ask before
+// acting" mode was dead for privacy runs — handlePrivacyStart ignored
+// msg.mode entirely). When the task is started in 'ask' mode, the privacy
+// loop calls requestActionApproval() BEFORE every browser action; the
+// sidepanel shows an approval card (Allow once / Skip / Stop) and the loop
+// waits on a promise resolved by handleResolveApproval.
+let actionApprovalWaiters = [];
+function resolveAllActionApprovals(verdict) {
+  const waiters = actionApprovalWaiters;
+  actionApprovalWaiters = [];
+  for (const w of waiters) { try { w(verdict); } catch { /* never break the caller */ } }
+}
+function requestActionApproval(action, step) {
+  const approval = {
+    id: `ap_${Date.now()}`,
+    kind: 'action',
+    step,
+    // describeAction mirrors the chat's "Executing: …" line — the user reviews
+    // exactly what would run. Typed text is shown (max 40 chars, same as the
+    // chat) so the user can catch a wrong value BEFORE it lands in a field.
+    message: `Step ${step} — the agent wants to: ${describeAction(action || {})}`,
+  };
+  agentState.pendingApproval = approval;
+  broadcastMessage({ type: MSG.APPROVAL_REQUIRED, approval, steps: agentState.steps });
+  setBadge('ASK', '#d9875a');
+  return new Promise((resolve) => {
+    actionApprovalWaiters.push(resolve);
+  });
+}
+
 async function handleApprovePlan(editedPlan, respond) {
   agentState.plan   = normalizePlan(editedPlan || agentState.plan);
   agentState.paused = false;
@@ -687,6 +898,26 @@ async function handleResolveApproval(msg, respond) {
   const decision = msg.decision || 'cancel';
   agentState.pendingApproval = null;
   agentState.paused          = false;
+
+  // v1.15.1 ASK-BEFORE-ACTING: per-action approval from the privacy loop.
+  // approve → run it · skip → drop this action, ask the model again ·
+  // stop/cancel → abort the run (the loop's abort check turns it into the
+  // normal stopped path: onError → AGENT_ERROR + honest history).
+  if (pending.kind === 'action') {
+    if (decision === 'approve_once') {
+      setBadge('PRV', '#d9875a');
+      resolveAllActionApprovals('approved');
+    } else if (decision === 'skip') {
+      setBadge('PRV', '#d9875a');
+      resolveAllActionApprovals('skip');
+    } else {
+      agentState.stopRequested = true;
+      try { agentState._privacyAbort?.abort?.(); } catch { /* already aborted */ }
+      resolveAllActionApprovals('stop');
+    }
+    respond({ ok: true });
+    return;
+  }
 
   if (pending.kind === 'host_access') {
     if (decision === 'allow_host') {
@@ -716,7 +947,7 @@ function handleUserNote(note, respond) {
   const clean = String(note || '').trim();
   if (!clean || !agentState.running) { respond({ ok: false }); return; }
   agentState.userNotes.push({ text: clean, time: Date.now() });
-  pushStep(STEP_TYPE.MUTED, `?? User note: ${clean.substring(0, 180)}`);
+  pushStep(STEP_TYPE.MUTED, `📝 User note: ${clean.substring(0, 180)}`);
   respond({ ok: true });
 }
 
@@ -832,6 +1063,23 @@ async function executionPhase() {
       agentState.consecutiveFailures = 0;
       applyOutcome(action, meta);
 
+      // -- Native tool results become explicit observations -----------------
+      // The model can only trust what it sees — surface executor outputs for
+      // the skill-library native tools (bookmarks, saves, monitors, skills).
+      const nativeMeta = {
+        bookmark_add: m => m.ok && `Bookmark ${m.existed ? 'already saved' : 'created'}${m.folder ? ` in "${m.folder}"` : ''}: ${m.bookmark?.title || ''}`,
+        bookmark_search: m => m.ok && `Found ${m.count} bookmark(s)${m.count ? ': ' + m.results.slice(0, 3).map(b => b.title).join(' | ') : ''}`,
+        save_page: m => m.ok && `Page saved as ${m.filename}`,
+        screenshot_save: m => m.ok && `Screenshot saved as ${m.filename}`,
+        organize_tabs: m => m.ok && `Tabs organized: closed ${m.closed || 0} duplicate(s), made ${m.groups?.length || 0} group(s)`,
+        read_later_add: m => m.ok && (m.existed ? 'Already in reading list' : `Added to reading list — ${m.count} item(s) queued`),
+        read_later_list: m => m.ok && `Reading list (${m.count}): ${(m.items || []).slice(0, 4).map(i => i.title).join(' | ')}`,
+        monitor_start: m => m.ok && `Monitor registered: ${m.monitor?.url} every ${m.monitor?.intervalMin} min for ${m.monitor?.checkText}`,
+        use_skill: m => m.ok && (m.alreadyActive ? `Skill "${m.skill}" already active` : `Skill "${m.skill}" engaged — follow its instructions from the next step`),
+      };
+      const observation = nativeMeta[action.type]?.(meta);
+      if (observation) pushStep(STEP_TYPE.MUTED, `▸ ${observation}`);
+
       // -- Auto-done: detect send/submit completion -------------------------
       // If the agent just clicked a "Send" button, check whether the compose
       // window closed — if so, the email was sent and we're done.
@@ -864,6 +1112,7 @@ async function executionPhase() {
         return;
       }
       pushStep(STEP_TYPE.ERROR, `?? ${err.message}`);
+      logAgent.warn(`iteration ${agentState.iterationCount} failed (consecutive=${agentState.consecutiveFailures}): ${err.message}`);
       if (agentState.iterationCount <= 3) { fatalError(err); return; }
       await sleep(2000); // allow agent to recover
     }
@@ -890,6 +1139,7 @@ async function finishSuccess(result) {
   broadcastMessage({ type: MSG.AGENT_DONE, answer, data: result.data || {}, steps: agentState.steps, sessionId: agentState.sessionId });
   notify('Open Comet — task complete', answer);
   setBadge('', '#7c6af7');
+  stopRunKeepalive();
   await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'done', result: answer.substring(0, 300), steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
   broadcastStatus(STATUS.IDLE);
 }
@@ -897,23 +1147,28 @@ async function finishSuccess(result) {
 async function finishStopped() {
   pushStep(STEP_TYPE.STOPPED, '? Stopped by user.');
   agentState.finalStatus = 'stopped';
+  stopRunKeepalive();
   broadcastMessage({ type: MSG.AGENT_STOPPED, steps: agentState.steps, sessionId: agentState.sessionId });
   setBadge('', '#7c6af7');
   await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'stopped', result: 'Stopped by user.', steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
 }
 
 async function finishMaxSteps() {
+  logLimits.warn(`max step limit reached (${agentState.maxIterations}) — finishing with the best-effort answer.`);
   const answer = `Reached the max step limit (${agentState.maxIterations}).`;
   agentState.finalStatus = 'incomplete';
+  stopRunKeepalive();
   broadcastMessage({ type: MSG.AGENT_DONE, answer, data: {}, steps: agentState.steps, sessionId: agentState.sessionId });
   setBadge('', '#7c6af7');
   await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'incomplete', result: answer, steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
 }
 
 function fatalError(err) {
+  logAgent.error('fatal:', err?.message || String(err));
   pushStep(STEP_TYPE.ERROR, `? ${err.message}`);
   agentState.running = false;
   agentState.finalStatus = 'error';
+  stopRunKeepalive();
   broadcastMessage({ type: MSG.AGENT_ERROR, error: err.message, steps: agentState.steps, sessionId: agentState.sessionId });
   broadcastStatus(STATUS.IDLE);
   notify('Open Comet error', err.message);
@@ -1276,10 +1531,19 @@ function updateActionLoop(action) {
   agentState.loopState.lastActionKey = key;
 }
 
+// SIH MODE: RAW SCREEN → NEVER NETWORK. In SIH mode the main (non-privacy)
+// agent keeps working but its RAW screenshot is stripped before any network
+// call — the model degrades to DOM-only context for that turn.
+async function sihGateShot(rawScreenshot) {
+  const decision = sihRawScreenshotDecision(await isSihMode(), rawScreenshot);
+  if (!decision.allowed) console.warn('[SIH]', decision.note);
+  return decision.image;
+}
+
 async function runPlannerRole(pageInfo, screenshot) {
   pushStep(STEP_TYPE.API, `Planner role: calling ${agentState.settings.provider}...`);
   const req = buildPlannerRequest(agentState, pageInfo, screenshot, { images: imageAttachments() });
-  return await callAI(agentState.settings, req.prompt, req.screenshotBase64, { images: req.images, onUsage: trackUsage });
+  return await callAI(agentState.settings, req.prompt, (await sihGateShot(req.screenshotBase64)), { images: req.images, onUsage: trackUsage, ...onDeviceExtras() });
 }
 
 async function runCheckpoint(name, context = {}) {
@@ -1307,15 +1571,31 @@ async function runNavigatorRole(pageInfo, screenshot) {
     images: imageAttachments(),
   });
   try {
-    return await callAI(agentState.settings, initialReq.prompt, initialReq.screenshotBase64, { images: initialReq.images, onUsage: trackUsage });
+    return await callAI(agentState.settings, initialReq.prompt, (await sihGateShot(initialReq.screenshotBase64)), { images: initialReq.images, onUsage: trackUsage, ...onDeviceExtras() });
   } catch (err) {
     if (!shouldRetryCompactAction(err, agentState.settings)) throw err;
     const compactReq = buildNavigatorRequest(agentState, pageInfo, screenshot, {
       compactMode: 'minimal',
       images: imageAttachments(),
     });
-    return await callAI(agentState.settings, compactReq.prompt, compactReq.screenshotBase64, { images: compactReq.images, onUsage: trackUsage });
+    return await callAI(agentState.settings, compactReq.prompt, (await sihGateShot(compactReq.screenshotBase64)), { images: compactReq.images, onUsage: trackUsage, ...onDeviceExtras() });
   }
+}
+
+/**
+ * On-device generation extras (no-ops for cloud providers):
+ *   • tools     — WebMCP-style declarations for native tool calling
+ *   • sessionId — KV-cache reuse across loop iterations
+ *   • stream    — live token broadcast to the sidepanel
+ */
+function onDeviceExtras() {
+  const provider = String(agentState.settings?.provider || '').toLowerCase();
+  if (provider !== 'local') return {};
+  return {
+    tools: toChatTemplateTools(),
+    sessionId: String(agentState.sessionId || ''),
+    stream: true,
+  };
 }
 
 function compactPageInfoForAI(pageInfo, settings = {}, compactMode = 'normal') {
@@ -1429,6 +1709,7 @@ async function compactWorkHistory() {
         lastCompactedStepCount: allCompletedSteps.length,
         lastCompactedIteration: agentState.iterationCount,
       };
+      logLimits.info(`context compacted at step ${agentState.iterationCount} (${allCompletedSteps.length} steps → summary)`);
       pushStep(STEP_TYPE.MUTED, `??? History compacted at step ${agentState.iterationCount}.`);
     }
   } catch {
@@ -1538,10 +1819,20 @@ function buildBrowserResearchSynthesisPrompt(task, subQueries, analyzedSources) 
 }
 
 function buildSummarizePrompt(task, page, profileData = {}) {
-  const profileNotes = Object.entries(profileData || {})
-    .filter(([, value]) => String(value || '').trim())
-    .map(([key, value]) => `${key}: ${value}`)
-    .join(' | ') || 'none';
+  // v1.15.6: customInfo is an ARRAY of {key,value} — format it explicitly so
+  // the generic Object.entries below never renders "[object Object]".
+  const custom = Array.isArray(profileData?.customInfo)
+    ? profileData.customInfo
+      .map(e => `${String(e?.key || '').trim()}: ${String(e?.value ?? '').trim()}`)
+      .filter(s => !s.startsWith(':') && !s.endsWith(': ') && s.trim() !== ':')
+    : [];
+  const profileNotes = [
+    ...Object.entries(profileData || {})
+      .filter(([key]) => key !== 'customInfo')
+      .filter(([, value]) => String(value || '').trim())
+      .map(([key, value]) => `${key}: ${value}`),
+    ...custom,
+  ].join(' | ') || 'none';
 
   return [
     'You are a page summarization sub-agent.',
@@ -1802,15 +2093,12 @@ async function waitForLoad(tabId) {
   });
 }
 
+// v1.15 TAB-GROUP SANDBOX: the real logic lives in lib/tab-sandbox.js (shared
+// with actions.js); this wrapper keeps the historical call sites stable.
 async function groupTaskTabs(tabIds) {
-  try {
-    const groupId = Number.isInteger(agentState.agentGroupId)
-      ? await chrome.tabs.group({ groupId: agentState.agentGroupId, tabIds })
-      : await chrome.tabs.group({ tabIds });
-    agentState.agentGroupId = groupId;
-    const title = (agentState.task || 'Open Comet Task').replace(/\s+/g, ' ').trim().substring(0, 24);
-    await chrome.tabGroups.update(groupId, { title, color: 'blue', collapsed: false });
-  } catch {}
+  const groupId = await ensureTaskGroup(agentState, tabIds);
+  if (Number.isInteger(groupId)) agentState.agentGroupId = groupId;
+  return groupId;
 }
 
 // -----------------------------------------------------------------------------
@@ -1821,6 +2109,14 @@ async function handleStop(respond) {
   agentState.running        = false;
   agentState.paused         = false;
   agentState.pendingApproval= null;
+  stopRunKeepalive();   // user ended the run — release the heartbeat
+  // v1.15.1 ASK-BEFORE-ACTING: a run paused on the per-action approval card
+  // must be released too, or the loop would wait forever on a dead gate.
+  resolveAllActionApprovals('stop');
+  // SIH fix: privacy runs were UNSTOPPABLE — the loop's only abort check is
+  // its AbortSignal and nothing ever called .abort(). Pull it here so the
+  // Stop button (and Reset) actually interrupts a privacy run.
+  try { agentState._privacyAbort?.abort?.(); } catch { /* already aborted */ }
   if (respond) respond({ ok: true });
 }
 
@@ -1830,8 +2126,18 @@ async function handleReset(respond) {
   agentState.paused         = false;
   agentState.pendingApproval= null;
   agentState.finalStatus    = 'idle';
+  stopRunKeepalive();   // reset ends any run — release the heartbeat
+  resolveAllActionApprovals('stop');   // v1.15.1: release a paused approval gate too
+  // SIH fix: also abort an in-flight privacy run (same as handleStop).
+  try { agentState._privacyAbort?.abort?.(); } catch { /* already aborted */ }
   setBadge('', '#7c6af7');
   broadcastMessage({ type: MSG.CHAT_RESET, sessionId: agentState.sessionId });
+  // Free the on-device KV cache for the dead session (gemma4-engine hygiene).
+  const deadSessionId = agentState.sessionId;
+  try {
+    await ensureOffscreen();
+    sendToOffscreen({ type: 'LOCAL_KV_DISPOSE', sessionId: deadSessionId }, { timeoutMs: 5000 }).catch(() => {});
+  } catch { /* offscreen not running — nothing to free */ }
   if (respond) respond({ ok: true });
 }
 
@@ -1840,10 +2146,15 @@ async function handleReset(respond) {
 // -----------------------------------------------------------------------------
 function pushStep(type, text, extra = {}) {
   if (type === STEP_TYPE.SCREENSHOT && !extra.imageDataUrl) return;
-  const step = { type, text, ...extra, time: Date.now(), index: agentState.steps.length };
+  const now = Date.now();
+  const prev = agentState.steps[agentState.steps.length - 1];
+  // dtMs = time since the previous step — the side panel renders this as a
+  // per-step duration chip so slow VLM turns are visible while they happen.
+  const dtMs = prev ? Math.max(0, now - prev.time) : 0;
+  const step = { type, text, ...extra, time: now, dtMs, index: agentState.steps.length };
   agentState.steps.push(step);
   broadcastMessage({ type: MSG.STEP_UPDATE, step, stepCount: agentState.steps.length });
-  console.log(`[Open Comet] ${text}`);
+  console.log(`[Open Comet] ${text}${dtMs > 0 ? `  (+${(dtMs / 1000).toFixed(1)}s)` : ''}`);
 }
 
 function asImageDataUrl(base64) {
@@ -1857,7 +2168,17 @@ function broadcastStatus(status) {
 }
 
 function broadcast(type) {
-  broadcastMessage({ type });
+  // v1.15.1 CRITICAL FIX (user-reported: "Task already completed but in Sidebar
+  // UI still shows stop button"): privacy-flow callers pass a FULL message
+  // object — broadcast({ type: MSG.AGENT_DONE, summary }) — while this helper's
+  // name suggests a bare type string. The object was double-wrapped into
+  // { type: {type:'AGENT_DONE',…} }, so the sidepanel's switch NEVER matched:
+  // AGENT_DONE / AGENT_ERROR were silently dropped, the panel stayed in
+  // "running" state forever (Stop button visible after completion, no result
+  // card), and clicking Stop afterwards produced the confusing
+  // "Stopping…" + "Unable to add context right now." sequence in the field
+  // log. Normalize both call styles here.
+  broadcastMessage(typeof type === 'string' ? { type } : type);
 }
 
 function broadcastMessage(msg) {
@@ -2058,6 +2379,7 @@ Instructions:
       page,
     });
   } catch (err) {
+    logSW.error('summarize failed:', err?.message || String(err));
     broadcastMessage({ type: MSG.SUMMARIZE_ERROR, error: err.message });
   }
 }
@@ -2367,5 +2689,275 @@ async function groupLooseTabs(tabIds, title = 'Open Comet Research') {
   } catch {
     return null;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRIVACY-MODE HANDLERS
+// Routes that delegate to the privacy-aware agent loop (privacy-loop.js).
+// Triggered when the user enables "Privacy Mode" in the side panel.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Browser-internal page bootstrap ────────────────────────────────────────
+// Users press Start from chrome://newtab ALL the time (it IS the default
+// landing page). Blocking with an error made the product feel broken
+// (user: "WTF we always user is not able to start task with new tab?").
+// Instead we infer a useful landing page from the task text and navigate
+// the disposable tab there automatically.
+const PRIVILEGED_URL_RE_SW = /^(chrome|edge|about|devtools|view-source|chrome-extension|moz-extension):|^https?:\/\/chromewebstore\.google\.com/i;
+let pendingBootstrapNote = null;
+
+function inferStartUrlFromTask(task) {
+  const t = String(task || '').toLowerCase();
+  const SITES = [
+    // v1.9: "yt music" / "youtube music" must land on YouTube Music itself —
+    // the generic youtube rule used to open www.youtube.com and the VLM then
+    // burned 1-2 full turns (30-90 s each) navigating to music.youtube.com.
+    [/yt\s*music|youtube\s*music|music\.youtube/, 'https://music.youtube.com'],
+    [/youtube|\byt\b|play a song|song\b|music video|watch video/, 'https://www.youtube.com'],
+    [/gmail|inbox|check my mail|\bmail\b/, 'https://mail.google.com'],
+    [/wikipedia/, 'https://en.wikipedia.org'],
+    [/flipkart/, 'https://www.flipkart.com'],
+    [/amazon|order online|shop online/, 'https://www.amazon.in'],
+    [/github|\brepo\b/, 'https://github.com'],
+    [/twitter|x\.com|tweet/, 'https://x.com'],
+    [/instagram|\binsta\b/, 'https://www.instagram.com'],
+    [/facebook|\bfb\b/, 'https://www.facebook.com'],
+    [/netflix|watch a movie|\bmovie\b/, 'https://www.netflix.com'],
+    [/spotify|play .*playlist/, 'https://open.spotify.com'],
+    [/whatsapp/, 'https://web.whatsapp.com'],
+    [/linkedin/, 'https://www.linkedin.com'],
+    [/reddit/, 'https://www.reddit.com'],
+    [/stack\s*overflow/, 'https://stackoverflow.com'],
+    [/chatgpt/, 'https://chatgpt.com'],
+    [/\bnews\b|headline/, 'https://news.google.com'],
+    [/cricket|\bipl\b|\bscore\b/, 'https://www.cricbuzz.com'],
+  ];
+  for (const [re, url] of SITES) if (re.test(t)) return url;
+  // Explicit domain mention: "on openai.com" / "go to example.org/page"
+  const dom = /((?:https?:\/\/)?(?:www\.)?[a-z0-9][a-z0-9-]*\.(?:com|org|net|in|io|co|ai|dev|gov|edu)(?:\/[^\s]*)?)/i.exec(t);
+  if (dom) return dom[1].startsWith('http') ? dom[1] : `https://${dom[1]}`;
+  return 'https://www.google.com';
+}
+
+function waitForTabLoad(tabId, timeoutMs = 15000) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      try { chrome.tabs.onUpdated.removeListener(listener); } catch {}
+      resolve(ok);
+    };
+    const listener = (id, info) => { if (id === tabId && info.status === 'complete') done(true); };
+    chrome.tabs.onUpdated.addListener(listener);
+    // Already complete?
+    chrome.tabs.get(tabId).then(t => { if (t && t.status === 'complete') done(true); }).catch(() => done(false));
+    setTimeout(() => done(false), timeoutMs);
+  });
+}
+
+async function handlePrivacyStart(msg, respond) {
+  if (agentState.running) {
+    respond({ ok: false, error: 'Already running' });
+    return;
+  }
+
+  const settings = await getSettings();
+  // Apply privacy settings from msg or fall back to defaults
+  const privacyCfg = msg.privacy || {};
+  configurePrivacy({
+    enabled: true,
+    blurFaces: privacyCfg.blurFaces !== false,
+    redactDomPii: privacyCfg.redactDomPii !== false,
+    redactTextPii: privacyCfg.redactTextPii !== false,
+    runYolo: Boolean(privacyCfg.runYolo),
+    useNer: Boolean(privacyCfg.useNer),
+    serverUrl: privacyCfg.serverUrl || 'http://127.0.0.1:8787',
+  });
+
+  let activeTab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0] || null;
+  if (!activeTab) { respond({ ok: false, error: 'No active tab' }); return; }
+
+  // Browser-internal page (chrome://newtab etc.) → auto-navigate to a page
+  // inferred from the task instead of dead-ending with an error.
+  if (PRIVILEGED_URL_RE_SW.test(activeTab.url || '')) {
+    activeTab = await (async () => {
+      const targetUrl = inferStartUrlFromTask(msg.task);
+      let host = targetUrl;
+      try { host = new URL(targetUrl).hostname.replace(/^www\./, ''); } catch {}
+      pendingBootstrapNote = `Browser-internal page detected (${String(activeTab.url || 'about:blank').slice(0, 40)}) — opening ${host} for your task instead…`;
+      try {
+        await chrome.tabs.update(activeTab.id, { url: targetUrl });
+      } catch {
+        try {
+          activeTab = await chrome.tabs.create({ url: targetUrl, active: true });
+        } catch {
+          respond({
+            ok: false,
+            error: `Privacy mode cannot capture browser-internal pages (${(activeTab.url || 'about:blank').slice(0, 60)}) and automatic navigation failed. Open a normal https:// page and press Start again.`,
+          });
+          return null;
+        }
+      }
+      await waitForTabLoad(activeTab.id);
+      try { const fresh = await chrome.tabs.get(activeTab.id); return fresh || activeTab; } catch { return activeTab; }
+    })();
+    if (!activeTab) return;
+  }
+
+  agentState = createEmptyAgentState({
+    running: true,
+    currentTabId: activeTab.id,
+    sessionId: `privacy_${Date.now()}`,
+    mode: 'privacy',
+    task: msg.task,
+    settings,
+    maxIterations: settings.maxSteps || 25,
+    startUrl: activeTab.url,
+    startTitle: activeTab.title,
+  });
+
+  // v1.15.1 ASK-BEFORE-ACTING: the composer mode now REACHES privacy runs
+  // (the panel's send interceptor already forwards msg.mode). 'ask' gates
+  // every browser action behind an approval card; 'auto' runs immediately.
+  agentState.askBeforeActing = String(msg.mode || '') === 'ask';
+  resolveAllActionApprovals('stop');   // hygiene: no stale waiter may survive into this run
+
+  // v1.15 TAB-GROUP SANDBOX: privacy runs never created a tab group — the
+  // standard agent did, the flagship privacy mode did not. Put the task tab
+  // in the sandbox group up front so the boundary exists from step 1 (the
+  // loop's capture + actions are additionally enforced against taskTabIds).
+  agentState.agentTabId = activeTab.id;
+  agentState.taskTabIds = [activeTab.id];
+  rememberTab(activeTab);
+  await groupTaskTabs([activeTab.id]);
+
+  if (pendingBootstrapNote) {
+    pushStep(STEP_TYPE.THINKING, pendingBootstrapNote);
+    pendingBootstrapNote = null;
+  }
+  pushStep(STEP_TYPE.MUTED, 'Tab-group sandbox: task tabs are grouped — the agent acts only inside this group.', { phase: 'sandbox' });
+
+  respond({ ok: true, sessionId: agentState.sessionId });
+  broadcast(MSG.AGENT_STARTED);
+  setBadge('PRV', '#d9875a');
+  startRunKeepalive();
+
+  const controller = new AbortController();
+  agentState._privacyAbort = controller;
+
+  // v1.15.1: this step was broadcast double-wrapped (see broadcast() fix) so
+  // it never rendered; pushStep puts it in the chat AND the hydratable state
+  // like every other step.
+  pushStep(STEP_TYPE.THINKING, 'Privacy mode active — sanitizing before every network call');
+
+  await runPrivacyAgent({
+    task: msg.task,
+    tabId: activeTab.id,
+    settings,
+    // v1.15 TAB-GROUP SANDBOX: the loop needs the LIVE state object so
+    // executeAction can enforce (and record) task-tab membership. Before this,
+    // the privacy loop passed a throwaway `{ settings }` — switch_tab/new_tab/
+    // list_tabs/organize_tabs ran blind to the sandbox.
+    state: agentState,
+    signal: controller.signal,
+    // v1.15.1 ASK-BEFORE-ACTING: per-action approval gate (no-op in 'auto').
+    askBeforeActing: agentState.askBeforeActing,
+    approvalGate: agentState.askBeforeActing ? requestActionApproval : null,
+    onStep: (type, text, payload = {}) => {
+      // v1.8: pushStep alone is responsible for broadcasting — the previous
+      // second raw broadcast below re-sent every step in a DIFFERENT shape
+      // (payload nested instead of spread, no index), causing duplicate chat
+      // rows and a shape mismatch for the stats interceptor.
+      pushStep(type, text, payload);
+    },
+    onDone: (summary) => {
+      agentState.running = false;
+      agentState.finalStatus = 'done';
+      setBadge('', '#7c6af7');
+      stopRunKeepalive();
+      pushStep(STEP_TYPE.DONE, `Privacy agent finished in ${summary.steps} steps`, { summary });
+      // v1.15.6: information/summary tasks deliver their ANSWER here — the
+      // sidepanel's result card renders msg.answer verbatim (markdown ok).
+      broadcast({ type: MSG.AGENT_DONE, summary, answer: String(summary?.finalAnswer || '').trim() });
+      // v1.8: privacy runs were NEVER written to History (only standard-agent
+      // and deep-research runs were) — the History tab therefore showed no
+      // chat after privacy-mode tasks. Record done/error/stopped like the
+      // standard loop does.
+      appendHistory({
+        id: agentState.sessionId,
+        task: agentState.task,
+        status: 'done',
+        result: String(summary?.finalAnswer || summary?.finalThought || 'Task complete').substring(0, 300),
+        steps: summary?.steps || agentState.steps.length,
+        time: Date.now(),
+        mode: 'privacy',
+      });
+    },
+    onError: (err) => {
+      agentState.running = false;
+      agentState.finalStatus = controller.signal.aborted ? 'stopped' : 'error';
+      setBadge(controller.signal.aborted ? '' : 'ERR', controller.signal.aborted ? '#7c6af7' : '#f04a6a');
+      stopRunKeepalive();
+      pushStep(STEP_TYPE.ERROR, `Privacy agent error: ${err.message}`, { error: err.message });
+      broadcast({ type: MSG.AGENT_ERROR, error: err.message });
+      appendHistory({
+        id: agentState.sessionId,
+        task: agentState.task,
+        status: controller.signal.aborted ? 'stopped' : 'error',
+        result: controller.signal.aborted ? 'Stopped by user.' : String(err?.message || err).substring(0, 300),
+        steps: agentState.steps.length,
+        time: Date.now(),
+        mode: 'privacy',
+      });
+    },
+  });
+}
+
+// SIH hardening: the ONLY per-call overrides a PRIVACY_CAPTURE message may
+// set. Anything else (blurFaces/redactDomPii/redactTextPii/runYolo/force…)
+// is dropped — a compromised or malicious sender must never be able to turn
+// this into a raw-screenshot-to-cloud primitive.
+const SAFE_CAPTURE_OVERRIDES = new Set(['maxWidth', 'quality', 'note']);
+
+async function handlePrivacyCapture(msg, respond) {
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab) { respond({ ok: false, error: 'No active tab' }); return; }
+    const overrides = {};
+    for (const [k, v] of Object.entries(msg.overrides || {})) {
+      if (SAFE_CAPTURE_OVERRIDES.has(k)) overrides[k] = v;
+    }
+    const result = await captureAndSanitize(activeTab.id, overrides);
+    respond({ ok: true, result });
+  } catch (err) {
+    respond({ ok: false, error: err.message });
+  }
+}
+
+// ── Global error traps: uncaught errors / unhandled rejections never vanish ───
+installGlobalErrorTraps(logSW, 'SW');
+
+// ── v1.8 build banner ─────────────────────────────────────────────────────────
+// Every time this service worker (re)starts it announces its exact build so a
+// stale unpacked copy can never be mistaken for the freshly loaded one.
+console.log(`[OpenComet] v${(chrome.runtime && typeof chrome.runtime.getManifest === 'function') ? chrome.runtime.getManifest().version : 'dev'} · service worker loaded`);
+
+// ── Run keepalive (MV3 service-worker lifetime) ──────────────────────────────
+// An MV3 service worker idles out after ~30s without events. Step broadcasts
+// keep it alive BETWEEN phases, but a single long VLM turn (30–180s, zero
+// extension-API traffic) can hit the idle timeout mid-run — the worker shows
+// as "(Inactive)" and the task dies. While any run is active, a 20s heartbeat
+// via chrome.runtime.getPlatformInfo() resets the idle timer; the interval is
+// cleared the moment the run finishes/stops/errors.
+let _runKeepaliveTimer = null;
+function startRunKeepalive() {
+  if (_runKeepaliveTimer) return;
+  _runKeepaliveTimer = setInterval(() => {
+    try { chrome.runtime.getPlatformInfo(() => {}); } catch { /* noop */ }
+  }, 20000);
+}
+function stopRunKeepalive() {
+  if (_runKeepaliveTimer) { clearInterval(_runKeepaliveTimer); _runKeepaliveTimer = null; }
 }
 

@@ -27,26 +27,84 @@
   <!-- ═══ VIEWS ═══ -->
   <div class="views">
     <!-- ── AGENT VIEW ── -->
-    <div class="view agent-view" id="view-agent">
-      <!-- ═══ MODEL BAR ═══ -->
-      <div class="model-bar">
-        <div class="model-pill" id="modelPillBtn">
-          <div class="model-dot"></div>
-          <span id="modelPillLabel">Loading model...</span>
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
+    <div class="view agent-view active" id="view-agent">
+      <!-- ═══ CONTEXT TOOLBAR — model picker (left) + privacy chip (right), one slim row ═══ -->
+      <div class="agent-toolbar">
+        <div class="model-bar">
+          <div class="model-pill" id="modelPillBtn" title="Switch AI model">
+            <div class="model-dot"></div>
+            <span id="modelPillLabel">Loading model...</span>
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <!-- Model selection dropdown (populated via JS) -->
+          <div class="model-selector-dropdown" id="modelSelectorDropdown"></div>
         </div>
-        <!-- Model selection dropdown (populated via JS) -->
-        <div class="model-selector-dropdown" id="modelSelectorDropdown"></div>
+
+        <!-- Privacy chip — the whole chip toggles; long description lives in the tooltip & Settings -->
+        <div class="privacy-bar" id="privacyBar">
+          <label class="privacy-chip" id="privacyChip" title="Privacy Mode — on-device vision + PII redaction before any network call. Click to toggle.">
+            <input type="checkbox" id="privacyModeToggle" checked>
+            <svg class="pcc-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 1.5l5 2v4c0 3.2-2.1 5.6-5 7-2.9-1.4-5-3.8-5-7v-4l5-2z"/>
+              <path class="pcc-check" d="M5.8 8l1.6 1.6L10.4 6.5"/>
+            </svg>
+            <span class="pcc-label">Privacy</span>
+            <span class="pcc-state" id="privacyChipState">On</span>
+          </label>
+          <!-- v1.15.1: the top-right gear/"sun" icon was removed (user request) —
+               it duplicated the Settings nav at the bottom. Privacy config remains
+               reachable at Settings → Privacy & Vision. -->
+        </div>
+      </div>
+
+      <!-- Live privacy stats strip — only appears during/after privacy runs -->
+      <div class="privacy-stats" id="privacyStats" style="display:none">
+        <div class="privacy-stat"><span class="ps-label">Last capture</span><span class="ps-value" id="psLastMs">—</span></div>
+        <div class="privacy-stat"><span class="ps-label">Faces</span><span class="ps-value" id="psFaces">0</span></div>
+        <div class="privacy-stat"><span class="ps-label">PII regions</span><span class="ps-value" id="psPii">0</span></div>
+        <div class="privacy-stat"><span class="ps-label">Backend</span><span class="ps-value" id="psBackend">—</span></div>
       </div>
 
       <!-- Scrollable live-steps / conversation area -->
       <div class="convo-area" id="convoArea">
         <div class="empty-state" id="emptyState">
-          <img src="../../assets/icons/icon128.png" class="empty-logo" alt="logo">
+          <div class="empty-halo">
+            <img src="../../assets/icons/icon128.png" class="empty-logo" alt="logo">
+          </div>
           <div class="empty-title">What are we doing today?</div>
-          <div class="empty-sub">Describe a task and I'll browse, research, or automate it for you.</div>
+          <div class="empty-sub">Describe a task — I'll browse, research, scrape, or automate it for you.</div>
+          <div class="suggest-grid">
+            <button class="suggest-chip" data-suggest="Summarize this page in clear bullet points." data-tab="chat">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3.5 2h6l3 3v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5V2z"/>
+                <path d="M9.5 2v3h3M5.8 8h4.5M5.8 10.5h4.5"/>
+              </svg>
+              <span class="sc-text"><span class="sc-title">Summarize</span><span class="sc-sub">Key points of this page</span></span>
+            </button>
+            <button class="suggest-chip" data-suggest="Do deep research on " data-tab="deep_research">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                <circle cx="7" cy="7" r="4.5"/>
+                <path d="M10.5 10.5L14 14"/>
+              </svg>
+              <span class="sc-text"><span class="sc-title">Deep research</span><span class="sc-sub">Multi-source report</span></span>
+            </button>
+            <button class="suggest-chip" data-suggest="Extract the main structured data from this page." data-tab="scrape">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2.5" width="12" height="11" rx="1.5"/>
+                <path d="M2 6h12M6.5 6v7.5"/>
+              </svg>
+              <span class="sc-text"><span class="sc-title">Extract data</span><span class="sc-sub">Page → JSON · CSV</span></span>
+            </button>
+            <button class="suggest-chip privacy" data-suggest="Summarize this page without sending any of my data to the cloud." data-tab="chat" data-privacy="on">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 1.5l5 2v4c0 3.2-2.1 5.6-5 7-2.9-1.4-5-3.8-5-7v-4l5-2z"/>
+                <path d="M5.8 8l1.6 1.6L10.4 6.5"/>
+              </svg>
+              <span class="sc-text"><span class="sc-title">Private run</span><span class="sc-sub">On-device, no cloud</span></span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -108,11 +166,17 @@
             </button>
           </div>
 
-          <!-- Active skills for next task (visible in Agent view) -->
+          <!-- Active skills for next task (visible in Agent view).
+               Bounded layout: header row (label + count + Clear all) on top,
+               chips wrap below in a capped area with a "+N more" expander,
+               so many active skills can never stretch the composer. -->
           <div class="active-skills-bar" id="activeSkillsBar" style="display:none">
-            <div class="asb-label">Active:</div>
+            <div class="asb-head">
+              <span class="asb-label">Active:</span>
+              <span class="asb-count" id="asbCount"></span>
+              <button class="asb-clear" id="asbClear">Clear all</button>
+            </div>
             <div class="asb-chips" id="asbChips"></div>
-            <button class="asb-clear" id="asbClear">Clear all</button>
           </div>
 
           <div class="research-options-bar" id="researchOptionsBar">
@@ -225,67 +289,209 @@
 
       <div class="settings-home" id="settingsHome">
         <button class="settings-nav-card" data-settings-target="ai">
-          <div class="settings-nav-title">AI &amp; Models</div>
-          <div class="settings-nav-desc">Providers, API keys, Ollama, models, and runtime behavior.</div>
+          <span class="snc-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="4.5" y="4.5" width="7" height="7" rx="1.5"/><path d="M6.5 1.5v2M9.5 1.5v2M6.5 12.5v2M9.5 12.5v2M1.5 6.5h2M1.5 9.5h2M12.5 6.5h2M12.5 9.5h2"/></svg>
+          </span>
+          <span class="snc-text">
+            <span class="settings-nav-title">AI &amp; Models</span>
+            <span class="settings-nav-desc">Providers, API keys, Ollama, on-device models, and runtime behavior.</span>
+          </span>
+          <svg class="snc-arrow" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>
+        </button>
+        <button class="settings-nav-card" data-settings-target="privacy">
+          <span class="snc-icon accent">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l5 2v4c0 3.2-2.1 5.6-5 7-2.9-1.4-5-3.8-5-7v-4l5-2z"/><path d="M5.8 8l1.6 1.6L10.4 6.5"/></svg>
+          </span>
+          <span class="snc-text">
+            <span class="settings-nav-title">Privacy &amp; Vision</span>
+            <span class="settings-nav-desc">On-device vision, face blur, PII redaction pipeline, and privacy server.</span>
+          </span>
+          <svg class="snc-arrow" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>
         </button>
         <button class="settings-nav-card" data-settings-target="research">
-          <div class="settings-nav-title">Research</div>
-          <div class="settings-nav-desc">Deep research search providers, browser defaults, and sub-agents.</div>
+          <span class="snc-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          </span>
+          <span class="snc-text">
+            <span class="settings-nav-title">Research</span>
+            <span class="settings-nav-desc">Deep research search providers, browser defaults, and sub-agents.</span>
+          </span>
+          <svg class="snc-arrow" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>
         </button>
         <button class="settings-nav-card" data-settings-target="storage">
-          <div class="settings-nav-title">Storage &amp; Exports</div>
-          <div class="settings-nav-desc">Export formats, folders, prompts, and scrape auto-export.</div>
+          <span class="snc-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l6 3v7l-6 3-6-3v-7l6-3z"/><path d="M2 4.5L8 7.5l6-3M8 7.5v7"/></svg>
+          </span>
+          <span class="snc-text">
+            <span class="settings-nav-title">Storage &amp; Exports</span>
+            <span class="settings-nav-desc">Export formats, folders, prompts, and scrape auto-export.</span>
+          </span>
+          <svg class="snc-arrow" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>
         </button>
         <button class="settings-nav-card" data-settings-target="profile">
-          <div class="settings-nav-title">Profile</div>
-          <div class="settings-nav-desc">Saved personal details used for autofill and repeated tasks.</div>
+          <span class="snc-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c.8-2.8 3-4.2 5.5-4.2s4.7 1.4 5.5 4.2"/></svg>
+          </span>
+          <span class="snc-text">
+            <span class="settings-nav-title">Profile</span>
+            <span class="settings-nav-desc">Saved personal details used for autofill and repeated tasks.</span>
+          </span>
+          <svg class="snc-arrow" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>
         </button>
         <button class="settings-nav-card" data-settings-target="skills">
-          <div class="settings-nav-title">Skills</div>
-          <div class="settings-nav-desc">Open the skills manager and configure reusable workflows.</div>
+          <span class="snc-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 2.5L3 5l3.5 3L3 11l2.5 2.5L9 10l-3.5-3L9 4 5.5 2.5z"/><path d="M11 6h3.5M11 10h3.5"/></svg>
+          </span>
+          <span class="snc-text">
+            <span class="settings-nav-title">Skills</span>
+            <span class="settings-nav-desc">Open the skills manager and configure reusable workflows.</span>
+          </span>
+          <svg class="snc-arrow" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>
         </button>
         <button class="settings-nav-card" data-settings-target="usage">
-          <div class="settings-nav-title">Token &amp; Cost Usage</div>
-          <div class="settings-nav-desc">View overall token usage and estimated API costs by model.</div>
+          <span class="snc-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 13.5V8M6 13.5V4.5M10 13.5V6.5M14 13.5V2.5"/></svg>
+          </span>
+          <span class="snc-text">
+            <span class="settings-nav-title">Token &amp; Cost Usage</span>
+            <span class="settings-nav-desc">View overall token usage and estimated API costs by model.</span>
+          </span>
+          <svg class="snc-arrow" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>
         </button>
-        <button class="settings-nav-card" data-settings-target="license">
-          <div class="settings-nav-title">License &amp; Activation</div>
-          <div class="settings-nav-desc">Validate your key, request a trial or premium license, and learn about the ad-gated flow.</div>
+        <button class="settings-nav-card" data-settings-target="about">
+          <span class="snc-icon accent">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.4v3.4"/><path d="M8 4.7h.01"/></svg>
+          </span>
+          <span class="snc-text">
+            <span class="settings-nav-title">About</span>
+            <span class="settings-nav-desc">Version, what's new, and project details for this build.</span>
+          </span>
+          <svg class="snc-arrow" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2l5 5-5 5"/></svg>
         </button>
       </div>
 
-      <div class="s-section settings-subpage-section license-section" data-settings-page="license">
-        <div class="license-shell">
-          <div class="license-hero">
-            <div class="license-kicker">Secure access</div>
-            <div class="license-hero-text">Activate Open Comet, claim your trial, or request a premium key from your website.</div>
-          </div>
-          <div class="license-status-card">
-            <div class="license-status-row">
-              <span class="license-status-badge inactive" id="licenseStatusBadge">INACTIVE</span>
-              <span class="license-status-text" id="licenseStatusText">Enter a license key to activate the agent.</span>
-            </div>
-          </div>
-          <div class="license-form-card">
-            <div class="license-field">
-              <label class="ai-input-label">License key</label>
-              <div class="license-inline-input">
-              <input type="text" class="ai-input" id="licenseKeyInput" placeholder="oc-abc123..." autocomplete="off" />
-              <button class="ai-action-btn" id="validateLicenseBtn" type="button">Validate</button>
-              </div>
-            </div>
-            <div class="license-field">
-              <label class="ai-input-label">Email for license requests</label>
-              <input type="email" class="ai-input" id="licenseEmailInput" placeholder="you@example.com" />
-            </div>
-            <div class="license-cta-row">
-              <button class="ai-action-btn" id="requestTrialBtn" type="button">Request trial key</button>
-              <button class="ai-action-btn secondary" id="requestPremiumBtn" type="button">Request premium key</button>
-            </div>
-            <div class="license-note">
-              Trial keys expire on the release date. After launch, free users can unlock daily access through your website's ad-gated flow and paste that key here.
-            </div>
-          </div>
+      <!-- ══ PRIVACY & VISION (SIH) ══ -->
+      <div class="s-section settings-subpage-section privacy-section" data-settings-page="privacy">
+        <div class="s-section-title">SIH Competition Mode</div>
+        <div class="s-subtitle">Strict evaluation configuration. <strong>RAW SCREEN → NEVER NETWORK.</strong> The privacy-off fast path is disabled and the main agent's raw screenshots are stripped before any network call. Default: ON for the SIH build.</div>
+        <div class="s-field">
+          <label class="s-check-row">
+            <input type="checkbox" id="sihModeInput" checked />
+            <span><strong>SIH MODE (strict)</strong> — every screenshot is sanitized on-device before transmission; raw captures never leave the browser.</span>
+          </label>
+          <div class="muted" id="sihModeNote" style="margin-top:6px">Enforced: privacy pipeline is always on in this mode.</div>
+        </div>
+        <div class="s-section-title" style="margin-top:14px">Privacy Mode</div>
+        <div class="s-subtitle">On-device vision + PII redaction before any network call. The toggle on the home page switches the same setting.</div>
+        <div class="s-field s-field-last">
+          <label class="s-check-row privacy-master-row">
+            <input type="checkbox" id="privacyEnabledInput" checked />
+            <span><strong>Enable Privacy Mode</strong> — capture, sanitize on-device, then send only redacted context.</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="s-section settings-subpage-section privacy-section" data-settings-page="privacy">
+        <div class="s-section-title">Redaction Pipeline</div>
+        <div class="s-subtitle">Choose what gets detected and redacted before anything leaves the browser. Changes apply instantly.</div>
+        <label class="privacy-set-row">
+          <input type="checkbox" id="optBlurFaces" checked>
+          <span class="psr-text"><strong>Blur human faces</strong><small>MediaPipe BlazeFace runs on-device on every screenshot.</small></span>
+        </label>
+        <label class="privacy-set-row">
+          <input type="checkbox" id="optRedactDom" checked>
+          <span class="psr-text"><strong>Redact sensitive DOM inputs</strong><small>Passwords, card fields, OTP boxes, tokens are masked first.</small></span>
+        </label>
+        <label class="privacy-set-row">
+          <input type="checkbox" id="optRedactText" checked>
+          <span class="psr-text"><strong>Scan DOM text for PII</strong><small>Email, phone, Aadhaar, PAN, SSN and API keys are masked.</small></span>
+        </label>
+        <label class="privacy-set-row">
+          <input type="checkbox" id="optRunYolo">
+          <span class="psr-text"><strong>Run YOLO object detection</strong><small>Extra visual context for the agent. Adds roughly 50ms per capture.</small></span>
+        </label>
+        <label class="privacy-set-row">
+          <input type="checkbox" id="optOcrPii">
+          <span class="psr-text"><strong>Scan images for text (OCR)</strong><small>Opt-in: catches PII baked into images/canvas/PDF viewers. Downloads a small local OCR engine on first use; adds a few seconds per capture.</small></span>
+        </label>
+        <label class="privacy-set-row s-field-last">
+          <input type="checkbox" id="optUseNer">
+          <span class="psr-text"><strong>Run BERT NER</strong><small>Catches person / organisation / address entities. Large model, slower first run.</small></span>
+        </label>
+      </div>
+
+      <div class="s-section settings-subpage-section privacy-section" data-settings-page="privacy">
+        <div class="s-section-title">Privacy Firewall — Live Inspector</div>
+        <div class="s-subtitle">Values below come from the REAL runtime (last sanitized capture). No simulated data.</div>
+        <table class="sih-inspector" id="sihInspector">
+          <tbody>
+            <tr><td>Firewall</td><td id="sihFirewallActive">—</td></tr>
+            <tr><td>Raw screenshot transmitted</td><td id="sihRawTx" class="ok">NO (structurally impossible)</td></tr>
+            <tr><td>Sanitized screenshot transmitted</td><td id="sihSanTx">—</td></tr>
+            <tr><td>Faces detected</td><td id="sihFaces">—</td></tr>
+            <tr><td>PII regions (DOM + text)</td><td id="sihPiiRegions">—</td></tr>
+            <tr><td>Secrets (password / key / card)</td><td id="sihSecrets">—</td></tr>
+            <tr><td>Client processing</td><td id="sihClientMs">—</td></tr>
+            <tr><td>Network payload</td><td id="sihPayload">—</td></tr>
+            <tr><td>Privacy verification</td><td id="sihVerify">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ══ SIH SCORECARD (Phase 26) ══ -->
+      <div class="s-section settings-subpage-section privacy-section" data-settings-page="privacy">
+        <div class="s-section-title">SIH Scorecard</div>
+        <div class="s-subtitle">Two kinds of MEASURED rows live here. (1) BENCHMARK rows — score · sample size · benchmark type · timestamp — are filled by importing a report: UNIT (<code>node OpenCometBench/run-all.js --json</code> output), BROWSER (<code>OpenCometBench/results/browser-benchmark-*.json</code>), E2E / ADVERSARIAL / E2E-REAL. UNIT, BROWSER and E2E are NEVER merged into one number. (2) LIVE rows — VLM P50, sanitize P50 and the per-task privacy report — fill in AUTOMATICALLY every time a privacy task completes on this machine, and survive a panel reload. Until one of those two things happens a row honestly reads “—” (never a fabricated number).</div>
+        <table class="sih-inspector">
+          <thead><tr><th>Metric</th><th>Actual</th><th>n</th><th>Type</th><th>Measured</th><th>Target</th><th>Status</th></tr></thead>
+          <tbody id="sihScorecard">
+            <tr data-metric="pii-precision" data-bench="unit"><td>PII precision</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.97</td><td class="sc-status">—</td></tr>
+            <tr data-metric="pii-precision" data-bench="browser"><td>PII precision (browser, pixel-verified)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.97</td><td class="sc-status">—</td></tr>
+            <tr data-metric="pii-recall" data-bench="unit"><td>PII recall</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.95</td><td class="sc-status">—</td></tr>
+            <tr data-metric="pii-recall" data-bench="browser"><td>PII recall (browser, pixel-verified)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.95</td><td class="sc-status">—</td></tr>
+            <tr data-metric="redaction-coverage" data-bench="unit"><td>Redaction coverage</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.98</td><td class="sc-status">—</td></tr>
+            <tr data-metric="redaction-coverage" data-bench="browser"><td>Redaction coverage (real screenshot matrix)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.98</td><td class="sc-status">—</td></tr>
+            <tr data-metric="redaction-iou" data-bench="browser"><td>Redaction mean IoU (real matrix)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.85</td><td class="sc-status">—</td></tr>
+            <tr data-metric="visual-accuracy" data-bench="unit"><td>Visual context accuracy (DOM census)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.95</td><td class="sc-status">—</td></tr>
+            <tr data-metric="visual-accuracy" data-bench="browser"><td>Visual context accuracy (real screenshots + ViT)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.95</td><td class="sc-status">—</td></tr>
+            <tr data-metric="ocr-visual" data-bench="browser"><td>Visual-only PII coverage (OCR, pixel-verified)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.95</td><td class="sc-status">—</td></tr>
+            <tr data-metric="sanitize-p50" data-bench="browser"><td>Sanitize latency P50 (in-browser)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>as low as possible</td><td class="sc-status">—</td></tr>
+            <tr data-metric="vlm-p50" data-bench="e2e"><td>VLM latency P50 (live task)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>as low as possible</td><td class="sc-status">—</td></tr>
+            <tr data-metric="payload" data-bench="browser"><td>Network payload</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>minimized</td><td class="sc-status">—</td></tr>
+            <tr data-metric="leak-tests" data-bench="unit"><td>Privacy leakage tests (security suite)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>pass</td><td class="sc-status">—</td></tr>
+            <tr data-metric="fuzz" data-bench="unit"><td>Privacy leakage fuzz (8 families × 9 channels)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>0 leaks</td><td class="sc-status">—</td></tr>
+            <tr data-metric="server-validation" data-bench="unit"><td>Server inbound validation</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>pass</td><td class="sc-status">—</td></tr>
+            <tr data-metric="e2e-verified" data-bench="e2e"><td>E2E verified-action ratio (mock brain, 10 scenarios)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.95</td><td class="sc-status">—</td></tr>
+            <tr data-metric="e2e-task-success" data-bench="e2e"><td>E2E task success (mock brain)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>≥ 0.9</td><td class="sc-status">—</td></tr>
+            <tr data-metric="adv-privacy" data-bench="adversarial"><td>Adversarial privacy (real extension, wire-captured)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>12/12</td><td class="sc-status">—</td></tr>
+            <tr data-metric="adv-injection" data-bench="adversarial"><td>Prompt-injection wire safety (6 families × channels)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>11/11</td><td class="sc-status">—</td></tr>
+            <tr data-metric="e2e-real-verified" data-bench="e2e-real"><td>E2E verified-action ratio (REAL model)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>report as measured</td><td class="sc-status">—</td></tr>
+            <tr data-metric="e2e-real-vlm" data-bench="e2e-real"><td>REAL model latency P50 / P95 (true inference)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>report as measured</td><td class="sc-status">—</td></tr>
+            <tr data-metric="live-task-privacy" data-bench="e2e"><td>Live task privacy report (last completed task, this machine)</td><td class="sc-actual">—</td><td class="sc-n">—</td><td class="sc-type">—</td><td class="sc-ts">—</td><td>0 raw pixels out</td><td class="sc-status">—</td></tr>
+          </tbody>
+        </table>
+        <div id="sihScorecardSource" class="s-subtitle" style="margin-top:6px">Source report: none imported — import the authoritative browser-benchmark-*.json to stamp provenance here.</div>
+        <div class="s-field">
+          <input type="file" id="sihBenchmarkFile" accept="application/json,.json" style="display:none">
+          <button class="privacy-configure-btn" id="sihImportBtn" style="width:100%;margin-top:4px">Import benchmark JSON…</button>
+        </div>
+      </div>
+
+      <div class="s-section settings-subpage-section privacy-section" data-settings-page="privacy">
+        <div class="s-section-title">Privacy Server &amp; Test</div>
+        <div class="s-subtitle">Sanitized context is forwarded to this companion server. Point it at your local deployment.</div>
+        <div class="s-field">
+          <label class="s-label">Privacy server URL</label>
+          <input type="text" class="s-input" id="optServerUrl" placeholder="http://127.0.0.1:8787" value="http://127.0.0.1:8787"/>
+        </div>
+        <div class="s-field s-field-last">
+          <button id="privacyTestBtn" class="privacy-test-btn" type="button">Test capture + redact</button>
+          <span class="privacy-save-state" id="privacySaveState" role="status"></span>
+        </div>
+        <div class="privacy-preview" id="privacyPreview" style="display:none">
+          <div class="privacy-preview-label">Sanitized preview (what the server will see):</div>
+          <img id="privacyPreviewImg" alt="Sanitized screenshot preview">
+          <div class="privacy-preview-meta" id="privacyPreviewMeta"></div>
         </div>
       </div>
 
@@ -314,11 +520,11 @@
             </svg>
             Compatible
           </button>
-          <button class="ptype-btn" data-type="ollama">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-              <rect x="2" y="5" width="12" height="8" rx="2"/>
-              <path d="M5 5V3.5a3 3 0 0 1 6 0V5"/>
-              <circle cx="8" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+          <button class="ptype-btn" data-type="device" title="Local AI — in-browser open-weight models (Transformers.js + WebGPU) or your own Ollama server">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.75" y="2.75" width="10.5" height="10.5" rx="1.6"/>
+              <rect x="6" y="6" width="4" height="4" rx="0.8"/>
+              <path d="M6 1v1.75M10 1v1.75M6 15v-1.75M10 15v-1.75M15 6h-1.75M15 10h-1.75M1 6h1.75M1 10h1.75"/>
             </svg>
             Local
           </button>
@@ -448,39 +654,84 @@
           </div>
         </div>
 
-        <!-- OLLAMA CONTENT -->
-        <div class="provider-type-content" id="typeContentOllama" style="display:none">
-          <div class="ollama-hero">
+        <!-- LOCAL HUB CONTENT (merged: in-browser models + Ollama server) -->
+        <div class="provider-type-content" id="typeContentDevice" style="display:none">
+          <div class="ollama-hero device-hero">
             <div class="ollama-hero-left">
               <div class="ollama-hero-top">
-              <img src="https://unpkg.com/@lobehub/icons-static-svg@latest/icons/ollama.svg" class="ollama-hero-logo-img" alt="Ollama">
+                <span class="device-hero-icon">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2.75" y="2.75" width="10.5" height="10.5" rx="1.6"/>
+                    <rect x="6" y="6" width="4" height="4" rx="0.8"/>
+                    <path d="M6 1v1.75M10 1v1.75M6 15v-1.75M10 15v-1.75M15 6h-1.75M15 10h-1.75M1 6h1.75M1 10h1.75"/>
+                  </svg>
+                </span>
                 <div>
-                  <span class="ollama-hero-badge">LOCAL</span>
-                  <div class="ollama-hero-title">Ollama</div>
+                  <span class="ollama-hero-badge">RUNS ON YOUR DEVICE</span>
+                  <div class="ollama-hero-title">Local AI</div>
                 </div>
               </div>
-              <div class="ollama-hero-sub">Run models privately on your machine — no cloud, no API key</div>
+              <div class="ollama-hero-sub">Run AI fully on your machine — in-browser open-weight models (Transformers.js + WebGPU, zero setup) or your own Ollama server. Data never leaves your device.</div>
             </div>
             <div class="ollama-hero-chips">
-              <span>🔒 Private</span>
-              <span>📡 Offline</span>
-              <span>🚀 Fast</span>
+              <span>🔒 100% private</span>
+              <span>📡 Works offline</span>
+              <span>⚡ WebGPU</span>
             </div>
           </div>
-          <div class="ai-form-stack">
-            <div class="ai-input-block">
-              <label class="ai-input-label">
-                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                  <circle cx="7" cy="7" r="5.5"/><path d="M7 1.5C7 1.5 5 4 5 7s2 5.5 2 5.5M7 1.5C7 1.5 9 4 9 7s-2 5.5-2 5.5M1.5 7h11"/>
-                </svg>
-                Ollama Server URL
-              </label>
-              <input type="text" class="ai-input" id="ollamaBaseUrlInput" placeholder="http://127.0.0.1:11434" autocomplete="off"/>
+
+          <!-- Sub-switcher: which local engine to configure / browse -->
+          <div class="local-sub-switcher" role="tablist" aria-label="Local AI engines">
+            <button class="local-sub-btn selected" data-local-sub="inbrowser" type="button" role="tab" aria-selected="true">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="8" r="5.5"/><path d="M8 5.5v2.7l1.8 1.2"/>
+              </svg>
+              In-browser models
+              <span class="lsb-tag">no setup</span>
+            </button>
+            <button class="local-sub-btn" data-local-sub="ollama" type="button" role="tab" aria-selected="false">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <rect x="2" y="5" width="12" height="8" rx="2"/>
+                <path d="M5 5V3.5a3 3 0 0 1 6 0V5"/>
+                <circle cx="8" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+              </svg>
+              Ollama server
+              <span class="lsb-tag">advanced</span>
+            </button>
+          </div>
+
+          <!-- ── Pane 1: in-browser Transformers.js models ── -->
+          <div data-local-pane="inbrowser">
+            <div class="device-backend-row">
+              <span class="api-dot" id="deviceBackendDot"></span>
+              <span class="device-backend-text">Compute backend: <strong id="deviceBackendLabel">detecting…</strong></span>
+              <span class="device-hint" id="deviceWebgpuHint" style="display:none">Tip: WebGPU needs Chrome/Edge 113+ and hardware acceleration enabled.</span>
             </div>
-            <div class="ollama-steps">
-              <div class="ollama-step"><span class="ollama-step-n">1</span><span>Run <code>ollama serve</code> on your machine</span></div>
-              <div class="ollama-step"><span class="ollama-step-n">2</span><span>Pull a model — e.g. <code>ollama pull llama3.2</code></span></div>
-              <div class="ollama-step"><span class="ollama-step-n">3</span><span>Click <strong>Refresh models</strong> below to auto-detect</span></div>
+
+            <div class="device-model-list" id="localModelCatalog"><!-- populated by JS --></div>
+
+            <div class="device-footnote">
+              Weights are fetched once from HuggingFace and cached in the browser. Vision+Text models can read screenshots for the browser agent; Text-only models handle planning without images.
+            </div>
+          </div>
+
+          <!-- ── Pane 2: Ollama server ── -->
+          <div data-local-pane="ollama" style="display:none">
+            <div class="ai-form-stack">
+              <div class="ai-input-block">
+                <label class="ai-input-label">
+                  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <circle cx="7" cy="7" r="5.5"/><path d="M7 1.5C7 1.5 5 4 5 7s2 5.5 2 5.5M7 1.5C7 1.5 9 4 9 7s-2 5.5-2 5.5M1.5 7h11"/>
+                  </svg>
+                  Ollama Server URL
+                </label>
+                <input type="text" class="ai-input" id="ollamaBaseUrlInput" placeholder="http://127.0.0.1:11434" autocomplete="off"/>
+              </div>
+              <div class="ollama-steps">
+                <div class="ollama-step"><span class="ollama-step-n">1</span><span>Run <code>ollama serve</code> on your machine</span></div>
+                <div class="ollama-step"><span class="ollama-step-n">2</span><span>Pull a model — e.g. <code>ollama pull llama3.2</code></span></div>
+                <div class="ollama-step"><span class="ollama-step-n">3</span><span>Click <strong>Refresh models</strong> below to auto-detect</span></div>
+              </div>
             </div>
           </div>
         </div>
@@ -531,9 +782,31 @@
           <label class="s-label">Max steps per task <span class="s-hint">(3 – 50)</span></label>
           <input type="number" class="s-input" id="maxStepsInput" value="20" min="3" max="50"/>
         </div>
-        <div class="s-field s-field-last">
+        <div class="s-field">
           <label class="s-label">Action delay (ms) <span class="s-hint">Increase for slow sites</span></label>
           <input type="number" class="s-input" id="delayInput" value="1200" min="500" max="5000"/>
+        </div>
+        <div class="s-field">
+          <label class="s-label">VLM speed profile <span class="s-hint">Generalized — works with any provider</span></label>
+          <select class="s-input" id="vlmSpeedProfileInput">
+            <option value="fast">Fast — 896px image, tight history, 600-token cap, shot reuse</option>
+            <option value="balanced" selected>Balanced — 1280px image, 800-token cap, shot reuse (default)</option>
+            <option value="quality">Quality — 1536px image, fuller history/DOM text, 1400-token cap</option>
+          </select>
+          <div class="s-hint" style="margin-top:4px;">Scales screenshot size, DOM-text/history window, output cap, reasoning hint and screenshot-reuse together. Reuses the previous screenshot automatically whenever the page is unchanged (skips capture + upload; any playing video forces a fresh shot).</div>
+        </div>
+        <div class="s-field">
+          <label class="s-label">Reasoning effort hint <span class="s-hint">Auto-mapped per endpoint; strict APIs retry cleanly</span></label>
+          <select class="s-input" id="vlmReasoningEffortInput">
+            <option value="low" selected>low — fastest decisions (recommended)</option>
+            <option value="medium">medium</option>
+            <option value="high">high — deepest, slowest</option>
+            <option value="">provider default — do not send the parameter</option>
+          </select>
+        </div>
+        <div class="s-field s-field-last">
+          <label class="s-label">Decision max tokens <span class="s-hint">0 = follow the speed profile</span></label>
+          <input type="number" class="s-input" id="vlmMaxTokensInput" value="0" min="0" max="4000" step="50"/>
         </div>
       </div>
 
@@ -657,27 +930,6 @@
       </div>
 
       <div class="s-section settings-subpage-section" data-settings-page="profile">
-        <div class="s-section-title">Cloud Sync & Account</div>
-        <div class="s-field s-field-last" id="profileAuthStatus">
-          <div class="api-status-row" id="authStatusRow">
-            <span class="api-dot" id="authDot"></span>
-            <span class="api-status-text" id="authStatusText">Not signed in</span>
-          </div>
-          <button class="ollama-refresh-btn" id="btnOpenAuth" style="margin: 8px 0 0">
-            Sign In / Register
-          </button>
-        </div>
-        <div class="s-field s-field-last" id="profileUserBrief" style="display:none">
-          <div style="font-size: 13px; font-weight: 600; color: var(--tx1);" id="profileUserDisplayName">User</div>
-          <div style="font-size: 11.5px; color: var(--tx3);" id="profileUserEmail">email@example.com</div>
-          <div style="display:flex; gap: 8px; margin-top: 10px;">
-            <button class="skill-action-btn" id="btnSyncProfile">Sync from Cloud</button>
-            <button class="skill-action-btn danger" id="btnLogout">Sign Out</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="s-section settings-subpage-section" data-settings-page="profile">
         <div class="s-section-title">Profile</div>
         <div class="s-field">
           <label class="s-label">Full name</label>
@@ -703,9 +955,14 @@
           <label class="s-label">Website</label>
           <input type="text" class="s-input" id="profileWebsiteInput" placeholder="https://..."/>
         </div>
-        <div class="s-field s-field-last">
+        <div class="s-field">
           <label class="s-label">Notes <span class="s-hint">Used for form filling and repeated answers</span></label>
           <textarea class="s-input s-textarea" id="profileNotesInput" placeholder="Short bio, default answers, preferences"></textarea>
+        </div>
+        <div class="s-field s-field-last">
+          <label class="s-label">Custom info <span class="s-hint">Label/value pairs the agent may use to fill forms and answer about you</span></label>
+          <div id="customInfoList" class="ci-list"></div>
+          <button type="button" class="ci-add-btn" id="addCustomInfoBtn">+ Add custom field</button>
         </div>
       </div>
 
@@ -748,6 +1005,136 @@
         </div>
       </div>
 
+      <!-- ── ABOUT (v1.15.5) ── -->
+      <div class="s-section settings-subpage-section about-section" data-settings-page="about">
+        <div class="about-hero">
+          <img class="about-logo" src="../../assets/icons/icon128.png" alt="OpenComet SIH logo">
+          <div class="about-hero-text">
+            <div class="about-name">OpenComet SIH — Privacy Vision Agent</div>
+            <div class="about-tagline">A privacy-preserving visual browser agent: faces, PII and sensitive fields are detected and redacted on-device before any network call.</div>
+            <div class="about-badges">
+              <span class="about-badge">SIH PS #26171</span>
+              <span class="about-badge">ISRO · Dept. of Space</span>
+              <span class="about-badge about-badge-ver" id="aboutVersion">v—</span>
+            </div>
+          </div>
+        </div>
+        <div class="about-copy-row">
+          <button class="about-copy-btn" id="aboutCopyBuildBtn" type="button">Copy build info for bug reports</button>
+          <span class="about-copy-state" id="aboutCopyState" role="status"></span>
+        </div>
+      </div>
+
+      <div class="s-section settings-subpage-section about-section" data-settings-page="about">
+        <div class="s-section-title">What's New</div>
+        <div class="about-changelog">
+          <div class="about-cl-item newest">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.9</span><span class="about-cl-title">Real-VLM E2E for free cloud models</span></div>
+            <ul class="about-cl-list">
+              <li>The REAL-VLM E2E tier is now verified against OpenRouter free vision models: measured reference run — <code>inclusionai/ling-3.0-flash-vl:free</code>, scenario <em>find-and-open</em>: 1/1 verified action, privacy blocks 0, true VLM leg 4679 ms; full report archived in <code>OpenCometBench/results/</code>.</li>
+              <li>Reliability fixes in <code>run-e2e-real.mjs</code>: the extension service worker is now discovered LIVE (authoritative ID from the running worker, not a hash guess) and the pre-run endpoint check sends the Bearer header for hosted providers.</li>
+              <li>New pre-flight smoke: <code>OpenCometBench/e2e/smoke-openrouter-free.mjs</code> — one 1×1 px image + JSON instruction, measured TTFB, named failure hints (401/402/429/404). Keys come from the <code>OPENROUTER_API_KEY</code> env var — never hardcoded, never printed, never committed.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.8</span><span class="about-cl-title">Safe prose is no longer black-boxed</span></div>
+            <ul class="about-cl-list">
+              <li>Fix: the sanitized screenshot could draw black boxes over SAFE text that merely <em>mentions</em> secret words — "three literal token formats", "four surviving secret families:", "Google key contiguity,". Root cause: the assignment detector's digit lookahead scanned to the END of the page text, so any digit anywhere later ("v1.15.3", "22/22") armed a false match.</li>
+              <li>The digit/letter requirement is now bounded to the candidate value itself — a real assignment ("token=eyJ…", "password: hunter2", "api_key = sk-live-…") still redacts exactly as before.</li>
+              <li>The same tightening applies to the outbound text sweep, so safe phrases also reach the model unmasked and page summaries read naturally.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.7</span><span class="about-cl-title">Privacy firewall: summarize survives secret-shaped pages</span></div>
+            <ul class="about-cl-list">
+              <li>Fix: a summarization task on a long page could die before the first AI call with "Privacy firewall BLOCKED the network request: secret-shaped text survived sanitization". Root cause: the outbound gate and the prompt read the pipeline's DOM text, whose PII scan covers only the first 8,000 characters — a key-shaped string deeper in the page tripped the gate and the old policy aborted the WHOLE turn.</li>
+              <li>The gate and prompt now read the firewall envelope's fully-swept canonical text (the same rule the companion-server path has followed since v1.14).</li>
+              <li>Upgraded last-line policy — redact-and-verify: any remaining secret-shaped fragment is masked locally to [REDACTED:secret], re-verified, and only provably clean text is transmitted. Fail-closed preserved: if something cannot be masked, the request is still refused.</li>
+              <li>Gate block messages now name the offending field and detection pattern (never the value) so reports are debuggable.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.6</span><span class="about-cl-title">Final answers delivered + Profile custom info</span></div>
+            <ul class="about-cl-list">
+              <li>Summarize / question tasks now deliver the model's FULL answer as the final response — no more bare "Task complete" with no summary.</li>
+              <li>Settings → Profile gains <strong>Custom info</strong>: add your own label/value fields and the agent uses them for form filling and answers about you.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.5</span><span class="about-cl-title">About page (this page)</span></div>
+            <ul class="about-cl-list">
+              <li>New <strong>Settings → About</strong> page: live version read from the loaded manifest, what's-new history and project details.</li>
+              <li>UI-only release — the privacy/detection pipeline is byte-identical to v1.15.4.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.4</span><span class="about-cl-title">Avatar guard + pixel-only OCR</span></div>
+            <ul class="about-cl-list">
+              <li>CSS background-image avatars are redacted by a heuristic avatar guard; model-confirmed faces still stand down.</li>
+              <li>Person-name fields (full name, father's/mother's name, card-holder…) are label-aware and redacted.</li>
+              <li>Pixel-only PII: visible canvases get targeted ×2-upscaled OCR re-reads plus a structural battery; DOM text walker budget 140 → 400.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.3</span><span class="about-cl-title">Small profile photos — DOM-guided face sweep</span></div>
+            <ul class="about-cl-list">
+              <li>Every visible image ≥24px is cropped, upscaled (a 64px avatar face becomes ~200px) and re-checked by the on-device face model.</li>
+              <li>Model-confirmed only: logos and icons are scanned and left untouched — no blanket blurring.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.2</span><span class="about-cl-title">Indian ID expansion + live scorecard</span></div>
+            <ul class="about-cl-list">
+              <li>Partial/mid-entry PAN, Voter ID/EPIC, passport, driving licence, IFSC, UPI VPA, GSTIN, bank account, CVV/card-PIN and Aadhaar VID join the detector.</li>
+              <li>SIH Scorecard gains a LIVE per-task privacy report that fills in automatically after each completed task.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.1</span><span class="about-cl-title">Honest verification + UI fixes</span></div>
+            <ul class="about-cl-list">
+              <li>Stop button no longer sticks after task completion (completion broadcast fixed).</li>
+              <li>Media play/pause verification reports "already in state" instead of a misleading "no change"; ask-before-acting choice persists.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.15.0</span><span class="about-cl-title">Tab-group sandbox</span></div>
+            <ul class="about-cl-list">
+              <li>The agent works only inside its own disposable task tab group; verified actions carry real page fingerprints.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.14</span><span class="about-cl-title">Evidence freeze &amp; OpenComet-Bench</span></div>
+            <ul class="about-cl-list">
+              <li>Measured scoreboard frozen: warm sanitize P50 1216 ms · PII precision/recall 1.00/1.00 · 216/216 leakage-fuzz cases with 0 leaks.</li>
+              <li>Unchanged-screen detector memo and adversarial wire-capture proof (23/23).</li>
+            </ul>
+          </div>
+        </div>
+        <div class="about-cl-more">Older rounds (v1.0 → v1.13): see docs/SIH_READINESS.md in the source tree.</div>
+      </div>
+
+      <div class="s-section settings-subpage-section about-section" data-settings-page="about">
+        <div class="s-section-title">Project Details</div>
+        <div class="about-details">
+          <div class="about-dl">
+            <div class="about-dt">Problem</div>
+            <div class="about-dd">Smart India Hackathon PS #26171 — "On-device Visual Perception for Light-weight Browser Agents".</div>
+            <div class="about-dt">Organisation</div>
+            <div class="about-dd">Indian Space Research Organisation (ISRO), Department of Space.</div>
+            <div class="about-dt">Build</div>
+            <div class="about-dd">Chrome MV3 extension · side panel + service worker + offscreen ML runtime.</div>
+            <div class="about-dt">On-device</div>
+            <div class="about-dd">MediaPipe BlazeFace (faces) · Transformers.js YOLO/ViT (visual context) · Gemma 4 via WebGPU (local brain) · vendored OCR for pixel-only PII.</div>
+            <div class="about-dt">Benchmark</div>
+            <div class="about-dd">OpenComet-Bench — 922 scored cases across four tiers: 216-case leakage fuzz · 23-case adversarial wire-capture E2E · 72-run browser redaction matrix · 514-case checksum-validated PII corpus.</div>
+            <div class="about-dt">Privacy</div>
+            <div class="about-dd">Raw screenshots never leave the browser — only sanitized pixels, redacted DOM text and a redaction manifest reach the configured model.</div>
+            <div class="about-dt">Docs</div>
+            <div class="about-dd">README.md · OpenCometBench/OPENCOMET_BENCH.md · docs/PRIVACY_VISION.md · docs/SIH_READINESS.md (in the source tree).</div>
+          </div>
+        </div>
+      </div>
+
       <button class="save-btn" id="saveSettingsBtn">Save settings</button>
 
       <p class="free-keys" id="settingsFooterNote">
@@ -778,7 +1165,7 @@
           New skill
         </button>
       </div>
-      <p class="skills-desc">Skills are saved agent instructions you can activate before any task. Built-in skills are always available; create your own for repeated workflows.</p>
+      <p class="skills-desc">Library skills ship with the extension as expert procedures — activate one before any task, or write your own for repeated workflows.</p>
 
       <!-- Skill list -->
       <div id="skillsList"></div>
@@ -834,67 +1221,12 @@
       </div>
 
     </div><!-- /skills-view -->
-    
-    <!-- ── AUTH VIEW ── -->
-    <div class="view auth-view active" id="view-auth">
-      <div class="auth-box">
-        <div class="auth-hero">
-           <img src="../../assets/icons/icon128.png" alt="logo" class="auth-hero-logo">
-           <div class="auth-hero-title">Open Comet</div>
-           <div class="auth-hero-sub">Your personal browser automation companion</div>
-        </div>
-        
-        <div class="auth-body">
-          <div class="auth-form" id="loginForm">
-             <div class="auth-title-large">Welcome back</div>
-            <div class="s-field">
-              <label class="s-label">Email</label>
-              <input type="email" class="s-input" id="authEmail" placeholder="you@example.com" />
-            </div>
-            <div class="s-field">
-              <label class="s-label">Password</label>
-              <input type="password" class="s-input" id="authPassword" placeholder="••••••••" />
-            </div>
-            <div class="auth-actions">
-              <button class="save-btn" id="btnLoginSubmit">Sign In</button>
-              <div class="auth-toggle-note">
-                Don't have an account? <span class="auth-link" id="linkToRegister">Sign Up</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="auth-form" id="registerForm" style="display:none">
-            <div class="auth-title-large">Create Account</div>
-            <div class="s-field">
-              <label class="s-label">Display Name</label>
-              <input type="text" class="s-input" id="regName" placeholder="Your name" />
-            </div>
-            <div class="s-field">
-              <label class="s-label">Email</label>
-              <input type="email" class="s-input" id="regEmail" placeholder="you@example.com" />
-            </div>
-            <div class="s-field">
-              <label class="s-label">Password</label>
-              <input type="password" class="s-input" id="regPassword" placeholder="Min 8 characters" />
-            </div>
-            <div class="auth-actions">
-              <button class="save-btn" id="btnRegisterSubmit">Create Account</button>
-              <div class="auth-toggle-note">
-                 Already have an account? <span class="auth-link" id="linkToLogin">Sign In</span>
-              </div>
-            </div>
-          </div>
-          
-          <div id="authStatusNote" style="margin-top: 12px; font-size: 11.5px; text-align: center; display: none;"></div>
-        </div>
-      </div>
-    </div><!-- /view-auth -->
 
   </div><!-- /views -->
 
 
   <!-- ═══ BOTTOM NAV ═══ -->
-  <div class="bottom-nav" id="bottomNav" style="display:none">
+  <div class="bottom-nav" id="bottomNav">
     <button class="nav-tab active" id="navAgent">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
         <circle cx="10" cy="10" r="7"/>

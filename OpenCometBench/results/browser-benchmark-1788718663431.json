@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-06T18:17:27.872Z",
+    "tiers": [
+      "resources"
+    ],
+    "environment": "headless-ci",
+    "headed": false,
+    "channel": "chromium",
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites. environment=headless-ci — headless CI (software GL): valid for regression tracking ONLY, never for production claims."
+  },
+  "environment": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "platform": "Linux x86_64",
+    "cpuCores": 2,
+    "deviceMemoryGb": 4,
+    "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "webgpuAdapter": null
+  },
+  "visualContext": null,
+  "redactionMatrix": null,
+  "ocrVisualPii": null,
+  "resources": {
+    "meta": {
+      "type": "browser",
+      "n": 7,
+      "note": "In-browser measurements on the REAL pipeline (DPR 2, all detectors enabled). VLM/upload/serialization are measured by the E2E tier and the runner page — Node timings are never used as browser latencies."
+    },
+    "sanitizeTotalMs": {
+      "p50": 587,
+      "p90": 608,
+      "p95": 608
+    },
+    "phasesMs": {
+      "faceDetect": {
+        "p50": 1,
+        "p90": 1,
+        "p95": 1,
+        "mean": 1
+      },
+      "objectDetect": {
+        "p50": 15,
+        "p90": 15,
+        "p95": 15,
+        "mean": 14
+      },
+      "vit": {
+        "p50": 0,
+        "p90": 0,
+        "p95": 0,
+        "mean": 0
+      },
+      "ocr": {
+        "p50": 512,
+        "p90": 533,
+        "p95": 533,
+        "mean": 515
+      },
+      "domScan": {
+        "p50": 0,
+        "p90": 0,
+        "p95": 0,
+        "mean": 0
+      },
+      "textScan": {
+        "p50": 0,
+        "p90": 0,
+        "p95": 0,
+        "mean": 0
+      },
+      "redact": {
+        "p50": 47,
+        "p90": 51,
+        "p95": 51,
+        "mean": 46
+      }
+    },
+    "payloadKb": {
+      "mean": 48,
+      "range": [
+        48,
+        48
+      ]
+    },
+    "models": {
+      "mediapipe": {
+        "initMs": 0,
+        "calls": 0,
+        "totalMs": 0,
+        "lastMs": 0,
+        "tiledCalls": 0,
+        "tiledHits": 0,
+        "verifyDropped": 0,
+        "avgMs": 0
+      },
+      "vitLoadMs": null,
+      "ocrEngineLoadMs": null
+    },
+    "heap": {
+      "beforeMb": 18,
+      "afterMb": 18,
+      "deltaMb": 0
+    },
+    "backend": "webgpu"
+  }
+}

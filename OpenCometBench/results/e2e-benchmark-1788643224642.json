@@ -1,0 +1,193 @@
+{
+  "meta": {
+    "type": "e2e",
+    "benchmark": "real-extension-loop",
+    "generatedAt": "2026-09-05T21:20:24.642Z",
+    "note": "REAL extension (unpacked) run end-to-end through capture → perception → sanitize → network gate → server validation → action → verification. VLM decisions are MOCK (scripted) — vlmMs measures the real network + validation round trip against the decision endpoint, not model inference. Run with a real provider for true VLM latency.",
+    "scenarios": [
+      {
+        "id": "find-and-open",
+        "task": "Open the Pricing page"
+      },
+      {
+        "id": "search-info",
+        "task": "Search for quantum"
+      },
+      {
+        "id": "navigate-form",
+        "task": "Fill the newsletter form and submit"
+      },
+      {
+        "id": "play-media",
+        "task": "Pause the video"
+      },
+      {
+        "id": "safe-form",
+        "task": "Complete the checkout form"
+      }
+    ],
+    "swErrors": []
+  },
+  "mockVlmCalls": 15,
+  "aggregate": {
+    "steps": 10,
+    "sanitizeMs": {
+      "p50": 2715,
+      "p90": 14190,
+      "p95": 14190
+    },
+    "vlmMs_mock": {
+      "p50": 30,
+      "p90": 51,
+      "p95": 51
+    },
+    "actionMs": {
+      "p50": 411,
+      "p90": 1540,
+      "p95": 1540
+    },
+    "stepTotalMs": {
+      "p50": 2800,
+      "p90": 15000,
+      "p95": 15000
+    },
+    "verifiedActionRatio": 0.5
+  },
+  "scenarios": [
+    {
+      "id": "find-and-open",
+      "task": "Open the Pricing page",
+      "page": "/benchmarks/e2e/pages/nav-links.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 15000,
+          "sanitizeMs": 14190,
+          "vlmMs": 51,
+          "actionMs": 764,
+          "verified": false
+        }
+      ],
+      "totalMs": 15000,
+      "okActions": 0,
+      "stepCount": 1
+    },
+    {
+      "id": "search-info",
+      "task": "Search for quantum",
+      "page": "/benchmarks/e2e/pages/search.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2700,
+          "sanitizeMs": 2668,
+          "vlmMs": 29,
+          "actionMs": 6,
+          "verified": true
+        },
+        {
+          "step": 2,
+          "totalMs": 3500,
+          "sanitizeMs": 2715,
+          "vlmMs": 29,
+          "actionMs": 763,
+          "verified": false
+        }
+      ],
+      "totalMs": 6200,
+      "okActions": 1,
+      "stepCount": 2
+    },
+    {
+      "id": "navigate-form",
+      "task": "Fill the newsletter form and submit",
+      "page": "/benchmarks/e2e/pages/newsletter.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2800,
+          "sanitizeMs": 2717,
+          "vlmMs": 34,
+          "actionMs": 20,
+          "verified": true
+        },
+        {
+          "step": 2,
+          "totalMs": 2800,
+          "sanitizeMs": 2778,
+          "vlmMs": 29,
+          "actionMs": 6,
+          "verified": true
+        },
+        {
+          "step": 3,
+          "totalMs": 1600,
+          "sanitizeMs": 4,
+          "vlmMs": 28,
+          "actionMs": 1540,
+          "verified": false
+        }
+      ],
+      "totalMs": 7200,
+      "okActions": 2,
+      "stepCount": 3
+    },
+    {
+      "id": "play-media",
+      "task": "Pause the video",
+      "page": "/benchmarks/pages/media.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2900,
+          "sanitizeMs": 2439,
+          "vlmMs": 34,
+          "actionMs": 411,
+          "verified": false
+        }
+      ],
+      "totalMs": 2900,
+      "okActions": 0,
+      "stepCount": 1
+    },
+    {
+      "id": "safe-form",
+      "task": "Complete the checkout form",
+      "page": "/benchmarks/e2e/pages/checkout.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2600,
+          "sanitizeMs": 2566,
+          "vlmMs": 35,
+          "actionMs": 8,
+          "verified": true
+        },
+        {
+          "step": 2,
+          "totalMs": 2800,
+          "sanitizeMs": 2722,
+          "vlmMs": 29,
+          "actionMs": 5,
+          "verified": true
+        },
+        {
+          "step": 3,
+          "totalMs": 800,
+          "sanitizeMs": 4,
+          "vlmMs": 30,
+          "actionMs": 762,
+          "verified": false
+        }
+      ],
+      "totalMs": 6200,
+      "okActions": 2,
+      "stepCount": 3
+    }
+  ]
+}

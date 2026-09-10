@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Open Comet",
-  "version": "1.1.1",
-  "description": "Autonomous AI browser agent for research, browsing, automation, and reusable skills.",
+  "name": "OpenComet SIH — Privacy Vision Agent",
+  "version": "1.15.9",
+  "description": "Privacy-first browser agent with a 12-skill library, native browser tools, Gemma 4 on-device intelligence (WebGPU + native tool calling), page RAG, PII redaction and a vendored on-device OCR privacy pass.",
   "permissions": [
     "activeTab",
     "tabs",
@@ -12,9 +12,18 @@
     "debugger",
     "tabGroups",
     "notifications",
-    "downloads"
+    "downloads",
+    "offscreen",
+    "bookmarks",
+    "alarms",
+    "pageCapture",
+    "readingList"
   ],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "<all_urls>",
+    "https://huggingface.co/*",
+    "https://cdn.jsdelivr.net/*"
+  ],
   "background": {
     "service_worker": "src/background/sw.js",
     "type": "module"
@@ -23,7 +32,7 @@
     "default_path": "src/sidepanel/sidepanel.html"
   },
   "action": {
-    "default_title": "Open Comet",
+    "default_title": "OpenComet SIH",
     "default_icon": {
       "16": "assets/icons/icon16.png",
       "32": "assets/icons/icon32.png",
@@ -33,18 +42,29 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/agent.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content/agent.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["assets/icons/*.png"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "assets/icons/*.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https: http://127.0.0.1:* http://localhost:* data: blob:; img-src 'self' data: blob: https:; worker-src 'self'; style-src 'self' 'unsafe-inline';"
+  },
   "icons": {
     "16": "assets/icons/icon16.png",
     "32": "assets/icons/icon32.png",

@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OCR MV3 extension-context probe</title>
+</head>
+<body>
+  <h1>OCR MV3 extension-context probe</h1>
+  <p>Runs the vendored tesseract.js chain INSIDE a chrome-extension:// page —
+     the same origin + CSP the offscreen document uses. CSP forbids inline
+     scripts, so all logic lives in the sibling module file.</p>
+  <pre id="out">running…</pre>
+  <script type="module" src="./ocr-mv3-probe.js"></script>
+</body>
+</html>

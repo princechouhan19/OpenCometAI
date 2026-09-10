@@ -1,0 +1,575 @@
+{
+  "meta": {
+    "type": "e2e",
+    "benchmark": "real-extension-loop",
+    "vlm": "mock",
+    "generatedAt": "2026-09-06T13:46:38.851Z",
+    "note": "REAL extension (unpacked) run end-to-end through capture → perception → sanitize → network gate → server validation → action → verification. VLM decisions are MOCK (scripted) — vlmMs measures the real network + validation round trip against the decision endpoint, not model inference. Real-VLM runs are a separate benchmark (run-e2e-real.mjs) and are never merged with this one.",
+    "scenarios": [
+      {
+        "id": "find-and-open",
+        "task": "Open the Pricing page"
+      },
+      {
+        "id": "search-info",
+        "task": "Search for quantum"
+      },
+      {
+        "id": "navigate-form",
+        "task": "Fill the newsletter form and submit"
+      },
+      {
+        "id": "play-media",
+        "task": "Pause the video"
+      },
+      {
+        "id": "safe-form",
+        "task": "Complete the checkout form"
+      },
+      {
+        "id": "banking-transfer",
+        "task": "Transfer funds between accounts"
+      },
+      {
+        "id": "gov-application",
+        "task": "Submit the scheme application"
+      },
+      {
+        "id": "canvas-clear",
+        "task": "Clear the drawing canvas"
+      },
+      {
+        "id": "article-navigation",
+        "task": "Read the full article"
+      },
+      {
+        "id": "mixed-pii-contact",
+        "task": "Save the new contact"
+      }
+    ],
+    "swErrors": []
+  },
+  "mockVlmCalls": 31,
+  "aggregate": {
+    "steps": 21,
+    "verifyStates": {
+      "ACTION_VERIFIED": 20,
+      "VERIFICATION_FAILED": 1,
+      "ACTION_EXECUTED": 0,
+      "ACTION_FAILED": 0,
+      "NO_VERIFY_LINE": 0
+    },
+    "verifiedActionRatio": 0.952,
+    "executionSuccessRatio": 1,
+    "taskSuccessRatio": 1,
+    "sanitizeMs": {
+      "p50": 2790,
+      "p90": 3122,
+      "p95": 3145
+    },
+    "vlmMs_mock": {
+      "p50": 31,
+      "p90": 37,
+      "p95": 37
+    },
+    "actionMs": {
+      "p50": 9,
+      "p90": 1556,
+      "p95": 1571
+    },
+    "stepTotalMs": {
+      "p50": 2900,
+      "p90": 4500,
+      "p95": 4700
+    }
+  },
+  "scenarios": [
+    {
+      "id": "find-and-open",
+      "task": "Open the Pricing page",
+      "page": "/benchmarks/e2e/pages/nav-links.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 20200,
+          "sanitizeMs": 18617,
+          "vlmMs": 37,
+          "actionMs": 1534,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 20200,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "search-info",
+      "task": "Search for quantum",
+      "page": "/benchmarks/e2e/pages/search.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2900,
+          "sanitizeMs": 2887,
+          "vlmMs": 35,
+          "actionMs": 8,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 4700,
+          "sanitizeMs": 3122,
+          "vlmMs": 30,
+          "actionMs": 1545,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 7600,
+      "stepCount": 2,
+      "verified": 2,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "navigate-form",
+      "task": "Fill the newsletter form and submit",
+      "page": "/benchmarks/e2e/pages/newsletter.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 3200,
+          "sanitizeMs": 3145,
+          "vlmMs": 34,
+          "actionMs": 8,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 3200,
+          "sanitizeMs": 3122,
+          "vlmMs": 30,
+          "actionMs": 6,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 3,
+          "totalMs": 1600,
+          "sanitizeMs": 13,
+          "vlmMs": 37,
+          "actionMs": 1576,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 8000,
+      "stepCount": 3,
+      "verified": 3,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "play-media",
+      "task": "Pause the video",
+      "page": "/benchmarks/pages/media.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 3300,
+          "sanitizeMs": 2820,
+          "vlmMs": 32,
+          "actionMs": 407,
+          "verifyStates": [
+            {
+              "state": "VERIFICATION_FAILED",
+              "action": "media",
+              "summary": "media state UNCHANGED (already paused?)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "VERIFICATION_FAILED"
+        }
+      ],
+      "totalMs": 3300,
+      "stepCount": 1,
+      "verified": 0,
+      "verifyFailed": 1,
+      "failed": 0
+    },
+    {
+      "id": "safe-form",
+      "task": "Complete the checkout form",
+      "page": "/benchmarks/e2e/pages/checkout.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2800,
+          "sanitizeMs": 2761,
+          "vlmMs": 31,
+          "actionMs": 6,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 2900,
+          "sanitizeMs": 2828,
+          "vlmMs": 50,
+          "actionMs": 5,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 3,
+          "totalMs": 1600,
+          "sanitizeMs": 4,
+          "vlmMs": 31,
+          "actionMs": 1571,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 7300,
+      "stepCount": 3,
+      "verified": 3,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "banking-transfer",
+      "task": "Transfer funds between accounts",
+      "page": "/benchmarks/e2e/pages/banking.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2800,
+          "sanitizeMs": 2790,
+          "vlmMs": 30,
+          "actionMs": 6,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 4500,
+          "sanitizeMs": 2866,
+          "vlmMs": 31,
+          "actionMs": 1542,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 7300,
+      "stepCount": 2,
+      "verified": 2,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "gov-application",
+      "task": "Submit the scheme application",
+      "page": "/benchmarks/e2e/pages/gov-form.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2800,
+          "sanitizeMs": 2741,
+          "vlmMs": 31,
+          "actionMs": 5,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 3000,
+          "sanitizeMs": 2947,
+          "vlmMs": 29,
+          "actionMs": 9,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 3,
+          "totalMs": 4500,
+          "sanitizeMs": 2956,
+          "vlmMs": 32,
+          "actionMs": 1529,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 10300,
+      "stepCount": 3,
+      "verified": 3,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "canvas-clear",
+      "task": "Clear the drawing canvas",
+      "page": "/benchmarks/e2e/pages/canvas-app.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 4000,
+          "sanitizeMs": 2412,
+          "vlmMs": 29,
+          "actionMs": 1556,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 4000,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "article-navigation",
+      "task": "Read the full article",
+      "page": "/benchmarks/e2e/pages/article.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 4000,
+          "sanitizeMs": 2416,
+          "vlmMs": 30,
+          "actionMs": 1542,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 4000,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "mixed-pii-contact",
+      "task": "Save the new contact",
+      "page": "/benchmarks/e2e/pages/mixed-pii.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2500,
+          "sanitizeMs": 2433,
+          "vlmMs": 33,
+          "actionMs": 8,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 2800,
+          "sanitizeMs": 2752,
+          "vlmMs": 30,
+          "actionMs": 5,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 3,
+          "totalMs": 100,
+          "sanitizeMs": 5,
+          "vlmMs": 30,
+          "actionMs": 4,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 4,
+          "totalMs": 1600,
+          "sanitizeMs": 4,
+          "vlmMs": 34,
+          "actionMs": 1545,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "compose window closed after the click (mail send flow advanced)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 7000,
+      "stepCount": 4,
+      "verified": 4,
+      "verifyFailed": 0,
+      "failed": 0
+    }
+  ]
+}
