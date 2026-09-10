@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "type": "scene-change-probe",
+    "benchmark": "scene-change-attack",
+    "environment": "headless-ci",
+    "headed": false,
+    "note": "Memo SEMANTICS are environment-independent. Absolute latencies are headless-CI numbers, not production claims. Real pipeline (privacy-filter.js) with real YOLO Xenova/yolos-tiny."
+  },
+  "generatedAt": "2026-09-06T20:51:28.417Z",
+  "runs": [
+    {
+      "tag": "A1-safe-first",
+      "yoloMemoHit": false,
+      "objectDetectMs": 3295,
+      "totalMs": 3312,
+      "detections": [],
+      "manifestCount": 0,
+      "sanitizedLen": 7423,
+      "yoloLog": "YOLO: detection ERROR — no available backend found. ERR: [webgpu] Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    },
+    {
+      "tag": "A2-safe-identical",
+      "yoloMemoHit": false,
+      "objectDetectMs": 16,
+      "totalMs": 32,
+      "detections": [],
+      "manifestCount": 0,
+      "sanitizedLen": 7423,
+      "yoloLog": "YOLO: detection ERROR — no available backend found. ERR: [webgpu] Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    },
+    {
+      "tag": "B1-scene-changed",
+      "yoloMemoHit": false,
+      "objectDetectMs": 14,
+      "totalMs": 29,
+      "detections": [],
+      "manifestCount": 0,
+      "sanitizedLen": 15423,
+      "yoloLog": "YOLO: detection ERROR — no available backend found. ERR: [webgpu] Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    },
+    {
+      "tag": "B2-sensitive-identical",
+      "yoloMemoHit": false,
+      "objectDetectMs": 13,
+      "totalMs": 35,
+      "detections": [],
+      "manifestCount": 0,
+      "sanitizedLen": 15423,
+      "yoloLog": "YOLO: detection ERROR — no available backend found. ERR: [webgpu] Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    },
+    {
+      "tag": "T-tampered-byte",
+      "yoloMemoHit": false,
+      "objectDetectMs": 14,
+      "totalMs": 15,
+      "detections": [],
+      "manifestCount": 0,
+      "sanitizedLen": 114,
+      "yoloLog": "YOLO: detection ERROR — no available backend found. ERR: [webgpu] Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    }
+  ],
+  "detectionsIdenticalOnReuse": true,
+  "checks": [
+    {
+      "name": "A1 safe first capture → memo MISS (detector ran)",
+      "ok": true
+    },
+    {
+      "name": "A1 real detection executed (objectDetect > 50ms, model work visible)",
+      "ok": true
+    },
+    {
+      "name": "A2 identical capture → memo HIT (the optimization)",
+      "ok": false
+    },
+    {
+      "name": "A2 memo hit skips the detector (objectDetect < 20ms)",
+      "ok": true
+    },
+    {
+      "name": "B1 scene-changed capture → memo MISS (attack defeated)",
+      "ok": true
+    },
+    {
+      "name": "B1 re-ran FULL detection on the changed pixels (objectDetect > 50ms)",
+      "ok": false
+    },
+    {
+      "name": "B2 identical sensitive capture → memo HIT",
+      "ok": false
+    },
+    {
+      "name": "B2 reuse returns the SAME detections as B1",
+      "ok": true
+    },
+    {
+      "name": "T tampered byte → memo MISS (no near-duplicate reuse)",
+      "ok": true
+    },
+    {
+      "name": "pipeline never crashed during the attack sequence",
+      "ok": true
+    }
+  ],
+  "pass": false
+}

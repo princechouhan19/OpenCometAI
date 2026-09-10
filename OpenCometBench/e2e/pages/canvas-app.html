@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Design Editor — Example Canvas</title>
+<style>* { box-sizing: border-box; margin: 0; } body { font: 14px/1.5 system-ui, sans-serif; color: #1a2233; background: #f6f7fb; } header { background: #16213e; color: #fff; padding: 14px 24px; font-size: 18px; font-weight: 600; } main { max-width: 900px; margin: 24px auto; padding: 0 16px; } .card { background: #fff; border: 1px solid #dfe4ef; border-radius: 10px; padding: 20px; margin-bottom: 18px; } button { background: #1d6ef5; border: 0; color: #fff; padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; margin: 6px 6px 0 0; } canvas { border: 1px solid #c3cbdd; border-radius: 8px; display: block; margin-top: 12px; background: #fff; }</style></head>
+<body><header>Design Editor — Example Canvas</header><main>
+<div class="card">
+  <h3>Canvas workspace</h3>
+  <button id="cv-add">Add shape</button><button id="cv-clear">Clear canvas</button>
+  <canvas id="cv" width="640" height="300"></canvas>
+</div></main>
+<script>
+  const c = document.getElementById('cv'), g = c.getContext('2d');
+  function addShape() {
+    g.fillStyle = ['#1d6ef5','#0a7d43','#b3261e','#f9ab00'][(Math.random()*4)|0];
+    g.beginPath();
+    g.arc(60 + Math.random()*(c.width-120), 50 + Math.random()*(c.height-100), 18 + Math.random()*22, 0, Math.PI*2);
+    g.fill();
+  }
+  function clearCanvas() { g.clearRect(0, 0, c.width, c.height); }
+  document.getElementById('cv-add').addEventListener('click', addShape);
+  document.getElementById('cv-clear').addEventListener('click', clearCanvas);
+  // seed two shapes so the canvas is non-empty on load
+  addShape(); addShape();
+</script></body></html>

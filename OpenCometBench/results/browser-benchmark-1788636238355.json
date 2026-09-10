@@ -1,0 +1,199 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-05T19:23:04.041Z",
+    "tiers": [
+      "ocr",
+      "resources"
+    ],
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites."
+  },
+  "environment": {},
+  "visualContext": null,
+  "redactionMatrix": null,
+  "ocrVisualPii": {
+    "meta": {
+      "type": "browser",
+      "n": 3,
+      "note": "PII exists ONLY as pixels (canvas paint, SVG data-URL image, aria-free absolutely-positioned PDF-like block). The DOM text contains none of it. ocrLoadMs = vendored engine cold start (first use, local files)."
+    },
+    "ocrEngineLoadMs": 164,
+    "ocrOn": {
+      "ocr": true,
+      "score": {
+        "perGt": [
+          {
+            "sel": "#v-canvas",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "#v-img",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "#v-pdf",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          }
+        ],
+        "coverage": 0,
+        "meanIou": 0,
+        "overRedactionPct": 0,
+        "underRedactionCount": 3,
+        "pixelLeakCount": 3
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 2,
+        "ocrPii": 0
+      },
+      "stats": {
+        "ocrFailed": true
+      }
+    },
+    "ocrOff": {
+      "ocr": false,
+      "score": {
+        "perGt": [
+          {
+            "sel": "#v-canvas",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "#v-img",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "#v-pdf",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          }
+        ],
+        "coverage": 0,
+        "meanIou": 0,
+        "overRedactionPct": 0,
+        "underRedactionCount": 3,
+        "pixelLeakCount": 3
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 2,
+        "ocrPii": 0
+      },
+      "stats": {
+        "ocrFailed": false
+      }
+    },
+    "failClosedVerified": true
+  },
+  "resources": {
+    "meta": {
+      "type": "browser",
+      "n": 7,
+      "note": "In-browser measurements on the REAL pipeline (DPR 2, all detectors enabled). VLM/upload/serialization are measured by the E2E tier and the runner page — Node timings are never used as browser latencies."
+    },
+    "sanitizeTotalMs": {
+      "p50": 5692,
+      "p90": 5813,
+      "p95": 5813
+    },
+    "phasesMs": {
+      "faceDetect": {
+        "p50": 5609,
+        "p90": 5725,
+        "p95": 5725,
+        "mean": 5630
+      },
+      "objectDetect": {
+        "p50": 21,
+        "p90": 27,
+        "p95": 27,
+        "mean": 22
+      },
+      "vit": {
+        "p50": 0,
+        "p90": 0,
+        "p95": 0,
+        "mean": 0
+      },
+      "ocr": {
+        "p50": 1,
+        "p90": 2,
+        "p95": 2,
+        "mean": 1
+      },
+      "domScan": {
+        "p50": 0,
+        "p90": 0,
+        "p95": 0,
+        "mean": 0
+      },
+      "textScan": {
+        "p50": 0,
+        "p90": 1,
+        "p95": 1,
+        "mean": 0
+      },
+      "redact": {
+        "p50": 53,
+        "p90": 59,
+        "p95": 59,
+        "mean": 52
+      }
+    },
+    "payloadKb": {
+      "mean": 46,
+      "range": [
+        46,
+        46
+      ]
+    },
+    "models": {
+      "mediapipe": {
+        "initMs": 0,
+        "calls": 0,
+        "totalMs": 0,
+        "lastMs": 0,
+        "tiledCalls": 0,
+        "tiledHits": 0,
+        "verifyDropped": 0,
+        "avgMs": 0
+      },
+      "vitLoadMs": null,
+      "ocrEngineLoadMs": 164
+    },
+    "heap": {
+      "beforeMb": 18,
+      "afterMb": 18,
+      "deltaMb": 0
+    },
+    "backend": "webgpu"
+  }
+}

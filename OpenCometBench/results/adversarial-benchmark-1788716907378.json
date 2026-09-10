@@ -1,0 +1,210 @@
+{
+  "meta": {
+    "type": "adversarial",
+    "benchmark": "real-extension-adversarial",
+    "generatedAt": "2026-09-06T17:47:12.567Z",
+    "note": "REAL unpacked extension driven through capture → perception → sanitize → network gate → transmit while a recording decision server captures EVERY outbound byte. Suites are reported separately and never merged with UNIT/BROWSER/E2E numbers.",
+    "decisionEndpoint": "http://127.0.0.1:8895"
+  },
+  "privacy": null,
+  "injection": {
+    "meta": {
+      "type": "adversarial",
+      "n": 11,
+      "note": "Six hostile families across DOM/title/URL/dialog/OCR-canvas/failed-target channels. Wire-level assertions: no invisible/bidi/control chars outbound; hostile text never in control fields; URL query payloads never leave; OCR-painted instructions never leave as text."
+    },
+    "cases": [
+      {
+        "id": "dom-direct",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "68b715f7462c",
+        "imageBytes": 22332,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-closer",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "75ab93293b5c",
+        "imageBytes": 22956,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "dom-role",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "bada9e485f76",
+        "imageBytes": 26184,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-tool",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "21b937fd5501",
+        "imageBytes": 24084,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-base64",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "04ac8ad61d00",
+        "imageBytes": 29750,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-bidi",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "c4aca9935a84",
+        "imageBytes": 24047,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": null,
+        "pass": true
+      },
+      {
+        "id": "title-direct",
+        "channel": "title",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "27b6ce801029",
+        "imageBytes": 15333,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "url-direct",
+        "channel": "url",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "urlQueryNeverLeft": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "4f36807206c6",
+        "imageBytes": 15878,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "dialog-direct",
+        "channel": "dialog",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "70f2247fdda2",
+        "imageBytes": 21602,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "ocr-direct",
+        "channel": "ocr-canvas",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "ocrTextNeverLeft": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "f7d92d06017e",
+        "imageBytes": 21308,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "failed-target-direct",
+        "channel": "failed-target",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "5a41d04d2e1f",
+        "imageBytes": 15644,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      }
+    ],
+    "passed": 11,
+    "n": 11
+  }
+}

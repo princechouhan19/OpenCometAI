@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!-- ─────────────────────────────────────────────────────────────────────────
+  OpenCometBench/browser/runner.html — SIH Phase 21 (browser-side measurements)
+
+  Measures REAL on-hardware numbers that Node cannot:
+    • full privacy-pipeline latency (MediaPipe faces + PII + redaction)
+    • model load times (WebGPU vs WASM backend)
+    • JS heap memory (performance.memory)
+    • network payload size (the sanitized image bytes)
+    • pixel-level redaction verification (blackout/pixelate/blur really drawn)
+
+  HOW TO RUN
+    1. Load the extension in Chrome (chrome://extensions → Load unpacked), then
+       open  chrome-extension://<EXTENSION_ID>/OpenCometBench/browser/runner.html
+       (find the ID on the extension card).  — OR —
+       serve the repo:  python3 -m http.server 8080  →  http://localhost:8080/OpenCometBench/browser/runner.html
+    2. Click "Run benchmark". A synthetic screenshot (drawn locally — no real
+       personal data) is sanitized by the REAL pipeline N times.
+    3. Click "Export JSON" and feed the file to the SIH Scorecard in the
+       side panel (Settings → SIH Scorecard → Import).
+
+  All numbers come from the live runtime; nothing is pre-filled.
+────────────────────────────────────────────────────────────────────────── -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>OpenCometAI — SIH browser benchmark</title>
+<style>
+  body { font: 13px/1.5 system-ui, sans-serif; background: #0B1220; color: #dfe7f5; max-width: 980px; margin: 24px auto; padding: 0 16px; }
+  h1 { font-size: 18px; color: #7cd4ff; } button { background: #1d6ef5; border: 0; color: #fff; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-right: 8px; }
+  button:disabled { opacity: .5; cursor: default; } button.secondary { background: #2a3550; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; } td, th { border: 1px solid #263352; padding: 6px 10px; text-align: left; }
+  th { background: #131c33; color: #9fb4d8; } .ok { color: #59d499; } .warn { color: #ffb454; }
+  canvas { border: 1px solid #263352; max-width: 100%; } pre { background: #101828; padding: 12px; border-radius: 8px; overflow: auto; max-height: 320px; }
+</style>
+</head>
+<body>
+<h1>OpenCometAI — SIH browser benchmark (real runtime measurements)</h1>
+<p>
+  <button id="run">Run benchmark</button>
+  <button id="export" class="secondary" disabled>Export JSON</button>
+  <label style="margin-left:12px">runs <input id="runs" type="number" value="5" min="1" max="30" style="width:4ch"></label>
+</p>
+<table id="out"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody></tbody></table>
+<canvas id="shot" width="1280" height="800"></canvas>
+<pre id="log"></pre>
+
+<script type="module">
+import { runPrivacyPipeline } from '../../src/lib/privacy-filter.js';
+
+const $ = s => document.querySelector(s);
+const logLine = (m) => { $('#log').textContent += m + '\n'; };
+const row = (k, v, cls = '') => {
+  $('#out tbody').insertAdjacentHTML('beforeend', `<tr><td>${k}</td><td class="${cls}">${v}</td></tr>`);
+};
+
+// ── Synthetic screenshot: drawn locally, zero real personal data ─────────────
+function drawSyntheticShot() {
+  const c = $('#shot'); const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f5f6fa'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#1d2b4f'; ctx.font = '28px sans-serif'; ctx.fillText('Example Bank — Net Banking', 40, 60);
+  ctx.font = '18px sans-serif'; ctx.fillStyle = '#333';
+  ctx.fillText('Account holder: Jane Doe (synthetic)', 40, 130);
+  ctx.fillText('Email: jane.doe@example.com', 40, 170);
+  ctx.fillText('Phone: +91 98765 43210', 40, 210);
+  ctx.fillText('Card: 4532 0151 1283 0366', 40, 250);
+  ctx.fillText('Aadhaar: 2345 1234 5909', 40, 290);
+  ctx.fillText('Password: ••••••••••', 40, 330);
+  // synthetic "face" (circle + features) for the MediaPipe detector
+  ctx.fillStyle = '#e8b98c'; ctx.beginPath(); ctx.arc(1050, 220, 95, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(1015, 190, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1085, 190, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#8a5b3a'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(1050, 260, 38, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  return c.toDataURL('image/png');
+}
+
+let lastResult = null;
+
+$('#run').addEventListener('click', async () => {
+  const btn = $('#run'); btn.disabled = true; $('#export').disabled = true;
+  $('#log').textContent = ''; $('#out tbody').innerHTML = '';
+  const runs = Math.max(1, Math.min(30, Number($('#runs').value) || 5));
+  const domText = 'Account holder: Jane Doe (synthetic) Email: jane.doe@example.com Phone: +91 98765 43210 Card: 4532 0151 1283 0366 Aadhaar: 2345 1234 5909 Password field';
+  const domSensitive = [
+    { type: 'password', confidence: 1, source: 'dom', selector: '#pw', tag: 'input', label: 'password',
+      bounds: { x: 36, y: 312, w: 220, h: 26 } },
+  ];
+  try {
+    const shot = drawSyntheticShot();
+    const timings = []; let last = null;
+    for (let i = 0; i < runs; i++) {
+      const t0 = performance.now();
+      const r = await runPrivacyPipeline({ imageDataUrl: shot, domText, domSensitive }, { scaleX: 1, scaleY: 1, maxWidth: 1280 });
+      const ms = performance.now() - t0;
+      timings.push(ms); last = r;
+      logLine(`run ${i + 1}: ${ms.toFixed(0)} ms · faces=${r.stats.counts.faces} dom=${r.stats.counts.domSensitive} textPii=${r.stats.counts.textPii} · redact=${r.stats.phaseMs.redact}ms face=${r.stats.phaseMs.faceDetect}ms`);
+    }
+    const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const sorted = [...timings].sort((a, b) => a - b);
+    const p = q => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
+    const mem = performance.memory ? {
+      usedJsHeapMB: Math.round(performance.memory.usedJSHeapSize / 1048576),
+      jsHeapLimitMB: Math.round(performance.memory.jsHeapSizeLimit / 1048576),
+    } : null;
+    const payloadBytes = last.sanitizedDataUrl.length - 'data:image/jpeg;base64,'.length;
+
+    row('Backend', `${last.stats.backend}`, last.stats.backend === 'webgpu' ? 'ok' : 'warn');
+    row(`Sanitize latency (${runs} runs)`, `avg ${avg(timings).toFixed(0)} ms · P50 ${p(0.5).toFixed(0)} · P90 ${p(0.9).toFixed(0)} · max ${sorted[sorted.length - 1].toFixed(0)}`);
+    row('Pipeline phases (last run)', Object.entries(last.stats.phaseMs).map(([k, v]) => `${k}=${v}ms`).join(' · '));
+    row('Faces detected & redacted', last.stats.counts.faces, last.stats.counts.faces > 0 ? 'ok' : 'warn');
+    row('DOM sensitive fields redacted', last.stats.counts.domSensitive);
+    row('Text PII masked', last.stats.counts.textPii);
+    row('Sanitized payload size', `${Math.round(payloadBytes / 1024)} KB (base64 JPEG, 1280px)`);
+    if (mem) row('JS heap', `${mem.usedJsHeapMB} MB used / ${mem.jsHeapLimitMB} MB limit`);
+    row('Face detector stats', JSON.stringify(last.stats.modelStats?.face?.initMs != null ? { initMs: last.stats.modelStats.face.initMs } : {}));
+
+    lastResult = {
+      generatedAt: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      hardware: { deviceMemoryGB: navigator.deviceMemory || null, cores: navigator.hardwareConcurrency || null, webgpu: 'gpu' in navigator },
+      runs,
+      sanitizeMs: { avg: Math.round(avg(timings)), p50: Math.round(p(0.5)), p90: Math.round(p(0.9)), max: Math.round(sorted[sorted.length - 1]) },
+      phasesMs: last.stats.phaseMs,
+      counts: last.stats.counts,
+      payloadKb: Math.round(payloadBytes / 1024),
+      memory: mem,
+      backend: last.stats.backend,
+      visualContext: last.visualContext || null,
+    };
+    $('#export').disabled = false;
+  } catch (err) {
+    logLine('ERROR: ' + (err?.message || err));
+  } finally { btn.disabled = false; }
+});
+
+$('#export').addEventListener('click', () => {
+  if (!lastResult) return;
+  const blob = new Blob([JSON.stringify(lastResult, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `sih-browser-benchmark-${Date.now()}.json`;
+  a.click();
+});
+</script>
+</body>
+</html>

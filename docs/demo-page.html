@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenComet-SIH Demo Page — Sample PII Test Fixture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f4;
+      color: #1c1917;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    h1 { margin: 0 0 8px; font-size: 22px; color: #d9875a; }
+    h2 { margin: 24px 0 8px; font-size: 14px; font-weight: 600; color: #57534e; text-transform: uppercase; letter-spacing: 0.04em; }
+    p.sub { margin: 0 0 32px; font-size: 13px; color: #78716c; line-height: 1.5; }
+    .field-row { margin-bottom: 14px; }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #292524; }
+    input, textarea {
+      width: 100%; padding: 10px 12px; font-size: 13px;
+      border: 1px solid #d6d3d1; border-radius: 6px;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #d9875a; box-shadow: 0 0 0 3px rgba(217,135,90,0.15); }
+    .profile-card {
+      display: flex; gap: 16px; align-items: center;
+      padding: 16px; background: #fafaf9; border-radius: 8px;
+      margin: 16px 0;
+    }
+    .avatar {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: linear-gradient(135deg, #d9875a, #c2754c);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 600; color: #fff;
+    }
+    .profile-info { flex: 1; }
+    .profile-name { font-size: 15px; font-weight: 600; }
+    .profile-meta { font-size: 11px; color: #78716c; margin-top: 2px; }
+    .notice {
+      padding: 12px 16px; border-radius: 8px;
+      background: #fef3c7; border: 1px solid #fde68a;
+      color: #78350f; font-size: 12px; line-height: 1.5;
+      margin: 16px 0;
+    }
+    .pii-block {
+      padding: 12px; background: #fef2f2; border-left: 3px solid #ef4444;
+      border-radius: 4px; font-size: 12px; line-height: 1.6;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      color: #7f1d1d; margin: 8px 0;
+    }
+    button {
+      background: #d9875a; color: #fff; border: none; padding: 10px 20px;
+      font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer;
+    }
+    button:hover { background: #c2754c; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>OpenComet-SIH Demo Page</h1>
+  <p class="sub">
+    This page is a test fixture for the privacy-preserving vision agent.
+    It contains a mix of PII (passwords, emails, phones, cards, Aadhaar, PAN, SSN)
+    and visible faces. Open the OpenComet side panel, click
+    <strong>"Test capture + redact"</strong> to see what the server will receive,
+    then ask the agent to "submit the form" or "find the user's email".
+  </p>
+
+  <div class="notice">
+    <strong>For judges:</strong> After clicking "Test capture + redact" in the side panel,
+    check the preview pane — every field below should be either solid black,
+    pixelated, or have its PII replaced with [REDACTED:&lt;type&gt;] tokens.
+  </div>
+
+  <!-- Profile card with an "avatar" that doubles as a face-detection test -->
+  <div class="profile-card">
+    <!-- Using an emoji-style avatar that contains a face-like pattern; for a real
+         face test, replace this <div> with an <img src="photo.jpg"> -->
+    <img src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=128&h=128&fit=crop&crop=face"
+         alt="User profile photo" style="width:64px;height:64px;border-radius:50%;object-fit:cover"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+    <div class="avatar" style="display:none">JD</div>
+    <div class="profile-info">
+      <div class="profile-name">Jane Doe</div>
+      <div class="profile-meta">Senior Engineer · Acme Corp · Bengaluru</div>
+    </div>
+  </div>
+
+  <h2>Login form (sensitive inputs)</h2>
+  <form onsubmit="event.preventDefault(); alert('Form submitted — but the agent never saw your password!');">
+    <div class="field-row">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" value="jane.doe@acme-corp.in">
+    </div>
+    <div class="field-row">
+      <label for="phone">Phone</label>
+      <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="+91 98765 43210" value="+91 98765 43210">
+    </div>
+    <div class="field-row">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" value="SuperSecret123!">
+    </div>
+    <div class="field-row">
+      <label for="otp">2FA OTP</label>
+      <input type="text" id="otp" name="otp" autocomplete="one-time-code" placeholder="123456" value="482917">
+    </div>
+    <div class="field-row">
+      <label for="cc">Credit card number</label>
+      <input type="text" id="cc" name="cc" autocomplete="cc-number" placeholder="4111 1111 1111 1111" value="4111 1111 1111 1111">
+    </div>
+    <div class="field-row">
+      <label for="cvv">CVV</label>
+      <input type="password" id="cvv" name="cvv" autocomplete="cc-csc" placeholder="123" value="123">
+    </div>
+    <button type="submit">Submit</button>
+  </form>
+
+  <h2>Visible PII in text (regex + NER target)</h2>
+  <div class="pii-block">
+    User: jane.doe@acme-corp.in<br>
+    Mobile: +91-98765-43210<br>
+    Office line: (080) 2345-6789<br>
+    Aadhaar: 1234 5678 9012<br>
+    PAN: ABCDE1234F<br>
+    SSN (US): 123-45-6789<br>
+    Card: 4111 1111 1111 1111 (Visa)<br>
+    IBAN: GB82WEST12345698765432<br>
+    API key: sk-proj-abcdefghijklmnopqrstuvwxyz0123456789<br>
+    DOB: 15/03/1990<br>
+    Server IP: 192.168.1.1<br>
+    Mongo: mongodb://admin:s3cr3tP4ss@db.acme-corp.in:27017/prod<br>
+    Notes: Jane works in Bengaluru with her colleague Ravi Kumar.
+  </div>
+
+  <h2>What the agent should see after redaction</h2>
+  <p class="sub">
+    The password field becomes solid black. The credit card field becomes solid black.
+    The OTP field becomes solid black. The email field becomes pixelated. The phone
+    field becomes pixelated. All PII in the text block above gets replaced with
+    <code>[REDACTED:&lt;type&gt;]</code> tokens. The profile photo (if loaded) gets
+    blurred + an opaque black bar across the eyes.
+  </p>
+</div>
+</body>
+</html>

@@ -1,0 +1,116 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-05T19:25:03.924Z",
+    "tiers": [
+      "ocr"
+    ],
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites."
+  },
+  "environment": {},
+  "visualContext": null,
+  "redactionMatrix": null,
+  "ocrVisualPii": {
+    "meta": {
+      "type": "browser",
+      "n": 3,
+      "note": "PII exists ONLY as pixels (canvas paint, SVG data-URL image, aria-free absolutely-positioned PDF-like block). The DOM text contains none of it. ocrLoadMs = vendored engine cold start (first use, local files)."
+    },
+    "ocrEngineLoadMs": 659,
+    "ocrOn": {
+      "ocr": true,
+      "score": {
+        "perGt": [
+          {
+            "sel": "#v-canvas",
+            "type": "visual_pii",
+            "coverage": 0.077,
+            "iou": 0.077,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "#v-img",
+            "type": "visual_pii",
+            "coverage": 0.059,
+            "iou": 0.059,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "#v-pdf",
+            "type": "visual_pii",
+            "coverage": 0.01,
+            "iou": 0.01,
+            "pixelRedacted": false,
+            "ok": false
+          }
+        ],
+        "coverage": 0,
+        "meanIou": 0.049,
+        "overRedactionPct": 0,
+        "underRedactionCount": 3,
+        "pixelLeakCount": 3
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 2,
+        "ocrPii": 3
+      },
+      "stats": {
+        "ocrFailed": false
+      }
+    },
+    "ocrOff": {
+      "ocr": false,
+      "score": {
+        "perGt": [
+          {
+            "sel": "#v-canvas",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "#v-img",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "#v-pdf",
+            "type": "visual_pii",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          }
+        ],
+        "coverage": 0,
+        "meanIou": 0,
+        "overRedactionPct": 0,
+        "underRedactionCount": 3,
+        "pixelLeakCount": 3
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 2,
+        "ocrPii": 0
+      },
+      "stats": {
+        "ocrFailed": false
+      }
+    },
+    "failClosedVerified": true
+  },
+  "resources": null
+}

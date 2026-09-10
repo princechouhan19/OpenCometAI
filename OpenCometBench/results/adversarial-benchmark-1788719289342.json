@@ -1,0 +1,470 @@
+{
+  "meta": {
+    "type": "adversarial",
+    "benchmark": "real-extension-adversarial",
+    "generatedAt": "2026-09-06T18:25:45.987Z",
+    "note": "REAL unpacked extension driven through capture → perception → sanitize → network gate → transmit while a recording decision server captures EVERY outbound byte. Suites are reported separately and never merged with UNIT/BROWSER/E2E numbers.",
+    "decisionEndpoint": "http://127.0.0.1:8895"
+  },
+  "privacy": {
+    "meta": {
+      "type": "adversarial",
+      "n": 12,
+      "note": "Every case asserts: raw secret absent from ALL outbound fields, raw reference bytes absent from the outbound image, GT region pixel-verified altered pre-transmission, privacy envelope passed, no apiKey in settings."
+    },
+    "cases": [
+      {
+        "id": "password",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "7145107fa3cf",
+        "imageBytes": 18753,
+        "leakedIn": [],
+        "regionMeanDiff": 225.9,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "email",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "0ac447ed7673",
+        "imageBytes": 19010,
+        "leakedIn": [],
+        "regionMeanDiff": 161.6,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "phone",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "3e45b28002e6",
+        "imageBytes": 19612,
+        "leakedIn": [],
+        "regionMeanDiff": 53.4,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "aadhaar",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "16a1d2db306d",
+        "imageBytes": 19152,
+        "leakedIn": [],
+        "regionMeanDiff": 201.2,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "pan",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "43d22492b625",
+        "imageBytes": 18300,
+        "leakedIn": [],
+        "regionMeanDiff": 140.5,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "card",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "6a0f9bda87e3",
+        "imageBytes": 18816,
+        "leakedIn": [],
+        "regionMeanDiff": 200.2,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "otp",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "0816d0b5fda2",
+        "imageBytes": 20090,
+        "leakedIn": [],
+        "regionMeanDiff": 226.8,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "api-key",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "b49a160ee46f",
+        "imageBytes": 20883,
+        "leakedIn": [],
+        "regionMeanDiff": 190.4,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "canvas-email",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "1fbbbcf67f68",
+        "imageBytes": 20240,
+        "leakedIn": [],
+        "regionMeanDiff": 22.9,
+        "regionThresh": 15,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "svg-image",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "71b957a4ae23",
+        "imageBytes": 17708,
+        "leakedIn": [],
+        "regionMeanDiff": 17.4,
+        "regionThresh": 15,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "pdf-like",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "imageSha": "f0d8ca8e2cdc",
+        "imageBytes": 20203,
+        "leakedIn": [],
+        "regionMeanDiff": 65.5,
+        "regionThresh": 15,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "face",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true,
+          "faceDetectedAndBlurredStyle": true
+        },
+        "imageSha": "febcad685aac",
+        "imageBytes": 43459,
+        "leakedIn": [],
+        "blockVariance": {
+          "raw": 103.9,
+          "out": 2.1
+        },
+        "faceBox": {
+          "x": 329,
+          "y": 362,
+          "w": 245,
+          "h": 245
+        },
+        "outboundImageSize": null,
+        "faceRegions": 1,
+        "pass": true
+      }
+    ],
+    "passed": 12,
+    "n": 12
+  },
+  "injection": {
+    "meta": {
+      "type": "adversarial",
+      "n": 11,
+      "note": "Six hostile families across DOM/title/URL/dialog/OCR-canvas/failed-target channels. Wire-level assertions: no invisible/bidi/control chars outbound; hostile text never in control fields; URL query payloads never leave; OCR-painted instructions never leave as text."
+    },
+    "cases": [
+      {
+        "id": "dom-direct",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "68b715f7462c",
+        "imageBytes": 22332,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-closer",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "75ab93293b5c",
+        "imageBytes": 22956,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "dom-role",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "f11c7bdc806c",
+        "imageBytes": 24262,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-tool",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "21b937fd5501",
+        "imageBytes": 24084,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-base64",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "d33b928b67f1",
+        "imageBytes": 27832,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-bidi",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "c4aca9935a84",
+        "imageBytes": 24047,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": null,
+        "pass": true
+      },
+      {
+        "id": "title-direct",
+        "channel": "title",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "27b6ce801029",
+        "imageBytes": 15333,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "url-direct",
+        "channel": "url",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "urlQueryNeverLeft": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "788a4d5f14fd",
+        "imageBytes": 13941,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "dialog-direct",
+        "channel": "dialog",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "70f2247fdda2",
+        "imageBytes": 21602,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "ocr-direct",
+        "channel": "ocr-canvas",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "ocrTextNeverLeft": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "a70fb02e7389",
+        "imageBytes": 19301,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "failed-target-direct",
+        "channel": "failed-target",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "imageSha": "f039feafb5cb",
+        "imageBytes": 13680,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      }
+    ],
+    "passed": 11,
+    "n": 11
+  }
+}

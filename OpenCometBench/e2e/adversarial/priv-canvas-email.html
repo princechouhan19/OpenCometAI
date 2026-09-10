@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Signature Canvas</title>
+<style>
+  body{font:15px/1.5 Arial,Helvetica,sans-serif;margin:0;background:#f6f7fb;color:#1a1f2e}
+  .wrap{max-width:860px;margin:28px auto;padding:0 20px}
+  .card{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:18px 22px;margin-bottom:16px}
+  .row{margin:10px 0}
+  .lbl{display:inline-block;min-width:130px;color:#5a6478}
+  .val{font-family:Consolas,Menlo,monospace;background:#f2f4fa;border:1px solid #e3e7f2;border-radius:6px;padding:3px 8px}
+  input{font:15px Arial;padding:6px 10px;border:1px solid #c9cfdf;border-radius:6px;width:280px}
+  button{font:15px Arial;padding:7px 16px;border:0;border-radius:7px;background:#2b5fd9;color:#fff;cursor:pointer}
+</style></head>
+<body><div class="wrap"><div class="card"><h2>Signature preview</h2>
+     <p>The signature below is rendered on a canvas — the DOM contains none of it.</p>
+     <canvas id="sig" width="640" height="120" style="border:1px solid #ccd;background:#fff"></canvas></div>
+<script>
+  const c = document.getElementById('sig'), x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0,0,c.width,c.height);
+  x.fillStyle = '#1a1f2e'; x.font = '22px Consolas,Menlo,monospace';
+  const txt = 'priya.mehta@example.com';
+  x.fillText(txt, 28, 68);
+  // Precise painted-line GT for the adversarial harness (viewport CSS px):
+  // measureText gives the exact ink width; the box covers ascent+descent.
+  {
+    const w = Math.ceil(x.measureText(txt).width);
+    const r = c.getBoundingClientRect();
+    window.__ADV_GT__ = { x: Math.round(r.left + 26), y: Math.round(r.top + 46), w: w + 6, h: 30 };
+  }
+</script></div></body></html>

@@ -1,0 +1,179 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-06T17:48:47.643Z",
+    "tiers": [
+      "ocr"
+    ],
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites."
+  },
+  "environment": {},
+  "visualContext": null,
+  "redactionMatrix": null,
+  "ocrVisualPii": {
+    "meta": {
+      "type": "browser",
+      "n": 4,
+      "note": "PII exists ONLY as pixels (canvas paint, SVG data-URL image, aria-free absolutely-positioned PDF-like block). The DOM text contains none of it. ocrLoadMs = vendored engine cold start (first use, local files)."
+    },
+    "ocrEngineLoadMs": 596,
+    "ocrFoundTypes": [
+      "email",
+      "phone",
+      "aadhaar",
+      "api_key"
+    ],
+    "ocrOn": {
+      "ocr": true,
+      "score": {
+        "perGt": [
+          {
+            "sel": "pii:email",
+            "type": "email",
+            "coverage": 0.931,
+            "iou": 0.785,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "pii:phone",
+            "type": "phone",
+            "coverage": 0.804,
+            "iou": 0.804,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "pii:aadhaar",
+            "type": "aadhaar",
+            "coverage": 0.733,
+            "iou": 0.683,
+            "pixelRedacted": true,
+            "ok": true
+          },
+          {
+            "sel": "pii:api_key",
+            "type": "api_key",
+            "coverage": 0.937,
+            "iou": 0.789,
+            "pixelRedacted": true,
+            "ok": true
+          }
+        ],
+        "coverage": 1,
+        "meanIou": 0.765,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 0,
+        "ocrPii": 4
+      },
+      "manifest": [
+        {
+          "type": "email",
+          "bounds": {
+            "x": 303,
+            "y": 201,
+            "w": 240,
+            "h": 30
+          }
+        },
+        {
+          "type": "phone",
+          "bounds": {
+            "x": 253,
+            "y": 288,
+            "w": 154,
+            "h": 22
+          }
+        },
+        {
+          "type": "aadhaar",
+          "bounds": {
+            "x": 310,
+            "y": 410,
+            "w": 163,
+            "h": 22
+          }
+        },
+        {
+          "type": "api_key",
+          "bounds": {
+            "x": 298,
+            "y": 437,
+            "w": 304,
+            "h": 30
+          }
+        }
+      ],
+      "stats": {
+        "ocrFailed": false,
+        "ocrFailedReason": ""
+      }
+    },
+    "ocrOff": {
+      "ocr": false,
+      "score": {
+        "perGt": [
+          {
+            "sel": "pii:email",
+            "type": "email",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "pii:phone",
+            "type": "phone",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "pii:aadhaar",
+            "type": "aadhaar",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          },
+          {
+            "sel": "pii:api_key",
+            "type": "api_key",
+            "coverage": 0,
+            "iou": 0,
+            "pixelRedacted": false,
+            "ok": false
+          }
+        ],
+        "coverage": 0,
+        "meanIou": 0,
+        "overRedactionPct": 0,
+        "underRedactionCount": 4,
+        "pixelLeakCount": 4
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 0,
+        "ocrPii": 0
+      },
+      "manifest": [],
+      "stats": {
+        "ocrFailed": false,
+        "ocrFailedReason": ""
+      }
+    },
+    "failClosedVerified": true
+  },
+  "resources": null
+}

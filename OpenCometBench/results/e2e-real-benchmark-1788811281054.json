@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "type": "e2e-real",
+    "benchmark": "real-extension-real-vlm",
+    "vlm": "real:custom/moonshotai/kimi-k3",
+    "generatedAt": "2026-09-07T20:01:21.054Z",
+    "note": "REAL extension loop with a REAL model brain (BYO-provider direct path — the production configuration for bring-your-own-key users). vlmMs here measures TRUE model inference + transport for the sanitized payload. This report is NEVER merged with the mock-VLM e2e benchmark or with UNIT/BROWSER tiers. Runs on real user hardware only — never quoted from headless CI machines.",
+    "provider": {
+      "provider": "custom",
+      "model": "moonshotai/kimi-k3",
+      "endpoint": "https://integrate.api.nvidia.com/v1",
+      "local": false
+    },
+    "scenarios": [
+      {
+        "id": "search-info",
+        "task": "Search for quantum"
+      }
+    ]
+  },
+  "aggregate": {
+    "steps": 0,
+    "verifyStates": {
+      "ACTION_VERIFIED": 0,
+      "VERIFICATION_FAILED": 0,
+      "ACTION_EXECUTED": 0,
+      "ACTION_FAILED": 0,
+      "NO_VERIFY_LINE": 0
+    },
+    "verifiedActionRatio": 0,
+    "executionSuccessRatio": 0,
+    "taskSuccessRatio": 0,
+    "sanitizeMs": {
+      "p50": 0,
+      "p90": 0,
+      "p95": 0
+    },
+    "vlmMs_real": {
+      "p50": 0,
+      "p90": 0,
+      "p95": 0
+    },
+    "actionMs": {
+      "p50": 0,
+      "p90": 0,
+      "p95": 0
+    },
+    "stepTotalMs": {
+      "p50": 0,
+      "p90": 0,
+      "p95": 0
+    }
+  },
+  "scenarios": [
+    {
+      "id": "search-info",
+      "task": "Search for quantum",
+      "page": "/benchmarks/e2e/pages/search.html",
+      "finished": false,
+      "blocked": false,
+      "steps": [],
+      "totalMs": 0,
+      "stepCount": 0,
+      "verified": 0,
+      "verifyFailed": 0,
+      "failed": 0
+    }
+  ]
+}

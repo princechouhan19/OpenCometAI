@@ -1,0 +1,476 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-05T19:16:56.897Z",
+    "tiers": [
+      "visual"
+    ],
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites."
+  },
+  "environment": {},
+  "visualContext": {
+    "meta": {
+      "type": "browser",
+      "n": 12,
+      "note": "DOM-derived = classifyVisualContext on the real DOM census only. ViT-fused = same + real Xenova/vit-base-patch16-224 top-5 labels on the real screenshot."
+    },
+    "pageTypeAccuracy": {
+      "domDerived": 0.75,
+      "vitFused": 0.75,
+      "n": 12,
+      "rows": [
+        {
+          "page": "login.html",
+          "expect": "login",
+          "domType": "login",
+          "domConfidence": 0.83,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.919
+            },
+            {
+              "label": "envelope",
+              "score": 0.055
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.001
+            },
+            {
+              "label": "desktop computer",
+              "score": 0.001
+            },
+            {
+              "label": "monitor",
+              "score": 0.001
+            }
+          ],
+          "vitMs": 1652,
+          "vitLoadMs": 12239,
+          "fusedType": "login",
+          "fusedConfidence": 0.86,
+          "elements": [
+            "credential_form"
+          ],
+          "okDom": true,
+          "okFused": true,
+          "completeness": 0
+        },
+        {
+          "page": "signup.html",
+          "expect": "signup",
+          "domType": "signup",
+          "domConfidence": 0.62,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.969
+            },
+            {
+              "label": "envelope",
+              "score": 0.005
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.001
+            },
+            {
+              "label": "analog clock",
+              "score": 0.001
+            },
+            {
+              "label": "desktop computer",
+              "score": 0.001
+            }
+          ],
+          "vitMs": 725,
+          "vitLoadMs": 12239,
+          "fusedType": "signup",
+          "fusedConfidence": 0.65,
+          "elements": [],
+          "okDom": true,
+          "okFused": true,
+          "completeness": 0
+        },
+        {
+          "page": "checkout.html",
+          "expect": "checkout",
+          "domType": "checkout",
+          "domConfidence": 0.85,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.965
+            },
+            {
+              "label": "envelope",
+              "score": 0.002
+            },
+            {
+              "label": "analog clock",
+              "score": 0.002
+            },
+            {
+              "label": "monitor",
+              "score": 0.001
+            },
+            {
+              "label": "notebook, notebook computer",
+              "score": 0.001
+            }
+          ],
+          "vitMs": 722,
+          "vitLoadMs": 12239,
+          "fusedType": "checkout",
+          "fusedConfidence": 0.88,
+          "elements": [
+            "order_summary"
+          ],
+          "okDom": true,
+          "okFused": true,
+          "completeness": 0
+        },
+        {
+          "page": "payment.html",
+          "expect": "payment",
+          "domType": "payment",
+          "domConfidence": 0.9,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.954
+            },
+            {
+              "label": "envelope",
+              "score": 0.011
+            },
+            {
+              "label": "analog clock",
+              "score": 0.002
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.002
+            },
+            {
+              "label": "desktop computer",
+              "score": 0.001
+            }
+          ],
+          "vitMs": 727,
+          "vitLoadMs": 12239,
+          "fusedType": "payment",
+          "fusedConfidence": 0.93,
+          "elements": [
+            "order_summary"
+          ],
+          "okDom": true,
+          "okFused": true,
+          "completeness": 0
+        },
+        {
+          "page": "banking.html",
+          "expect": "banking",
+          "domType": "banking",
+          "domConfidence": 0.87,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.957
+            },
+            {
+              "label": "envelope",
+              "score": 0.003
+            },
+            {
+              "label": "analog clock",
+              "score": 0.002
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.002
+            },
+            {
+              "label": "desktop computer",
+              "score": 0.001
+            }
+          ],
+          "vitMs": 744,
+          "vitLoadMs": 12239,
+          "fusedType": "banking",
+          "fusedConfidence": 0.9,
+          "elements": [],
+          "okDom": true,
+          "okFused": true,
+          "completeness": 0
+        },
+        {
+          "page": "dashboard.html",
+          "expect": "dashboard",
+          "domType": "dashboard",
+          "domConfidence": 0.43,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.676
+            },
+            {
+              "label": "envelope",
+              "score": 0.253
+            },
+            {
+              "label": "analog clock",
+              "score": 0.003
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.002
+            },
+            {
+              "label": "digital clock",
+              "score": 0.002
+            }
+          ],
+          "vitMs": 743,
+          "vitLoadMs": 12239,
+          "fusedType": "dashboard",
+          "fusedConfidence": 0.57,
+          "elements": [],
+          "okDom": true,
+          "okFused": true,
+          "completeness": null
+        },
+        {
+          "page": "email.html",
+          "expect": "email",
+          "domType": "email",
+          "domConfidence": 0.53,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.972
+            },
+            {
+              "label": "envelope",
+              "score": 0.003
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.001
+            },
+            {
+              "label": "desktop computer",
+              "score": 0.001
+            },
+            {
+              "label": "analog clock",
+              "score": 0.001
+            }
+          ],
+          "vitMs": 730,
+          "vitLoadMs": 12239,
+          "fusedType": "email",
+          "fusedConfidence": 0.56,
+          "elements": [],
+          "okDom": true,
+          "okFused": true,
+          "completeness": 0
+        },
+        {
+          "page": "article.html",
+          "expect": "article",
+          "domType": "article",
+          "domConfidence": 0.83,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.978
+            },
+            {
+              "label": "envelope",
+              "score": 0.005
+            },
+            {
+              "label": "analog clock",
+              "score": 0.001
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.001
+            },
+            {
+              "label": "notebook, notebook computer",
+              "score": 0
+            }
+          ],
+          "vitMs": 712,
+          "vitLoadMs": 12239,
+          "fusedType": "article",
+          "fusedConfidence": 0.86,
+          "elements": [],
+          "okDom": true,
+          "okFused": true,
+          "completeness": 0
+        },
+        {
+          "page": "media.html",
+          "expect": "media",
+          "domType": "article",
+          "domConfidence": 0.33,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.343
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.331
+            },
+            {
+              "label": "monitor",
+              "score": 0.236
+            },
+            {
+              "label": "television, television system",
+              "score": 0.034
+            },
+            {
+              "label": "desktop computer",
+              "score": 0.02
+            }
+          ],
+          "vitMs": 712,
+          "vitLoadMs": 12239,
+          "fusedType": "article",
+          "fusedConfidence": 0.52,
+          "elements": [],
+          "okDom": false,
+          "okFused": false,
+          "completeness": 0
+        },
+        {
+          "page": "gov-form.html",
+          "expect": "government",
+          "domType": "government",
+          "domConfidence": 0.89,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.979
+            },
+            {
+              "label": "envelope",
+              "score": 0.002
+            },
+            {
+              "label": "analog clock",
+              "score": 0.001
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.001
+            },
+            {
+              "label": "monitor",
+              "score": 0.001
+            }
+          ],
+          "vitMs": 717,
+          "vitLoadMs": 12239,
+          "fusedType": "government",
+          "fusedConfidence": 0.92,
+          "elements": [],
+          "okDom": true,
+          "okFused": true,
+          "completeness": 0
+        },
+        {
+          "page": "canvas-app.html",
+          "expect": "form",
+          "domType": "article",
+          "domConfidence": 0.53,
+          "vitLabels": [
+            {
+              "label": "envelope",
+              "score": 0.91
+            },
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.057
+            },
+            {
+              "label": "switch, electric switch, electrical switch",
+              "score": 0.001
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.001
+            },
+            {
+              "label": "packet",
+              "score": 0.001
+            }
+          ],
+          "vitMs": 737,
+          "vitLoadMs": 12239,
+          "fusedType": "article",
+          "fusedConfidence": 0.53,
+          "elements": [],
+          "okDom": false,
+          "okFused": false,
+          "completeness": 0
+        },
+        {
+          "page": "mixed-ui.html",
+          "expect": "unknown",
+          "domType": "article",
+          "domConfidence": 0.48,
+          "vitLabels": [
+            {
+              "label": "web site, website, internet site, site",
+              "score": 0.986
+            },
+            {
+              "label": "analog clock",
+              "score": 0.001
+            },
+            {
+              "label": "screen, CRT screen",
+              "score": 0.001
+            },
+            {
+              "label": "envelope",
+              "score": 0
+            },
+            {
+              "label": "desktop computer",
+              "score": 0
+            }
+          ],
+          "vitMs": 765,
+          "vitLoadMs": 12239,
+          "fusedType": "article",
+          "fusedConfidence": 0.51,
+          "elements": [],
+          "okDom": false,
+          "okFused": false,
+          "completeness": 0
+        }
+      ]
+    },
+    "contextCompleteness": 0,
+    "falsePositives": [
+      "mixed-ui.html"
+    ],
+    "meanConfidence": 0.724,
+    "vit": {
+      "loadMs": 12239,
+      "enabled": true
+    }
+  },
+  "redactionMatrix": null,
+  "ocrVisualPii": null,
+  "resources": null
+}

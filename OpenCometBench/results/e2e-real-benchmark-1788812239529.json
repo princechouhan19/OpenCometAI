@@ -1,0 +1,149 @@
+{
+  "meta": {
+    "type": "e2e-real",
+    "benchmark": "real-extension-real-vlm",
+    "vlm": "real:custom/meta/llama-3.2-11b-vision-instruct",
+    "generatedAt": "2026-09-07T20:17:19.529Z",
+    "note": "REAL extension loop with a REAL model brain (BYO-provider direct path — the production configuration for bring-your-own-key users). vlmMs here measures TRUE model inference + transport for the sanitized payload. This report is NEVER merged with the mock-VLM e2e benchmark or with UNIT/BROWSER tiers. Runs on real user hardware only — never quoted from headless CI machines.",
+    "provider": {
+      "provider": "custom",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "endpoint": "https://integrate.api.nvidia.com/v1",
+      "local": false
+    },
+    "scenarios": [
+      {
+        "id": "search-info",
+        "task": "Search for quantum"
+      },
+      {
+        "id": "navigate-form",
+        "task": "Fill the newsletter form and submit"
+      },
+      {
+        "id": "media-control",
+        "task": "Mute the video"
+      }
+    ]
+  },
+  "aggregate": {
+    "steps": 3,
+    "verifyStates": {
+      "ACTION_VERIFIED": 0,
+      "VERIFICATION_FAILED": 0,
+      "ACTION_EXECUTED": 3,
+      "ACTION_FAILED": 0,
+      "NO_VERIFY_LINE": 0
+    },
+    "verifiedActionRatio": 0,
+    "executionSuccessRatio": 1,
+    "taskSuccessRatio": 1,
+    "sanitizeMs": {
+      "p50": 2528,
+      "p90": 19494,
+      "p95": 19494
+    },
+    "vlmMs_real": {
+      "p50": 9686,
+      "p90": 14675,
+      "p95": 14675
+    },
+    "actionMs": {
+      "p50": 5,
+      "p90": 7,
+      "p95": 7
+    },
+    "stepTotalMs": {
+      "p50": 9700,
+      "p90": 34200,
+      "p95": 34200
+    }
+  },
+  "scenarios": [
+    {
+      "id": "search-info",
+      "task": "Search for quantum",
+      "page": "/benchmarks/e2e/pages/search.html",
+      "finished": true,
+      "blocked": false,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 34200,
+          "sanitizeMs": 19494,
+          "vlmMs": 14675,
+          "actionMs": 7,
+          "verifyStates": [
+            {
+              "state": "ACTION_EXECUTED",
+              "action": "search",
+              "summary": ""
+            }
+          ],
+          "state": "ACTION_EXECUTED"
+        },
+        {
+          "step": 2,
+          "totalMs": 5100,
+          "sanitizeMs": 2528,
+          "vlmMs": 2584,
+          "actionMs": 5,
+          "verifyStates": [
+            {
+              "state": "ACTION_EXECUTED",
+              "action": "search",
+              "summary": ""
+            }
+          ],
+          "state": "ACTION_EXECUTED"
+        },
+        {
+          "step": 3,
+          "totalMs": 9700,
+          "sanitizeMs": 4,
+          "vlmMs": 9686,
+          "actionMs": 5,
+          "verifyStates": [
+            {
+              "state": "ACTION_EXECUTED",
+              "action": "search",
+              "summary": ""
+            }
+          ],
+          "state": "ACTION_EXECUTED"
+        }
+      ],
+      "totalMs": 49000,
+      "stepCount": 3,
+      "verified": 0,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "navigate-form",
+      "task": "Fill the newsletter form and submit",
+      "page": "/benchmarks/e2e/pages/newsletter.html",
+      "finished": true,
+      "blocked": false,
+      "steps": [],
+      "totalMs": 0,
+      "stepCount": 0,
+      "verified": 0,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "media-control",
+      "task": "Mute the video",
+      "page": "/benchmarks/pages/media.html",
+      "finished": true,
+      "blocked": false,
+      "steps": [],
+      "totalMs": 0,
+      "stepCount": 0,
+      "verified": 0,
+      "verifyFailed": 0,
+      "failed": 0
+    }
+  ]
+}

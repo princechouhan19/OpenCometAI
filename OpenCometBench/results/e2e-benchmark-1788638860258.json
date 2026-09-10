@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "type": "e2e",
+    "benchmark": "real-extension-loop",
+    "generatedAt": "2026-09-05T20:07:40.258Z",
+    "note": "REAL extension (unpacked) run end-to-end through capture → perception → sanitize → network gate → server validation → action → verification. VLM decisions are MOCK (scripted) — vlmMs measures the real network + validation round trip against the decision endpoint, not model inference. Run with a real provider for true VLM latency.",
+    "scenarios": [
+      {
+        "id": "find-and-open",
+        "task": "Open the Pricing page"
+      },
+      {
+        "id": "search-info",
+        "task": "Search for quantum"
+      },
+      {
+        "id": "navigate-form",
+        "task": "Fill the newsletter form and submit"
+      },
+      {
+        "id": "play-media",
+        "task": "Pause the video"
+      },
+      {
+        "id": "safe-form",
+        "task": "Complete the checkout form"
+      }
+    ],
+    "swErrors": []
+  },
+  "mockVlmCalls": 0,
+  "aggregate": {
+    "steps": 0,
+    "sanitizeMs": {
+      "p50": 0,
+      "p90": 0,
+      "p95": 0
+    },
+    "vlmMs_mock": {
+      "p50": 0,
+      "p90": 0,
+      "p95": 0
+    },
+    "actionMs": {
+      "p50": 0,
+      "p90": 0,
+      "p95": 0
+    },
+    "stepTotalMs": {
+      "p50": 0,
+      "p90": 0,
+      "p95": 0
+    },
+    "verifiedActionRatio": 0
+  },
+  "scenarios": [
+    {
+      "id": "find-and-open",
+      "task": "Open the Pricing page",
+      "page": "/benchmarks/e2e/pages/nav-links.html",
+      "finished": false,
+      "steps": [],
+      "totalMs": 0,
+      "okActions": 0,
+      "stepCount": 0
+    },
+    {
+      "id": "search-info",
+      "task": "Search for quantum",
+      "page": "/benchmarks/e2e/pages/search.html",
+      "finished": false,
+      "steps": [],
+      "totalMs": 0,
+      "okActions": 0,
+      "stepCount": 0
+    },
+    {
+      "id": "navigate-form",
+      "task": "Fill the newsletter form and submit",
+      "page": "/benchmarks/e2e/pages/newsletter.html",
+      "finished": false,
+      "steps": [],
+      "totalMs": 0,
+      "okActions": 0,
+      "stepCount": 0
+    },
+    {
+      "id": "play-media",
+      "task": "Pause the video",
+      "page": "/benchmarks/pages/media.html",
+      "finished": false,
+      "steps": [],
+      "totalMs": 0,
+      "okActions": 0,
+      "stepCount": 0
+    },
+    {
+      "id": "safe-form",
+      "task": "Complete the checkout form",
+      "page": "/benchmarks/e2e/pages/checkout.html",
+      "finished": false,
+      "steps": [],
+      "totalMs": 0,
+      "okActions": 0,
+      "stepCount": 0
+    }
+  ]
+}

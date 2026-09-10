@@ -1,0 +1,12 @@
+{
+  "name": "opencomet-ai-sih",
+  "private": true,
+  "type": "module",
+  "description": "OpenCometAI-SIH — on-device visual perception for light-weight browser agents (SIH PS 26171). Marker package: 'type: module' makes Node parse the project's ESM .js sources without the MODULE_TYPELESS_PACKAGE_JSON reparse warning (imports are ESM everywhere; the vendored wasm glue files are browser-only and never imported by Node). No dependencies — the extension is dependency-free by design.",
+  "version": "1.15.1",
+  "scripts": {
+    "bench": "node OpenCometBench/run-opencomet-bench.mjs",
+    "bench:unit": "node OpenCometBench/run-opencomet-bench.mjs --unit",
+    "bench:all": "node OpenCometBench/run-opencomet-bench.mjs --all"
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "type": "e2e-real",
+    "benchmark": "real-extension-real-vlm",
+    "vlm": "real:custom/inclusionai/ling-3.0-flash-vl:free",
+    "generatedAt": "2026-09-10T18:54:09.033Z",
+    "note": "REAL extension loop with a REAL model brain (BYO-provider direct path — the production configuration for bring-your-own-key users). vlmMs here measures TRUE model inference + transport for the sanitized payload. This report is NEVER merged with the mock-VLM e2e benchmark or with UNIT/BROWSER tiers. Runs on real user hardware only — never quoted from headless CI machines.",
+    "provider": {
+      "provider": "custom",
+      "model": "inclusionai/ling-3.0-flash-vl:free",
+      "endpoint": "https://openrouter.ai/api/v1",
+      "local": false
+    },
+    "scenarios": [
+      {
+        "id": "find-and-open",
+        "task": "Open the Pricing page"
+      }
+    ]
+  },
+  "aggregate": {
+    "steps": 1,
+    "verifyStates": {
+      "ACTION_VERIFIED": 1,
+      "VERIFICATION_FAILED": 0,
+      "ACTION_EXECUTED": 0,
+      "ACTION_FAILED": 0,
+      "NO_VERIFY_LINE": 0
+    },
+    "verifiedActionRatio": 1,
+    "executionSuccessRatio": 1,
+    "taskSuccessRatio": 1,
+    "sanitizeMs": {
+      "p50": 41487,
+      "p90": 41487,
+      "p95": 41487
+    },
+    "vlmMs_real": {
+      "p50": 4679,
+      "p90": 4679,
+      "p95": 4679
+    },
+    "actionMs": {
+      "p50": 777,
+      "p90": 777,
+      "p95": 777
+    },
+    "stepTotalMs": {
+      "p50": 47000,
+      "p90": 47000,
+      "p95": 47000
+    }
+  },
+  "scenarios": [
+    {
+      "id": "find-and-open",
+      "task": "Open the Pricing page",
+      "page": "/benchmarks/e2e/pages/nav-links.html",
+      "finished": true,
+      "blocked": false,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 47000,
+          "sanitizeMs": 41487,
+          "vlmMs": 4679,
+          "actionMs": 777,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "title · content changed"
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 47000,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    }
+  ]
+}

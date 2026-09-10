@@ -1,0 +1,330 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-06T18:15:37.828Z",
+    "tiers": [
+      "visual"
+    ],
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites."
+  },
+  "environment": {},
+  "visualContext": {
+    "meta": {
+      "type": "browser",
+      "n": 12,
+      "note": "DOM-derived = classifyVisualContext on the real DOM census only. ViT-fused = same + real Xenova/vit-base-patch16-224 top-5 labels on the real screenshot. Pixel-only-control pages (canvas-controls, svg-controls) are reported SEPARATELY — they carry no DOM evidence by design."
+    },
+    "pageTypeAccuracy": {
+      "domDerived": 1,
+      "vitFused": null,
+      "n": 12,
+      "rows": [
+        {
+          "page": "login.html",
+          "expect": "login",
+          "pixelsOnlyPage": false,
+          "domType": "login",
+          "domConfidence": 0.92,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "password_field",
+            "email_field",
+            "form",
+            "button",
+            "credential_form"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "signup.html",
+          "expect": "signup",
+          "pixelsOnlyPage": false,
+          "domType": "signup",
+          "domConfidence": 0.55,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "password_field",
+            "email_field",
+            "form",
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "checkout.html",
+          "expect": "checkout",
+          "pixelsOnlyPage": false,
+          "domType": "checkout",
+          "domConfidence": 0.87,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "phone_field",
+            "form",
+            "button",
+            "price_display",
+            "order_summary"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "payment.html",
+          "expect": "payment",
+          "pixelsOnlyPage": false,
+          "domType": "payment",
+          "domConfidence": 0.9,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "form",
+            "button",
+            "price_display",
+            "order_summary"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "banking.html",
+          "expect": "banking",
+          "pixelsOnlyPage": false,
+          "domType": "banking",
+          "domConfidence": 0.87,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button",
+            "price_display"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "dashboard.html",
+          "expect": "dashboard",
+          "pixelsOnlyPage": false,
+          "domType": "dashboard",
+          "domConfidence": 0.53,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "price_display"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": null
+        },
+        {
+          "page": "email.html",
+          "expect": "email",
+          "pixelsOnlyPage": false,
+          "domType": "email",
+          "domConfidence": 0.68,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "article.html",
+          "expect": "article",
+          "pixelsOnlyPage": false,
+          "domType": "article",
+          "domConfidence": 0.83,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "media.html",
+          "expect": "media",
+          "pixelsOnlyPage": false,
+          "domType": "media",
+          "domConfidence": 0.72,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button",
+            "video_player",
+            "media_controls"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "gov-form.html",
+          "expect": "government",
+          "pixelsOnlyPage": false,
+          "domType": "government",
+          "domConfidence": 0.89,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "file_upload",
+            "form",
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "canvas-app.html",
+          "expect": "form",
+          "pixelsOnlyPage": false,
+          "domType": "form",
+          "domConfidence": 0.42,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "mixed-ui.html",
+          "expect": "unknown",
+          "pixelsOnlyPage": false,
+          "domType": "unknown",
+          "domConfidence": 0.28,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [
+            "button",
+            "link_list"
+          ],
+          "okDom": true,
+          "okFused": null,
+          "completeness": 1
+        },
+        {
+          "page": "canvas-controls.html",
+          "expect": "form",
+          "pixelsOnlyPage": true,
+          "domType": "unknown",
+          "domConfidence": 0.25,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [],
+          "okDom": null,
+          "okFused": null,
+          "pixelControls": {
+            "gt": 3,
+            "foundInDomElements": 0,
+            "censusCanvasSignal": true
+          },
+          "completeness": null
+        },
+        {
+          "page": "svg-controls.html",
+          "expect": "form",
+          "pixelsOnlyPage": true,
+          "domType": "unknown",
+          "domConfidence": 0.25,
+          "vitLabels": null,
+          "vitMs": null,
+          "vitLoadMs": null,
+          "fusedType": null,
+          "fusedConfidence": null,
+          "elements": [],
+          "okDom": null,
+          "okFused": null,
+          "pixelControls": {
+            "gt": 3,
+            "foundInDomElements": 0,
+            "censusCanvasSignal": false
+          },
+          "completeness": null
+        }
+      ]
+    },
+    "elementSources": {
+      "domSemantic": {
+        "n": 12,
+        "completeness": 1
+      },
+      "pixelsOnly": {
+        "pages": [
+          "canvas-controls.html",
+          "svg-controls.html"
+        ],
+        "gtControls": 6,
+        "foundInDomElements": 0,
+        "censusCanvasSignalPages": 1,
+        "note": "Pixel-only controls are INVISIBLE to DOM-derived elements by design — foundInDomElements=0 is the honest expected value, the same limitation that motivates the OCR and visual-detector paths (measured separately in the ocr tier and the adversarial benchmark)."
+      }
+    },
+    "contextCompleteness": 1,
+    "falsePositives": [],
+    "meanConfidence": 0.705,
+    "vit": {
+      "loadMs": null,
+      "enabled": false
+    }
+  },
+  "redactionMatrix": null,
+  "ocrVisualPii": null,
+  "resources": null
+}

@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Newsletter — Example</title><style>* { box-sizing: border-box; margin: 0; } body { font: 14px/1.5 system-ui, sans-serif; color: #1a2233; background: #f6f7fb; } header { background: #16213e; color: #fff; padding: 14px 24px; font-size: 18px; font-weight: 600; } main { max-width: 900px; margin: 24px auto; padding: 0 16px; } .card { background: #fff; border: 1px solid #dfe4ef; border-radius: 10px; padding: 20px; margin-bottom: 18px; } label { display: block; margin: 10px 0 4px; font-weight: 600; font-size: 13px; } input { width: 100%; padding: 8px 10px; border: 1px solid #c3cbdd; border-radius: 6px; font: inherit; } button { background: #1d6ef5; border: 0; color: #fff; padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 12px; } .ok-msg { color: #0a7d43; font-weight: 600; display: none; margin-top: 10px; }</style></head>
+<body><header>Join the newsletter</header><main>
+<div class="card"><form onsubmit="return false">
+  <label>Name</label><input id="f-name">
+  <label>Email</label><input id="f-email" type="email">
+  <button id="f-submit" type="submit">Subscribe</button>
+  <div class="ok-msg" id="f-ok">Subscribed — check your inbox for the welcome email.</div>
+</form></div></main>
+<script>
+  document.getElementById('f-submit').addEventListener('click', () => {
+    const n = document.getElementById('f-name').value, e = document.getElementById('f-email').value;
+    if (n && e) document.getElementById('f-ok').style.display = 'block';
+  });
+</script></body></html>

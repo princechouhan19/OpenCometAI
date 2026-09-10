@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Open Comet — On-device ML runtime</title>
+</head>
+<body>
+  <!--
+    Offscreen ML runtime for Open Comet (SIH 26171).
+    Hosts Transformers.js + MediaPipe + canvas redaction because MV3 service
+    workers cannot dynamic-import() and have no DOM. This page is created and
+    controlled by the service worker via chrome.offscreen — nothing is shown.
+  -->
+  <script type="module" src="offscreen.js"></script>
+</body>
+</html>

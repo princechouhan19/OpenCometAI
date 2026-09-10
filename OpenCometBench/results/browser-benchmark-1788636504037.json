@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "type": "browser",
+    "benchmark": "real-browser-perception",
+    "generatedAt": "2026-09-05T19:28:20.823Z",
+    "tiers": [
+      "ocr"
+    ],
+    "note": "Every number below was measured by rendering the benchmark pages in Chromium, screenshotting them, and running the real extension perception pipeline (privacy-filter.js) in-page. No value is asserted or imported from the Node suites."
+  },
+  "environment": {},
+  "visualContext": null,
+  "redactionMatrix": null,
+  "ocrVisualPii": {
+    "meta": {
+      "type": "browser",
+      "n": 0,
+      "note": "PII exists ONLY as pixels (canvas paint, SVG data-URL image, aria-free absolutely-positioned PDF-like block). The DOM text contains none of it. ocrLoadMs = vendored engine cold start (first use, local files)."
+    },
+    "ocrEngineLoadMs": 558,
+    "ocrOn": {
+      "ocr": true,
+      "score": {
+        "perGt": [],
+        "coverage": 0,
+        "meanIou": 0,
+        "overRedactionPct": 1.28,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 0,
+        "ocrPii": 4
+      },
+      "manifest": [
+        {
+          "type": "email",
+          "bounds": {
+            "x": 303,
+            "y": 207,
+            "w": 240,
+            "h": 19
+          }
+        },
+        {
+          "type": "phone",
+          "bounds": {
+            "x": 253,
+            "y": 292,
+            "w": 154,
+            "h": 14
+          }
+        },
+        {
+          "type": "aadhaar",
+          "bounds": {
+            "x": 310,
+            "y": 414,
+            "w": 163,
+            "h": 14
+          }
+        },
+        {
+          "type": "api_key",
+          "bounds": {
+            "x": 298,
+            "y": 443,
+            "w": 304,
+            "h": 19
+          }
+        }
+      ],
+      "stats": {
+        "ocrFailed": false,
+        "ocrFailedReason": ""
+      }
+    },
+    "ocrOff": {
+      "ocr": false,
+      "score": {
+        "perGt": [],
+        "coverage": 0,
+        "meanIou": 0,
+        "overRedactionPct": 0,
+        "underRedactionCount": 0,
+        "pixelLeakCount": 0
+      },
+      "counts": {
+        "faces": 0,
+        "domSensitive": 0,
+        "objects": 0,
+        "textPii": 0,
+        "ocrPii": 0
+      },
+      "manifest": [],
+      "stats": {
+        "ocrFailed": false,
+        "ocrFailedReason": ""
+      }
+    },
+    "failClosedVerified": true
+  },
+  "resources": null
+}
