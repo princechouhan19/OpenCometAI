@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.png" alt="OpenComet-SIH logo" width="190"/>
+<img src="assets/icons/icon128.png" alt="OpenComet logo" width="128"/>
 
 # OpenComet-SIH
 
@@ -44,6 +44,10 @@ brain is **Gemma 4** (native tool calling, screenshot understanding, live
 streaming) with page-RAG and semantic history search; cloud brains
 (GPT-4o / Claude / Gemini / OpenRouter free models) and fully-offline Ollama
 are equally first-class.
+
+<p align="center">
+  <img src="docs/assets/architecture-diagram.jpg" alt="OpenComet-SIH Architecture Diagram" width="900"/>
+</p>
 
 ```
    ┌──────────────── BROWSER (client) ────────────────┐         ┌──── SERVER ────┐
@@ -113,6 +117,10 @@ the VLM knows *what it cannot see and why*. DOM text is tokenised
 (`[REDACTED:email]`) before transmission. **Fail-closed:** pipeline error ⇒ blank
 1×1 PNG + visible error — sending raw pixels is never the failure mode. Deep dive:
 [`docs/architecture/PRIVACY_VISION.md`](docs/architecture/PRIVACY_VISION.md).
+
+<p align="center">
+  <img src="docs/assets/privacy-pipeline-diagram.jpg" alt="OpenComet-SIH Privacy Pipeline Diagram" width="900"/>
+</p>
 
 ## Measured results (OpenCometBench)
 
