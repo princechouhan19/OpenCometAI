@@ -967,7 +967,7 @@ about):
 2. **What's New** — a 7-entry changelog (v1.15.5 → v1.14) summarizing the
    shipped rounds in user-honest language (avatar guard, DOM face sweep,
    Indian ID expansion, honest verification, tab-group sandbox, evidence
-   freeze), newest first, with a pointer to `docs/SIH_READINESS.md` for the
+   freeze), newest first, with a pointer to `docs/sih/SIH_READINESS.md` for the
    full history. Numbers quoted on the page are the measured ones from this
    document (P50 1216 ms, P/R 1.00/1.00, 216/216 fuzz, 922-case bench).
 3. **Project details** — problem statement, organisation, build shape (MV3
@@ -1228,3 +1228,44 @@ when it is not a real secret — near-lossless for the VLM, strictly safer
 than the old abort); the residual fail-closed branch has no known trigger
 (sequential masking self-heals pathological adjacencies — covered by unit
 test A5) but remains as the guarantee that only provably clean text ships.
+
+---
+
+## Shipped in v1.16.0 (local-perception cost round — warm-up + OCR memo + honest negative probe)
+
+The v1.15.9 real-VLM evidence exposed the true latency structure: the measured
+`sanitizeMs 41487` is dominated by a **one-time cold-cache model load**, not by
+steady-state perception (the authoritative browser report measured
+`vitLoadMs 37873` on the same silicon). Three latency conditions exist and are
+explicitly NEVER merged — v1.16.0 adds a measured change to each row where
+applicable:
+
+| # | Condition | Authoritative number (unchanged) | v1.16.0 change |
+|---|---|---|---|
+| ① | Cold first step (fresh profile) | ViT load 37873 ms; real-VLM first-step sanitizeMs 41487 ms (n=1) | **`VISION_WARMUP`** — new offscreen message loads YOLO + ViT with no capture pending; the SW fires it fire-and-forget at `PRIVACY_START` (non-fatal: any failure falls back to the historical lazy load). `run-e2e-real.mjs --warmup` adds the equivalent unmeasured cycle to benchmark runs and stamps `meta.warmup` |
+| ② | Warm unchanged screen (memo hit) | sanitize P50 1216 ms (OCR 1120 ms re-scanned EVERY run — no OCR memo existed) | **OCR memo** — exact-capture + serialized-ROI keyed, 2-entry LRU, region boxes only, failed/skipped scans never cached, `cfg.ocrMemo=false` fail-safe, `ocrMemoHit` in stats. The 4412 ms identical-frame re-hit (OCR-dominated) is the same gap on the changed-page path and is addressed by the same memo |
+| ③ | Changed frame (memo MISS) | 12885 ms wall · objectDetect 7841 ms · OCR 3402 ms | Unchanged by design (privacy semantics: any pixel change re-detects). The hypothesized input-downscale YOLO win was probed and REFUTED — see below |
+
+**Honest negative result (measured, archived):** `OpenCometBench/probe-yolo-downscale.mjs`
+A/B-tests the new `cfg.yoloMaxEdge` detector-input knob on real browser pixels
+(three fixture pages @ DPR 2). Result: **correctness-neutral** — all-class box
+parity meanIoU = 1.000, counts identical on every page — but **latency-neutral**
+(~0.99×): yolos-tiny resizes internally to a fixed resolution, so input size does
+not drive compute. The knob ships disabled (`yoloMaxEdge: 0`); the probe report
+(`results/probe-yolo-downscale-*.json`) is kept so the refuted hypothesis is not
+re-chased. Changed-frame reduction beyond the memos (region-of-interest
+re-detection guided by a tile-diff) remains the documented future-work lever.
+
+**`run-e2e-real.mjs --warmup`** — one unmeasured `VISION_WARMUP` +
+2× `PRIVACY_SANITIZE` cycle (the second proves `yoloMemoHit` + `ocrMemoHit` on
+identical bytes) runs before any measured scenario; **zero VLM calls, zero API
+cost**. Reports written with `--warmup` carry `meta.warmup` + `warmupNote`
+describing the steady-state condition — cold-start and steady-state rows stay
+separate, per the never-merge rule.
+
+**Verification:** `scripts/test_ocr_memo.mjs` — 26/26 (key composition incl.
+ROI-sensitivity + separator, lookup-before-scan ordering, store-only-on-success,
+disable switch, actual-cost memo-hit logging, `ocrMemoHit` telemetry, maxEdge
+back-mapping + fail-safe wiring, VISION_WARMUP + fire-and-forget SW wiring,
+zero-VLM warm-up in the runner, `meta.warmup` stamping). Probe verdict gate PASS.
+All standing suites re-run this round; no authoritative number above changed.

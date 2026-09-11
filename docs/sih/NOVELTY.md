@@ -5,7 +5,7 @@ submission for Smart India Hackathon Problem Statement **26171 — “On-device 
 Perception for Light-weight Browser Agents”**. Every claim is anchored to a shipped
 feature and a measured, reproducible number in `OpenCometBench/`; nothing on this
 page is asserted without evidence, and the known-limitations policy in
-[OpenCometBench/OPENCOMET_BENCH.md](../OpenCometBench/OPENCOMET_BENCH.md) applies to
+[OpenCometBench/OPENCOMET_BENCH.md](../../OpenCometBench/OPENCOMET_BENCH.md) applies to
 every figure quoted here.
 
 ---
@@ -145,6 +145,6 @@ tiers above: visual-context accuracy (25%) → `visual-context.bench.js` + the b
 harness; PII recall/precision (20%) → `privacy.bench.js` + the fuzz corpus; redaction
 precision (20%) → `redaction.bench.js` + the 72-run matrix; the remaining weight is
 covered by the security invariant and the E2E/ADVERSARIAL verification loop. See
-[README.md](../README.md) for the full table and
-[OpenCometBench/OPENCOMET_BENCH.md](../OpenCometBench/OPENCOMET_BENCH.md) for the
+[README.md](../../README.md) for the full table and
+[OpenCometBench/OPENCOMET_BENCH.md](../../OpenCometBench/OPENCOMET_BENCH.md) for the
 benchmark specification.

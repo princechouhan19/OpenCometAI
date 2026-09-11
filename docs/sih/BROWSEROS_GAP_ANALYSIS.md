@@ -67,7 +67,7 @@ screenshot-walkthrough, summarize-page).
 ## 6. Files added / changed (v1.4)
 
 - **Added**: `skills/` (12 × SKILL.md + index.json), `src/lib/skill-library.js`,
-  `docs/BROWSEROS_GAP_ANALYSIS.md`
+  `docs/sih/BROWSEROS_GAP_ANALYSIS.md`
 - **Changed**: `prompts.js` (system prompt v2, skill library blocks),
   `agent-messages.js` (skillLibrary injection), `actions.js` (+8 native tools),
   `sw.js` (plan.skills activation, monitor alarms, boot warm-up, observations),
