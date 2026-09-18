@@ -839,6 +839,10 @@ function getInteractiveContext(action, agentState) {
     ariaLabel: matched.ariaLabel || '',
     bounds: matched.bounds || null,
     editable: Boolean(matched.editable),
+    // v1.19.0: canonical duplicate name + receipt tags — lets domClick resolve
+    // "Buy Now #2" to the EXACT repeated control the inventory showed.
+    ref: matched.ref || '',
+    dup: matched.dup || '',
   };
 }
 
@@ -1441,47 +1445,129 @@ function domClick(sel, context = null) {
     return visible(hit) ? hit : null;
   };
 
+  // ── v1.19.0 ORDINAL / DISAMBIGUATION helpers (mirror of lib/element-disambiguate.js) ──
+  // "Buy Now #2" — the ref name the inventory emits for repeated tags — must
+  // resolve to the EXACT 2nd equal-labeled control, never a silent first tie.
+  const ORDINAL_RE = /^(.*\S)\s*#\s*(\d{1,3})(?:\s*(?:of|\/)\s*(\d{1,3}))?$/;
+  const parseOrdinal = s => {
+    const t = String(s || '').replace(/^\s*text:/i, '');
+    const m = ORDINAL_RE.exec(t);
+    if (!m) return null;
+    const base = m[1].trim();
+    const ordinal = parseInt(m[2], 10);
+    return base && ordinal >= 1 ? { base, ordinal } : null;
+  };
+  // The duplicate group: visible clickable-pool elements whose FULL normalized
+  // label equals the base — the same (tag, label) repetition the inventory tags.
+  const dupGroup = base => {
+    const want = norm(base);
+    if (!want) return [];
+    return [
+      ...document.querySelectorAll('a, button, [role=button], input[type=button], input[type=submit], [role=option], [role=menuitem], [role=tab], summary, label'),
+    ].filter(el => visible(el) && label(el) === want);
+  };
+  // Display-cased label (norm lowercases — the receipt keeps the on-screen case).
+  const dispLabel = el => String(
+    el?.innerText || el?.textContent || el?.getAttribute?.('aria-label') || el?.getAttribute?.('title') || el?.value || ''
+  ).replace(/\s+/g, ' ').trim();
+  // Nearest form/section context — same precedence as the inventory scan:
+  // form name → fieldset legend → ancestor aria-label → ancestor heading.
+  const nearformOfTarget = target => {
+    try {
+      const form = target.closest?.('form');
+      const fl = norm(form?.getAttribute('aria-label') || form?.getAttribute('name') || form?.id || '');
+      if (fl) return fl.substring(0, 40);
+      const legend = target.closest?.('fieldset')?.querySelector('legend');
+      const lt = norm(legend?.textContent || '');
+      if (lt) return lt.substring(0, 40);
+      let anc = target.parentElement, hops = 0;
+      while (anc && anc !== document.body && hops < 5) {
+        const direct = norm(anc.getAttribute?.('aria-label') || '');
+        if (direct) return direct.substring(0, 40);
+        const hd = anc.querySelector?.('h1,h2,h3,h4,h5,h6');
+        const hdText = norm(hd?.textContent || '');
+        if (hdText) return hdText.substring(0, 40);
+        anc = anc.parentElement; hops += 1;
+      }
+    } catch { /* additive context only */ }
+    return '';
+  };
+
   let element = null;
   let resolution = '';
   let rect = null;
+
+  // ── v1.19.0 ORDINAL PRE-RESOLUTION ──────────────────────────────────────────
+  // Out-of-range ordinals fail HONESTLY with the group size (the model can
+  // recover by picking #1…#N); an empty group falls through to the standard
+  // chain on the base text — a selector that merely LOOKS ordinal stays usable.
+  const ordMatch = parseOrdinal(sel);
+  if (ordMatch) {
+    const group = dupGroup(ordMatch.base);
+    if (!group.length) {
+      sel = ordMatch.base;   // no such duplicate group — resolve the base normally
+    } else if (ordMatch.ordinal > group.length) {
+      const inventory = inventoryLine();
+      return {
+        ok: false,
+        reason: `Ordinal out of range: "${ordMatch.base}" matched ${group.length} control${group.length === 1 ? '' : 's'} — use #1…#${group.length}`,
+        tokens: fieldTokens(ordMatch.base),
+        ...(inventory ? { inventory } : {}),
+      };
+    } else {
+      element = group[ordMatch.ordinal - 1];
+      resolution = 'ordinal';
+    }
+  }
+
   const tokens = fieldTokens(String(sel || '').startsWith('text:') ? String(sel).slice(5) : sel);
   const uid = String(sel).match(/^uid:(.+)$/);
-  if (uid) {
-    element = document.querySelector('[data-opencomet-agent-uid="' + escAttr(uid[1]) + '"]');
-    if (element) resolution = 'uid';
-  } else if (String(sel).startsWith('text:')) {
-    element = byText(String(sel).slice(5));
-    if (element) resolution = 'text';
-  } else {
-    try {
-      const q = document.querySelector(sel);
-      if (q && visible(q)) { element = q; resolution = 'css'; }
-    } catch {}
-    if (!element) {
-      // v1.11: VLMs quote the on-screen label — "the blue 'Send' button" —
-      // try that quoted span as exact text before anything else.
-      const quoted = (String(sel).match(/['"“]([^'"“]{1,60})['"”]/) || [])[1];
-      if (quoted) {
-        element = byText(quoted.trim());
-        if (element) resolution = 'quoted';
+  if (!element) {
+    if (uid) {
+      element = document.querySelector('[data-opencomet-agent-uid="' + escAttr(uid[1]) + '"]');
+      if (element) resolution = 'uid';
+    } else if (String(sel).startsWith('text:')) {
+      element = byText(String(sel).slice(5));
+      if (element) resolution = 'text';
+    } else {
+      try {
+        const q = document.querySelector(sel);
+        if (q && visible(q)) { element = q; resolution = 'css'; }
+      } catch {}
+      if (!element) {
+        // v1.11: VLMs quote the on-screen label — "the blue 'Send' button" —
+        // try that quoted span as exact text before anything else.
+        const quoted = (String(sel).match(/['"“]([^'"“]{1,60})['”]/) || [])[1];
+        if (quoted) {
+          element = byText(quoted.trim());
+          if (element) resolution = 'quoted';
+        }
       }
-    }
-    if (!element && FIELD_QUERY_RE.test(String(sel))) {
-      // Field-aware resolution: fuzzy-match editables by hints; when the
-      // field doesn't exist, report needExpand so the SW can click the
-      // collapsed group chip ("Recipients") and retry.
-      const hit = findField(tokens);
-      if (hit) { element = hit.el; resolution = 'field'; }
-    }
-    if (!element) {
-      const t = byText(sel);
-      if (t) { element = t; resolution = 'text-scan'; }
+      if (!element && FIELD_QUERY_RE.test(String(sel))) {
+        // Field-aware resolution: fuzzy-match editables by hints; when the
+        // field doesn't exist, report needExpand so the SW can click the
+        // collapsed group chip ("Recipients") and retry.
+        const hit = findField(tokens);
+        if (hit) { element = hit.el; resolution = 'field'; }
+      }
+      if (!element) {
+        const t = byText(sel);
+        if (t) { element = t; resolution = 'text-scan'; }
+      }
     }
   }
 
   if ((!element || !visible(element)) && context) {
     if (context.uid) {
       element = document.querySelector('[data-opencomet-agent-uid="' + escAttr(context.uid) + '"]');
+    }
+    if ((!element || !visible(element)) && context.ref) {
+      // v1.19.0: the inventory's canonical duplicate name — exact-control fallback
+      const ordCtx = parseOrdinal(context.ref);
+      if (ordCtx) {
+        const g = dupGroup(ordCtx.base);
+        if (g.length && ordCtx.ordinal <= g.length) { element = g[ordCtx.ordinal - 1]; if (element) resolution = resolution || 'ordinal-ref'; }
+      }
     }
     if ((!element || !visible(element)) && context.x != null && context.y != null) element = byCoordinates(context.x, context.y);
     if ((!element || !visible(element)) && context.href) element = byHref(context.href);
@@ -1513,10 +1599,36 @@ function domClick(sel, context = null) {
 
   rect = press(target);
 
+  // ── v1.19.0 DISAMBIGUATION RECEIPT — proof of WHICH control fired ───────
+  // For repeated tags the result carries the same receipt the inventory
+  // showed: dup "2 of 4" · pos "top-left" · nearform <context> · "Buy Now #2".
+  let disambiguation = null;
+  try {
+    const disp = dispLabel(target);
+    const dupEls = disp ? dupGroup(disp) : [];
+    const total = dupEls.length;
+    const idx = dupEls.indexOf(target) + 1;
+    if (total >= 2 && idx >= 1) {
+      const r = target.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const hz = cx < vw / 3 ? 'left' : cx > (2 * vw) / 3 ? 'right' : 'center';
+      const vt = cy < vh / 3 ? 'top' : cy > (2 * vh) / 3 ? 'bottom' : 'middle';
+      const nf = nearformOfTarget(target);
+      disambiguation = {
+        dup: `${idx} of ${total}`,
+        pos: `${vt}-${hz}`,
+        ...(nf ? { nearform: nf } : {}),
+        ref: `${disp.substring(0, 60)} #${idx}`,
+      };
+    }
+  } catch { /* receipt is additive — never fail the click over it */ }
+
   return {
     ok: true,
     matchedText: label(target).substring(0, 120),
     resolution,
+    ...(disambiguation ? { disambiguation } : {}),
     href: target.href || target.closest?.('a')?.href || '',
     rect,
   };

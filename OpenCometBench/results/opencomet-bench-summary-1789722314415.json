@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "type": "opencomet-bench-summary",
+    "generatedAt": "2026-09-18T09:05:14.415Z",
+    "tiers": [
+      "unit",
+      "e2e"
+    ],
+    "note": "Orchestrator republish — every verdict and report path comes verbatim from the per-tier harness output; nothing is recomputed or asserted here."
+  },
+  "results": [
+    {
+      "tier": "unit",
+      "status": "PASS",
+      "report": "/home/z/my-project/workspace/OpenCometAI/OpenCometAI-SIH/OpenCometBench/results/unit-1789722168313.json",
+      "suites": 6,
+      "durationMs": 114
+    },
+    {
+      "tier": "e2e",
+      "status": "PASS",
+      "report": "OpenCometBench/results/e2e-benchmark-1789722314277.json",
+      "tasks": "10 tasks · 21 steps",
+      "taskSuccessRatio": 1,
+      "verifiedActionRatio": 1,
+      "durationMs": 146102
+    }
+  ],
+  "allRanTiersPassed": true
+}

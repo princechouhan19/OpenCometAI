@@ -96,3 +96,63 @@ export function authorizeAction(action, { taskText = '', extraTexts = [], hits =
   if (hit >= GUARDIAN_HIT_LIMIT) return { pass: false, exit: true, ...base };
   return { pass: false, skip: true, ...base };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v1.19.0 DAEMON COUNTER — visible, honest accounting of every gate decision.
+// The counter is PURE state: loops own the instance (per-run) and persistence.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Fresh per-run counter. Every field stays numeric — JSON-safe for status. */
+export function createGuardianCounter() {
+  return { checks: 0, risky: 0, authorized: 0, blocked: 0, exits: 0, faults: 0 };
+}
+
+/**
+ * Tally ONE daemon verdict into the counter. Harmless passes count as checks;
+ * risky-but-authorized as checks+risky+authorized; skips/exits as blocked
+ * (exit also exits); daemon faults as faults.
+ */
+export function tallyGuardian(counter, res) {
+  const c = (counter && typeof counter === 'object') ? counter : createGuardianCounter();
+  c.checks = (c.checks || 0) + 1;
+  if (!res || typeof res !== 'object') return c;
+  if (res.fatal) {
+    c.faults = (c.faults || 0) + 1;
+  } else if (res.pass) {
+    if (res.verdict && res.verdict.risk) {
+      c.risky = (c.risky || 0) + 1;
+      c.authorized = (c.authorized || 0) + 1;
+    }
+  } else if (res.skip || res.exit) {
+    c.blocked = (c.blocked || 0) + 1;
+    if (res.exit) c.exits = (c.exits || 0) + 1;
+  }
+  return c;
+}
+
+/** One-line human summary for status payloads / history. */
+export function guardianCounterSummary(counter) {
+  const c = (counter && typeof counter === 'object') ? counter : {};
+  return `checks ${c.checks || 0} · risky ${c.risky || 0} (authorized ${c.authorized || 0}) · blocked ${c.blocked || 0} · exits ${c.exits || 0} · faults ${c.faults || 0}`;
+}
+
+/**
+ * Merge a per-run counter into the lifetime accumulator (storage.local
+ * 'opencometGuardianLifetime'). Pure — the caller owns chrome.storage.
+ * `runs` counts FLUSHES (callers flush exactly once per run and reset the
+ * per-run counter afterwards, so a run can never be counted twice).
+ */
+export function mergeGuardianLifetime(prev, run) {
+  const p = (prev && typeof prev === 'object') ? prev : {};
+  const r = (run && typeof run === 'object') ? run : {};
+  return {
+    runs: (p.runs || 0) + 1,
+    checks: (p.checks || 0) + (r.checks || 0),
+    risky: (p.risky || 0) + (r.risky || 0),
+    authorized: (p.authorized || 0) + (r.authorized || 0),
+    blocked: (p.blocked || 0) + (r.blocked || 0),
+    exits: (p.exits || 0) + (r.exits || 0),
+    faults: (p.faults || 0) + (r.faults || 0),
+    updatedAt: Date.now(),
+  };
+}

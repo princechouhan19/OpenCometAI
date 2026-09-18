@@ -20,7 +20,8 @@ import { buildSearchUrl, openResearchTab, scrapeSearchResults, scrapeReadablePag
 import { downloadExportFile } from '../lib/export.js';
 // v1.18.0 TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
 // user's own text to authorize them; fault-shutdown + 3-hit honest exit.
-import { authorizeAction, GUARDIAN_HIT_LIMIT } from '../lib/guardian-daemon.js';
+// v1.19.0: + DAEMON COUNTER (visible per-run + lifetime gate accounting).
+import { authorizeAction, GUARDIAN_HIT_LIMIT, createGuardianCounter, tallyGuardian, guardianCounterSummary, mergeGuardianLifetime } from '../lib/guardian-daemon.js';
 import { buildHistoryCompactionPrompt, buildNavigatorRequest, buildPlannerRequest, shouldRetryCompactAction } from '../lib/agent-messages.js';
 import {
   AGENT_ROLE,
@@ -744,6 +745,9 @@ async function executionPhase() {
   // user may authorize explicitly while the task runs.)
   agentState.guardianTaskSnapshot = String(agentState.task || '');
   agentState.guardianHits = 0;
+  // v1.19.0 DAEMON COUNTER: per-run accounting of every gate decision —
+  // flushed to the lifetime accumulator exactly once when the run ends.
+  agentState.guardianCounter = createGuardianCounter();
 
   while (agentState.running && !agentState.stopRequested) {
     if (agentState.paused) return;
@@ -814,6 +818,7 @@ async function executionPhase() {
           hits: agentState.guardianHits || 0,
         });
         agentState.guardianHits = typeof gAuth.hit === 'number' ? gAuth.hit : (agentState.guardianHits || 0);
+        tallyGuardian(agentState.guardianCounter, gAuth);   // v1.19.0 daemon counter
         if (gAuth.fatal || gAuth.exit) {
           await finishGuardianExit(
             gAuth.fatal ? gAuth.userMessage : `${gAuth.userMessage} (3 unauthorized attempts — task ended honestly; nothing risky was executed)`,
@@ -955,16 +960,38 @@ async function executionPhase() {
 // -----------------------------------------------------------------------------
 // FINISH HELPERS
 // -----------------------------------------------------------------------------
+// ── v1.19.0 DAEMON COUNTER helpers ──────────────────────────────────────────
+// Per-run accounting of every authorizeAction verdict; flushed ONCE to the
+// lifetime accumulator (storage.local 'opencometGuardianLifetime') when the
+// run terminates. Flush resets the per-run counter — a run can never be
+// double-counted, and a second finalize on the same state is a no-op.
+function guardianRunData() {
+  const c = agentState.guardianCounter;
+  if (!c || !(c.checks || c.risky || c.blocked || c.exits || c.faults)) return null;
+  return { summary: guardianCounterSummary(c), ...c };
+}
+async function flushGuardianLifetime() {
+  try {
+    const c = agentState.guardianCounter;
+    if (!c || !(c.checks || c.risky || c.blocked || c.exits || c.faults)) return;
+    const { opencometGuardianLifetime: prev = {} } = await chrome.storage.local.get('opencometGuardianLifetime');
+    await chrome.storage.local.set({ opencometGuardianLifetime: mergeGuardianLifetime(prev, c) });
+    agentState.guardianCounter = createGuardianCounter();   // consumed — no double count
+  } catch { /* best-effort accounting — never blocks finalization */ }
+}
+
 async function finishSuccess(result) {
   const answer = result.answer || 'Task completed.';
   pushStep(STEP_TYPE.DONE, `? ${answer}`);
   agentState.running = false;
   agentState.finalStatus = 'done';
-  broadcastMessage({ type: MSG.AGENT_DONE, answer, data: result.data || {}, steps: agentState.steps, sessionId: agentState.sessionId });
+  const guardianData = guardianRunData();   // v1.19.0: surface gate accounting
+  broadcastMessage({ type: MSG.AGENT_DONE, answer, data: { ...(result.data || {}), ...(guardianData ? { guardian: guardianData } : {}) }, steps: agentState.steps, sessionId: agentState.sessionId });
   notify('Open Comet — task complete', answer);
   setBadge('', '#7c6af7');
   stopRunKeepalive();
   await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'done', result: answer.substring(0, 300), steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
+  await flushGuardianLifetime();
   broadcastStatus(STATUS.IDLE);
 }
 
@@ -975,6 +1002,7 @@ async function finishStopped() {
   broadcastMessage({ type: MSG.AGENT_STOPPED, steps: agentState.steps, sessionId: agentState.sessionId });
   setBadge('', '#7c6af7');
   await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'stopped', result: 'Stopped by user.', steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
+  await flushGuardianLifetime();
 }
 
 async function finishMaxSteps() {
@@ -985,6 +1013,7 @@ async function finishMaxSteps() {
   broadcastMessage({ type: MSG.AGENT_DONE, answer, data: {}, steps: agentState.steps, sessionId: agentState.sessionId });
   setBadge('', '#7c6af7');
   await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'incomplete', result: answer, steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
+  await flushGuardianLifetime();
 }
 
 // v1.18.0 3-HIT HONEST EXIT / DAEMON FAULT SHUTDOWN: the task ends with an
@@ -996,10 +1025,12 @@ async function finishGuardianExit(userMessage) {
   agentState.finalStatus = 'blocked';
   agentState.running = false;
   stopRunKeepalive();
-  broadcastMessage({ type: MSG.AGENT_DONE, answer, data: { guardianExit: true }, steps: agentState.steps, sessionId: agentState.sessionId });
+  const guardianData = guardianRunData();   // v1.19.0: exits are counter events too
+  broadcastMessage({ type: MSG.AGENT_DONE, answer, data: { guardianExit: true, ...(guardianData ? { guardian: guardianData } : {}) }, steps: agentState.steps, sessionId: agentState.sessionId });
   notify('Open Comet — stopped by the Task Authorization Guardian', answer);
   setBadge('', '#7c6af7');
   await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'blocked', result: answer.substring(0, 300), steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
+  await flushGuardianLifetime();
   broadcastStatus(STATUS.IDLE);
 }
 
@@ -1013,6 +1044,7 @@ function fatalError(err) {
   broadcastStatus(STATUS.IDLE);
   notify('Open Comet error', err.message);
   setBadge('ERR', '#f04a6a');
+  flushGuardianLifetime();   // v1.19.0: fire-and-forget — errors flush too
   setTimeout(() => setBadge('', '#7c6af7'), 5000);
   appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'error', result: err.message, steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
 }
@@ -1256,6 +1288,27 @@ async function getPageInfo(tabId) {
           seen.add(key);
           const uid = el.getAttribute(UID) || `nx-${items.length + 1}`;
           el.setAttribute(UID, uid);
+          // v1.19.0 DISAMBIGUATION: nearest form/section context label — the
+          // "nearform" half of the receipt ("Buy Now #2" inside which card?).
+          let nearHint = '';
+          try {
+            const form = el.closest('form');
+            nearHint = norm(form?.getAttribute('aria-label') || form?.getAttribute('name') || form?.id || '');
+            if (!nearHint) {
+              const legend = el.closest('fieldset')?.querySelector('legend');
+              nearHint = norm(legend?.textContent || '');
+            }
+            if (!nearHint) {
+              const card = el.closest('section,article,li,td,[role="listitem"],[role="article"]');
+              if (card && card !== el) {
+                nearHint = norm(card.getAttribute('aria-label') || '');
+                if (!nearHint) {
+                  const hd = card.querySelector('h1,h2,h3,h4,h5,h6');
+                  nearHint = norm(hd?.textContent || '');
+                }
+              }
+            }
+          } catch { nearHint = ''; }
           const rect = el.getBoundingClientRect();
           items.push({
             uid,
@@ -1276,10 +1329,43 @@ async function getPageInfo(tabId) {
             disabled: Boolean(el.disabled),
             bounds: { x: Math.round(rect.left), y: Math.round(rect.top), w: Math.round(rect.width), h: Math.round(rect.height) },
             selector: `uid:${uid}`,
+            ...(nearHint ? { nearHint } : {}),
             tabId: currentTabId,
           });
           if (items.length >= 80) break;
         }
+
+        // ── v1.19.0 DISAMBIGUATION PASS (repeated tags → exact controls) ────
+        // Items sharing (tag, visible label) with ≥1 sibling each carry:
+        //   dup "2 of 4" · pos "top-left" · nearform <context> · ref "Buy Now #2"
+        // domClick parses ref as an ordinal and clicks the EXACT control;
+        // singles stay untouched (no tag noise). Mirrors lib/element-disambiguate.js.
+        try {
+          const vpW = window.innerWidth, vpH = window.innerHeight;
+          const groups = new Map();
+          for (const it of items) {
+            const lbl = String(it.text || it.ariaLabel || it.placeholder || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            it.__dupKey = lbl ? `${it.tag}|${lbl}` : '';
+            if (!it.__dupKey) continue;
+            if (!groups.has(it.__dupKey)) groups.set(it.__dupKey, []);
+            groups.get(it.__dupKey).push(it);
+          }
+          for (const members of groups.values()) {
+            if (members.length < 2) continue;
+            members.forEach((it, i) => {
+              const b = it.bounds || {};
+              const cx = (b.x || 0) + (b.w || 0) / 2, cy = (b.y || 0) + (b.h || 0) / 2;
+              const hz = cx < vpW / 3 ? 'left' : cx > (2 * vpW) / 3 ? 'right' : 'center';
+              const vt = cy < vpH / 3 ? 'top' : cy > (2 * vpH) / 3 ? 'bottom' : 'middle';
+              const disp = String(it.text || it.ariaLabel || '').replace(/\s+/g, ' ').trim();
+              it.dup = `${i + 1} of ${members.length}`;
+              it.pos = `${vt}-${hz}`;
+              it.nearform = String(it.nearHint || '').replace(/\s+/g, ' ').trim().substring(0, 40);
+              it.ref = `${disp.substring(0, 60)} #${i + 1}`;
+            });
+          }
+          for (const it of items) { delete it.__dupKey; delete it.nearHint; }
+        } catch { /* disambiguation is additive — never break the scan */ }
         const scroller = document.scrollingElement || document.documentElement;
         const top = window.scrollY, height = document.body?.scrollHeight || 0, ch = window.innerHeight;
         const mainCandidate = document.querySelector('main, article, [role="main"], #main, .main') || document.body;
@@ -1928,6 +2014,7 @@ async function handleStop(respond) {
   // its AbortSignal and nothing ever called .abort(). Pull it here so the
   // Stop button (and Reset) actually interrupts a privacy run.
   try { agentState._privacyAbort?.abort?.(); } catch { /* already aborted */ }
+  flushGuardianLifetime();   // v1.19.0: user stop flushes the daemon counter (all-zero = no-op)
   // v1.16.1 ZOMBIE-UI FIX: when the standard loop had ALREADY returned at the
   // approval gate (agentState.paused), nothing was alive to broadcast
   // AGENT_STOPPED — the sidepanel stayed setRunning(true) forever. A paused

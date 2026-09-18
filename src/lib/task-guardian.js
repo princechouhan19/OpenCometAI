@@ -55,6 +55,11 @@ const BAN_RE =
 // Devanagari-only before-window can still never fire on English prose.
 const HINDI_NEGATION_RE = /मत|नहीं|कभी\s*नहीं|बिना/;
 const HINDI_NEGATION_AFTER_RE = HINDI_NEGATION_RE;
+// v1.19.0 ENGLISH post-verbal negation ("buying is not allowed") — an
+// explicit-phrase allowlist on purpose: bare "not" would false-negate
+// authorizations like "buy one, not the other". Only full negation phrases
+// count, so "buy what is needed" stays authorized.
+const POST_NEGATION_RE = /\b(?:is\s*not|are\s*not|was\s*not|not\s*allowed|not\s*needed|not\s*required|not\s*necessary|forbidden|prohibited)\b/i;
 
 // ── Risk taxonomy ────────────────────────────────────────────────────────────
 // triggers    — the ELEMENT side: patterns on the click label / URL that make
@@ -262,11 +267,16 @@ function findAuthorizationInText(classDef, text) {
     let m;
     while ((m = re.exec(t)) !== null) {
       const before = t.slice(Math.max(0, m.index - 28), m.index);
+      // v1.19.0: the BAN cue can share the verb's own phrase — "no buying":
+      // the "no" IS in the before-window, but "buying" is the MATCH itself,
+      // so a before-only BAN_RE test was blind and the task read as
+      // AUTHORIZED. Scan the phrase INCLUDING the matched verb.
+      const phrase = t.slice(Math.max(0, m.index - 28), m.index + m[0].length);
       // v1.19.0: Hindi negators FOLLOW the verb ("खरीदो मत", "खरीदना ज़रूरी
       // नहीं") — a Devanagari-only AFTER window (16 chars) catches them and
       // can never match English prose, so no English regression is possible.
       const after = t.slice(m.index + m[0].length, m.index + m[0].length + 16);
-      if (NEGATION_RE.test(before) || BAN_RE.test(before) || HINDI_NEGATION_RE.test(before) || HINDI_NEGATION_AFTER_RE.test(after)) {
+      if (NEGATION_RE.test(before) || BAN_RE.test(phrase) || POST_NEGATION_RE.test(after) || HINDI_NEGATION_RE.test(before) || HINDI_NEGATION_AFTER_RE.test(after)) {
         sawNegated = true; // this occurrence is negated — keep scanning others
         continue;
       }
@@ -360,4 +370,4 @@ export function guardianStrategyHint(verdict) {
 }
 
 /** Exposed for tests/docs. */
-export const _internals = { RISK_CLASSES, NEGATION_RE, BAN_RE, HINDI_NEGATION_RE, HINDI_NEGATION_AFTER_RE, findAuthorizationInText };
+export const _internals = { RISK_CLASSES, NEGATION_RE, BAN_RE, POST_NEGATION_RE, HINDI_NEGATION_RE, HINDI_NEGATION_AFTER_RE, findAuthorizationInText };
