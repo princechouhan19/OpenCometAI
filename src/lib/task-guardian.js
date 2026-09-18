@@ -330,6 +330,11 @@ export function guardAction(action, { taskText = '', extraTexts = [] } = {}) {
   const hindiExample = kind === 'purchase'
     ? 'buy … / "… खरीदना है"'
     : 'delete … / "… डिलीट कर दो"';
+  // v1.18.0: explicit negation ("do not purchase anything") gets its own
+  // honest message — the ban WINS, not merely "not authorized".
+  const authClause = auth.negated
+    ? `Your task explicitly FORBIDS ${kind}s ("do not ${kind === 'purchase' ? 'purchase' : 'delete'}"-style instructions are enforced — the ban wins over any button on the page).`
+    : `Your task doesn't authorize ${kind}s.`;
   return {
     blocked: true,
     risk,
@@ -337,7 +342,7 @@ export function guardAction(action, { taskText = '', extraTexts = [] } = {}) {
     reason: `unauthorized ${kind} action — ${what} is classified as ${kind}, and the user's task text does not authorize ${kind}s`,
     userMessage:
       `🛡️ Task Authorization Guardian blocked ${what} — a ${kind} action. ` +
-      `Your task doesn't authorize ${kind}s. To allow it, add it to the task ` +
+      `${authClause} To allow it, add it to the task ` +
       `(e.g. "${hindiExample}") or send a note like ` +
       `"you may complete the ${kind}" / "आप ${kind === 'purchase' ? 'खरीद' : 'डिलीट'} सकते हैं" while the task runs.`,
   };

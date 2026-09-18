@@ -19,6 +19,9 @@ import { executeAction, describeAction } from './actions.js';
 import { sleep } from '../lib/utils.js';
 import { MSG, STEP_TYPE } from '../lib/constants.js';
 import { planQueueActions, detectPlaybackIntent } from '../lib/agent-context.js';
+// v1.18.0 TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
+// user's own text to authorize them; fault-shutdown + 3-hit honest exit.
+import { authorizeAction, GUARDIAN_HIT_LIMIT } from '../lib/guardian-daemon.js';
 import { strategyHintFor } from '../lib/field-matching.js';
 import { sendToOffscreen } from '../lib/offscreen-client.js';
 import { firewallStatusForInspector } from '../lib/privacy-firewall.js';
@@ -142,6 +145,43 @@ export async function runPrivacyAgent(ctx) {
   let pendingHint = '';
   // v1.16.1: honor the user's max-steps setting (clamped to a sane range).
   const maxSteps = Math.max(1, Math.min(MAX_STEPS_CAP, Number(settings?.maxSteps) || DEFAULT_MAX_STEPS));
+
+  // ── v1.18.0 TASK AUTHORIZATION DAEMON ────────────────────────────────────
+  // Blocked purchase/deletion attempts in THIS run; the 3rd block ends the
+  // task honestly. Mirrored into stateRef (agentState) for the SW-side UI.
+  let guardianHits = Number(stateRef?.guardianHits) || 0;
+
+  // Honest terminal exit for daemon faults and 3-hit exits — terminal step +
+  // history entry + onDone (same finalize idiom as the v1.16.1 zombie fix).
+  const finalizeGuardianStop = (message, step) => {
+    history.push({ action: { type: 'guardian_stop' }, result: message, latencyMs: 0, step, blockedByGuardian: true });
+    onStep?.(STEP_TYPE.DONE, message, { step, phase: 'guardian-stop' });
+    console.warn('[Open Comet] Guardian stop:', message);
+    onDone?.({
+      steps: step,
+      history,
+      finalThought: message,
+      finalAnswer: '',
+      totalMs: Date.now() - runT0,
+      latencyProfile: latencyProfile(runTiming),
+      privacy: {
+        frames: runPii.frames, faces: runPii.faces, dom: runPii.dom,
+        objects: runPii.objects, textPii: runPii.textPii, ocr: runPii.ocr,
+        redactions: runPii.faces + runPii.dom + runPii.objects + runPii.textPii + runPii.ocr,
+        inspector: runPii.lastInspector,
+      },
+    });
+  };
+
+  // The ONLY inputs the daemon ever receives (injection prevention):
+  // `task` — the user's task text, pinned at run start (loop-local const);
+  // `stateRef.userNotes` — notes written exclusively by the user. Page text,
+  // model reasoning and history are NEVER passed as authorization evidence.
+  const guardianInputs = () => ({
+    taskText: task,
+    extraTexts: stateRef?.userNotes || [],
+    hits: guardianHits,
+  });
 
   try {
     onStep?.(STEP_TYPE.THINKING, 'Starting privacy-preserving agent loop…', {
@@ -402,6 +442,31 @@ export async function runPrivacyAgent(ctx) {
         return;
       }
 
+      // ── v1.18.0 TASK AUTHORIZATION DAEMON (primary action) ──────────────
+      // Purchase/delete clicks need authorization from the user's OWN text —
+      // negated tasks ("do not purchase anything") are blocked too. Rejected
+      // BEFORE the approval gate / executor. A block also OVERRIDES any
+      // speculative queue for the next turn via the strategy hint.
+      {
+        const auth = authorizeAction(action, guardianInputs());
+        if (typeof auth.hit === 'number') { guardianHits = auth.hit; if (stateRef) stateRef.guardianHits = guardianHits; }
+        if (auth.fatal || auth.exit) {
+          finalizeGuardianStop(
+            auth.fatal ? auth.userMessage : `${auth.userMessage} (3 unauthorized attempts — task ended honestly; nothing risky was executed)`,
+            stepCount,
+          );
+          return;
+        }
+        if (auth.skip) {
+          history.push({ action, result: `BLOCKED by the Task Authorization Guardian — ${auth.verdict.reason}`, latencyMs: 0, step: stepCount, blockedByGuardian: true });
+          onStep?.(STEP_TYPE.EXECUTING, `${auth.userMessage} (attempt ${auth.hit}/${GUARDIAN_HIT_LIMIT}) — a fresh decision follows. To allow it, put it in your own words: edit the task or send a note.`, { step: stepCount, phase: 'guardian-blocked', action });
+          pendingHint = auth.hint;   // OVERRIDES speculative next-turn guidance
+          console.warn(`[Open Comet] Step ${stepCount}: guardian BLOCKED ${describeAction(action)} (${auth.hit}/${GUARDIAN_HIT_LIMIT})`);
+          await sleep(300);
+          continue;
+        }
+      }
+
       onStep?.(STEP_TYPE.ACTION, `Executing: ${describeAction(action)}`, {
         step: stepCount, phase: 'execute', action,
       });
@@ -545,6 +610,28 @@ export async function runPrivacyAgent(ctx) {
       const queue = (result?.ok && result?.changed !== false) ? planQueueActions(plan) : [];
       for (const qAction of queue) {
         if (signal?.aborted) break;
+        // ── v1.18.0 TASK AUTHORIZATION DAEMON (speculative queue) ─────────
+        // Queued actions are SPECULATIVE (no fresh VLM turn) — they get the
+        // same gate, and a block OVERRIDES the rest of the queue: nothing
+        // risky rides behind an approved one.
+        {
+          const qAuth = authorizeAction(qAction, guardianInputs());
+          if (typeof qAuth.hit === 'number') { guardianHits = qAuth.hit; if (stateRef) stateRef.guardianHits = guardianHits; }
+          if (qAuth.fatal || qAuth.exit) {
+            finalizeGuardianStop(
+              qAuth.fatal ? qAuth.userMessage : `${qAuth.userMessage} (3 unauthorized attempts — task ended honestly; nothing risky was executed)`,
+              stepCount + 1,
+            );
+            return;
+          }
+          if (qAuth.skip) {
+            history.push({ action: qAction, result: `BLOCKED by the Task Authorization Guardian — ${qAuth.verdict.reason}`, latencyMs: 0, step: stepCount + 1, queued: true, blockedByGuardian: true });
+            onStep?.(STEP_TYPE.EXECUTING, `${qAuth.userMessage} (attempt ${qAuth.hit}/${GUARDIAN_HIT_LIMIT}) — the remaining speculative queue was discarded.`, { step: stepCount + 1, phase: 'guardian-blocked-queued', action: qAction, queued: true });
+            pendingHint = qAuth.hint;
+            console.warn(`[Open Comet] Step ${stepCount}: guardian BLOCKED queued ${describeAction(qAction)} — queue overridden`);
+            break;   // OVERRIDE: drop the remaining speculative queue
+          }
+        }
         // v1.15.1 ASK-BEFORE-ACTING: queued actions are real browser actions
         // — they get the same approval gate as primary ones.
         if (approvalGate) {
