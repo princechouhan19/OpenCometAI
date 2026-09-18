@@ -29,7 +29,7 @@ function check(name, cond, extra = '') {
 console.log('\n1) Firefox manifest transform:');
 const chromeManifest = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
 const ff = firefoxifyManifest(chromeManifest);
-check('version carried through', ff.version === '1.17.0');
+check('version carried through', /^\d+\.\d+\.\d+$/.test(ff.version) && ff.version >= '1.17.0');
 check('background.scripts → firefox-bg.js', ff.background?.scripts?.[0] === 'src/background/firefox-bg.js');
 check('service_worker removed', ff.background?.service_worker === undefined);
 check('gecko id set', ff.browser_specific_settings?.gecko?.id === 'opencomet-sih@opencomet.dev');

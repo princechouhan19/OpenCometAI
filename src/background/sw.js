@@ -18,6 +18,9 @@ import { sleep, getHostFromUrl, normalizeHost, parseJSON } from '../lib/utils.js
 import { MSG, STATUS, STEP_TYPE, PROTECTED_ACTION_LABELS, MODEL_PRICING } from '../lib/constants.js';
 import { buildSearchUrl, openResearchTab, scrapeSearchResults, scrapeReadablePage, closeTabs } from '../lib/browser-research.js';
 import { downloadExportFile } from '../lib/export.js';
+// v1.18.0 TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
+// user's own text to authorize them; fault-shutdown + 3-hit honest exit.
+import { authorizeAction, GUARDIAN_HIT_LIMIT } from '../lib/guardian-daemon.js';
 import { buildHistoryCompactionPrompt, buildNavigatorRequest, buildPlannerRequest, shouldRetryCompactAction } from '../lib/agent-messages.js';
 import {
   AGENT_ROLE,
@@ -602,6 +605,13 @@ function updatePlanProgressFromResult(result = {}) {
 
 function injectRuntimeNudges() {
   const nudges = [];
+  // v1.18.0: a guardian block leaves a ONE-SHOT strategy override — it
+  // OVERRIDES speculative replans for the next decision (the model is told
+  // not to retry the blocked target or a re-labeled equivalent).
+  if (agentState.taskMemory.pendingGuardianHint) {
+    nudges.push(agentState.taskMemory.pendingGuardianHint);
+    agentState.taskMemory.pendingGuardianHint = null;
+  }
   if (agentState.plan?.steps?.length && agentState.consecutiveFailures >= 2) {
     nudges.push(`REPLAN SUGGESTED: ${agentState.consecutiveFailures} consecutive failures. Update the plan before repeating the same strategy.`);
   }
@@ -728,6 +738,13 @@ async function executionPhase() {
   pushStep(STEP_TYPE.EXECUTING, '?? Starting execution…');
   broadcastStatus(STATUS.EXECUTING);
 
+  // v1.18.0: authorization evidence is pinned to what the user typed when the
+  // task started — a mid-run mutation of agentState.task cannot authorize a
+  // purchase/deletion after the fact. (Mid-run USER NOTES stay live — the
+  // user may authorize explicitly while the task runs.)
+  agentState.guardianTaskSnapshot = String(agentState.task || '');
+  agentState.guardianHits = 0;
+
   while (agentState.running && !agentState.stopRequested) {
     if (agentState.paused) return;
     if (agentState.iterationCount >= agentState.maxIterations) {
@@ -780,6 +797,35 @@ async function executionPhase() {
       if (!action || action.type === 'done') {
         await finishSuccess(result);
         return;
+      }
+
+      // ── v1.18.0 TASK AUTHORIZATION DAEMON (primary action) ────────────
+      // Purchase/delete clicks need authorization from the user's OWN text —
+      // negated tasks ("do not purchase anything") are blocked too. Inputs
+      // are INJECTION-PROOF BY CONSTRUCTION: only the run-start task
+      // snapshot and user-authored notes reach the gate (never page text or
+      // model reasoning). Fail-closed: a daemon fault or the 3rd blocked
+      // attempt ends the task honestly; a block skips the action and leaves
+      // a one-shot strategy override for the next decision.
+      {
+        const gAuth = authorizeAction(action, {
+          taskText: agentState.guardianTaskSnapshot || agentState.task,
+          extraTexts: agentState.userNotes || [],
+          hits: agentState.guardianHits || 0,
+        });
+        agentState.guardianHits = typeof gAuth.hit === 'number' ? gAuth.hit : (agentState.guardianHits || 0);
+        if (gAuth.fatal || gAuth.exit) {
+          await finishGuardianExit(
+            gAuth.fatal ? gAuth.userMessage : `${gAuth.userMessage} (3 unauthorized attempts — task ended honestly; nothing risky was executed)`,
+          );
+          return;
+        }
+        if (gAuth.skip) {
+          pushStep(STEP_TYPE.MUTED, `🛡️ ${gAuth.userMessage} (attempt ${gAuth.hit}/${GUARDIAN_HIT_LIMIT}) — to allow it, put it in your own words: edit the task or send a note.`);
+          agentState.taskMemory.pendingGuardianHint = gAuth.hint;   // next-decision override
+          console.warn(`[Open Comet] Guardian BLOCKED ${describeAction(action)} (${gAuth.hit}/${GUARDIAN_HIT_LIMIT})`);
+          continue;
+        }
       }
 
       // Check if action needs user approval
@@ -939,6 +985,22 @@ async function finishMaxSteps() {
   broadcastMessage({ type: MSG.AGENT_DONE, answer, data: {}, steps: agentState.steps, sessionId: agentState.sessionId });
   setBadge('', '#7c6af7');
   await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'incomplete', result: answer, steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
+}
+
+// v1.18.0 3-HIT HONEST EXIT / DAEMON FAULT SHUTDOWN: the task ends with an
+// honest DONE answer + history entry — never with an unauthorized
+// purchase/deletion executed.
+async function finishGuardianExit(userMessage) {
+  const answer = String(userMessage || '').replace(/^🛡️\s*/, '');
+  pushStep(STEP_TYPE.DONE, `🛡️ ${answer}`);
+  agentState.finalStatus = 'blocked';
+  agentState.running = false;
+  stopRunKeepalive();
+  broadcastMessage({ type: MSG.AGENT_DONE, answer, data: { guardianExit: true }, steps: agentState.steps, sessionId: agentState.sessionId });
+  notify('Open Comet — stopped by the Task Authorization Guardian', answer);
+  setBadge('', '#7c6af7');
+  await appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'blocked', result: answer.substring(0, 300), steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
+  broadcastStatus(STATUS.IDLE);
 }
 
 function fatalError(err) {

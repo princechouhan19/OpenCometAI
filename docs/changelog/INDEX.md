@@ -8,6 +8,7 @@ each file preserves the section that used to live in the root `README.md`
 
 | Version | File | Headline |
 |---|---|---|
+| v1.18.0 | [v1.18.0.md](./v1.18.0.md) | Task Authorization Daemon: purchase/delete clicks authorized ONLY by the user's own task text (negation-enforced), fault shutdown, injection prevention, speculative-queue override, 3-hit honest exit |
 | v1.17.0 | [v1.17.0.md](./v1.17.0.md) | Firefox from one source tree (event-page backend, in-page ML runtime, sidebar-as-tab, `build-firefox.mjs`) + wire-guard byte-level line protection + `stateVersion` state gating |
 | v1.16.0 | [v1.16.0.md](./v1.16.0.md) | Local-perception cost round: session vision warm-up, OCR memo, `--warmup` harness flag, YOLO-downscale negative result |
 | v1.15.9 | [v1.15.9.md](./v1.15.9.md) | Real-VLM E2E against OpenRouter free models + key-hygiene smoke |
