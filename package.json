@@ -7,6 +7,7 @@
   "scripts": {
     "bench": "node OpenCometBench/run-opencomet-bench.mjs",
     "bench:unit": "node OpenCometBench/run-opencomet-bench.mjs --unit",
-    "bench:all": "node OpenCometBench/run-opencomet-bench.mjs --all"
+    "bench:all": "node OpenCometBench/run-opencomet-bench.mjs --all",
+    "build:firefox": "node scripts/build-firefox.mjs"
   }
 }

@@ -8,6 +8,7 @@ each file preserves the section that used to live in the root `README.md`
 
 | Version | File | Headline |
 |---|---|---|
+| v1.17.0 | [v1.17.0.md](./v1.17.0.md) | Firefox from one source tree (event-page backend, in-page ML runtime, sidebar-as-tab, `build-firefox.mjs`) + wire-guard byte-level line protection + `stateVersion` state gating |
 | v1.16.0 | [v1.16.0.md](./v1.16.0.md) | Local-perception cost round: session vision warm-up, OCR memo, `--warmup` harness flag, YOLO-downscale negative result |
 | v1.15.9 | [v1.15.9.md](./v1.15.9.md) | Real-VLM E2E against OpenRouter free models + key-hygiene smoke |
 | v1.15.8 | [v1.15.8.md](./v1.15.8.md) | Safe prose no longer black-boxed (secret-assignment lookaheads bounded) |

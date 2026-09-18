@@ -204,6 +204,8 @@ async function captureVisibleTabSafe(preferredTabId, sandboxTabIds = null) {
 // JPEG q85 keeps the payload small; the pipeline re-encodes later anyway.
 async function captureViaDebugger(tab) {
   const target = { tabId: tab.id };
+  // v1.17.0: chrome.debugger is Chromium-only — say so honestly on Firefox.
+  if (!chrome.debugger) throw new Error('chrome.debugger is unavailable on this browser (Firefox) — the debugger capture fallback needs Chromium.');
   await chrome.debugger.attach(target, '1.3');
   try {
     const shot = await chrome.debugger.sendCommand(target, 'Page.captureScreenshot', { format: 'jpeg', quality: 85 });

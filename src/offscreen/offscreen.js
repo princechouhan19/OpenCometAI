@@ -11,6 +11,11 @@
 // The service worker routes messages here (target: 'offscreen'). During long
 // operations we broadcast LOCAL_MODEL_HEARTBEAT every 8s so the service
 // worker's 30s idle timer keeps getting reset while it waits for the reply.
+//
+// v1.17.0: this SAME document is the Firefox ML runtime too. When
+// chrome.offscreen is unavailable, the event page hosts offscreen.html in a
+// hidden iframe and delivers RPCs as window.postMessage envelopes — handled
+// by the bridge below, feeding the SAME router (one ML implementation).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -73,10 +78,29 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
-// ── Message router (requests from the service worker) ─────────────────────────
+// ── Message router (requests from the service worker / event page) ───────────
 chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   if (!msg || msg.target !== 'offscreen') return;   // not for us
+  return routeOffscreenRequest(msg, respond);
+});
 
+// v1.17.0 FIREFOX IN-PAGE BRIDGE: chrome.runtime.sendMessage cannot deliver a
+// message back into the context that sent it, so in-page mode uses
+// window.postMessage envelopes correlated by rpcId instead. The bridge feeds
+// the SAME router — zero ML logic is duplicated across browsers.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('message', (ev) => {
+    const msg = ev && ev.data;
+    if (!msg || msg.target !== 'offscreen' || typeof msg.rpcId !== 'string') return;
+    routeOffscreenRequest(msg, (resp) => {
+      try {
+        ev.source?.postMessage({ target: 'offscreen-client', rpcId: msg.rpcId, resp }, ev.origin || '*');
+      } catch { /* hosting frame died mid-RPC — the caller's timeout handles it */ }
+    });
+  });
+}
+
+function routeOffscreenRequest(msg, respond) {
   touch();
   const { type } = msg;
 
@@ -215,4 +239,4 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
       respond({ ok: false, error: `Unknown offscreen message type: ${type}` });
       return;
   }
-});
+}
