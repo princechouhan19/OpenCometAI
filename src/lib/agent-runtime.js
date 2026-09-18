@@ -96,6 +96,12 @@ export function compactPageContext(pageInfo = {}, settings = {}, options = {}) {
     disabled: Boolean(item?.disabled),
     bounds: minimal ? null : item?.bounds || null,
     selector: item?.selector || '',
+    // v1.19.0: disambiguation receipts for repeated tags — the model can
+    // target "Buy Now #2" (ref) and the loop can prove WHICH control fired.
+    dup: String(item?.dup || ''),
+    pos: String(item?.pos || ''),
+    nearform: String(item?.nearform || ''),
+    ref: String(item?.ref || ''),
     domPath: minimal ? '' : String(item?.domPath || '').substring(0, 160),
     stableKey: String(item?.stableKey || '').substring(0, minimal ? 80 : 220),
     isNew: Boolean(item?.isNew),

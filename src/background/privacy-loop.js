@@ -21,7 +21,8 @@ import { MSG, STEP_TYPE } from '../lib/constants.js';
 import { planQueueActions, detectPlaybackIntent } from '../lib/agent-context.js';
 // v1.18.0 TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
 // user's own text to authorize them; fault-shutdown + 3-hit honest exit.
-import { authorizeAction, GUARDIAN_HIT_LIMIT } from '../lib/guardian-daemon.js';
+// v1.19.0: + DAEMON COUNTER (per-run + lifetime gate accounting).
+import { authorizeAction, GUARDIAN_HIT_LIMIT, createGuardianCounter, tallyGuardian, mergeGuardianLifetime } from '../lib/guardian-daemon.js';
 import { strategyHintFor } from '../lib/field-matching.js';
 import { sendToOffscreen } from '../lib/offscreen-client.js';
 import { firewallStatusForInspector } from '../lib/privacy-firewall.js';
@@ -150,11 +151,25 @@ export async function runPrivacyAgent(ctx) {
   // Blocked purchase/deletion attempts in THIS run; the 3rd block ends the
   // task honestly. Mirrored into stateRef (agentState) for the SW-side UI.
   let guardianHits = Number(stateRef?.guardianHits) || 0;
+  // v1.19.0 DAEMON COUNTER: same accounting the standard loop keeps — every
+  // authorizeAction verdict tallies here, flushed to the lifetime store on
+  // exit (and by the SW finalize paths for runs that end there).
+  if (stateRef && !stateRef.guardianCounter) stateRef.guardianCounter = createGuardianCounter();
 
   // Honest terminal exit for daemon faults and 3-hit exits — terminal step +
   // history entry + onDone (same finalize idiom as the v1.16.1 zombie fix).
-  const finalizeGuardianStop = (message, step) => {
+  const finalizeGuardianStop = async (message, step) => {
     history.push({ action: { type: 'guardian_stop' }, result: message, latencyMs: 0, step, blockedByGuardian: true });
+    // v1.19.0 DAEMON COUNTER: a guardian exit is a counter event too — flush
+    // the run's accounting to the lifetime store before reporting the stop.
+    try {
+      const c = stateRef?.guardianCounter;
+      if (c && (c.checks || c.risky || c.blocked || c.exits || c.faults)) {
+        const { opencometGuardianLifetime: prev = {} } = await chrome.storage.local.get('opencometGuardianLifetime');
+        await chrome.storage.local.set({ opencometGuardianLifetime: mergeGuardianLifetime(prev, c) });
+        if (stateRef) stateRef.guardianCounter = createGuardianCounter();   // consumed — no double count
+      }
+    } catch { /* best-effort accounting */ }
     onStep?.(STEP_TYPE.DONE, message, { step, phase: 'guardian-stop' });
     console.warn('[Open Comet] Guardian stop:', message);
     onDone?.({
@@ -450,6 +465,7 @@ export async function runPrivacyAgent(ctx) {
       {
         const auth = authorizeAction(action, guardianInputs());
         if (typeof auth.hit === 'number') { guardianHits = auth.hit; if (stateRef) stateRef.guardianHits = guardianHits; }
+        tallyGuardian(stateRef?.guardianCounter, auth);   // v1.19.0 daemon counter
         if (auth.fatal || auth.exit) {
           finalizeGuardianStop(
             auth.fatal ? auth.userMessage : `${auth.userMessage} (3 unauthorized attempts — task ended honestly; nothing risky was executed)`,
@@ -617,6 +633,7 @@ export async function runPrivacyAgent(ctx) {
         {
           const qAuth = authorizeAction(qAction, guardianInputs());
           if (typeof qAuth.hit === 'number') { guardianHits = qAuth.hit; if (stateRef) stateRef.guardianHits = guardianHits; }
+          tallyGuardian(stateRef?.guardianCounter, qAuth);   // v1.19.0 daemon counter
           if (qAuth.fatal || qAuth.exit) {
             finalizeGuardianStop(
               qAuth.fatal ? qAuth.userMessage : `${qAuth.userMessage} (3 unauthorized attempts — task ended honestly; nothing risky was executed)`,
