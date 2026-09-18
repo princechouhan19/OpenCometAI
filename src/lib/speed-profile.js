@@ -181,5 +181,12 @@ export function computeShotFingerprint({ page = {}, domText = '', scrollY = 0 } 
     foc,
     txt.length,
     hashStr(txt.slice(0, 4000)),
+    // v1.16.1: hashed img/canvas pixel-proxy census from pageContextScan —
+    // a page that mutates PIXELS only (swapped <img> src, redrawn <canvas>)
+    // used to keep the fingerprint stable and serve a stale frame for up to
+    // reuseMaxStreak turns / reuseMaxAgeMs. Any pixel-proxy change now
+    // invalidates the cache. Legacy callers without visualSig hash '' —
+    // identical behavior to before for them.
+    hashStr(String(page.visualSig || '')),
   ].join('|');
 }

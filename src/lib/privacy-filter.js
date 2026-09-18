@@ -66,12 +66,18 @@ export async function runPrivacyPipeline(input, opts = {}) {
     redactTextPii: true,
     runYolo: false,
     yoloMemo: true,         // v1.14.1: unchanged-screen reuse of YOLO detections (exact-capture-keyed)
+    ocrMemo: true,          // v1.16.0: unchanged-screen reuse of OCR PII regions (exact-capture + ROI keyed)
     useNer: false,
     ocrPii: false,          // SIH Phase 9: opt-in OCR pass for non-DOM PII
     scaleX: 1,
     scaleY: 1,
     yoloPersonOnly: true,   // redact only person-class YOLO boxes
     yoloMinScore: 0.4,
+    yoloMaxEdge: 0,         // v1.16.0: optional detector-input downscale (longest edge px). 0 = disabled.
+                            // Box coordinates are mapped back to full image size; redaction semantics unchanged.
+                            // MEASURED (probe-yolo-downscale.mjs): correctness-neutral (box parity IoU=1.000) but
+                            // LATENCY-NEUTRAL — the model resizes internally to a fixed resolution, so input
+                            // downscale does NOT cut compute. Keep 0 unless a future use needs smaller inputs.
     maxWidth: 1280,         // downscale the sanitized image for the VLM (latency)
     ...opts,
   };
@@ -95,6 +101,15 @@ export async function runPrivacyPipeline(input, opts = {}) {
   // screen. Face boxes are in IMAGE pixels (no dpr scaling needed).
   let faceDetections = [];
   let faceDebug = null;
+  // v1.16.1 FAIL-CLOSED FACE POLICY — mirrors the v1.13 OCR policy below.
+  // Previously a face-detection failure was caught, logged and the pipeline
+  // CONTINUED — which meant a frame whose faces were never detected could
+  // ship with zero face coverage and still pass every firewall check (the
+  // gate verifies process, not content). The worst case was raw pixels on
+  // the wire. Now a failed face stage FAILS verification, exactly like a
+  // failed OCR stage: functionality is lost, pixels are never leaked.
+  let faceDetectFailed = false;
+  let faceDetectFailedReason = '';
   if (cfg.blurFaces) {
     const t0 = performance.now();
     try {
@@ -131,8 +146,10 @@ export async function runPrivacyPipeline(input, opts = {}) {
           vDropped.map(d => `${d.bounds.w}×${d.bounds.h} native ${d.native} → rescan ${d.verify}`).join(', '));
       }
     } catch (err) {
-      mlWarn('[Privacy] Face detection failed:', err?.message || err);
-      log(`Faces: detection ERROR — ${err?.message || err}`);
+      faceDetectFailed = true;
+      faceDetectFailedReason = String(err?.message || err);
+      mlWarn('[Privacy] Face detection failed — fail-closed (frame will FAIL verification):', faceDetectFailedReason);
+      log(`Faces: detection ERROR — ${faceDetectFailedReason} (fail-closed: transmission will be BLOCKED)`);
     }
     phaseMs.faceDetect = Math.round(performance.now() - t0);
   } else {
@@ -176,7 +193,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
         yoloMemoHit = true;
         yoloAll = r.detections;
       } else {
-        r = await detectObjects(input.imageDataUrl);
+        r = await detectObjects(input.imageDataUrl, { maxEdge: cfg.yoloMaxEdge });
         yoloAll = r.detections;
         if (cfg.yoloMemo !== false) yoloMemoSet(input.imageDataUrl, { detections: yoloAll, latencyMs: r.latencyMs });
       }
@@ -427,6 +444,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
   let ocrRegions = [];
   let ocrFailed = false;          // v1.13 fail-closed flag (OCR requested but unavailable)
   let ocrFailedReason = '';
+  let ocrMemoHit = false;         // v1.16.0 telemetry: unchanged-screen OCR memo reuse
   // v1.15.4 TARGETED CROP ROIs: canvases (pixel-text containers) + photo
   // candidates, in IMAGE space, capped. The full-page OCR pass drops small
   // text on busy pages (field report: 1 of 6+ pixel-PII instances redacted);
@@ -444,7 +462,27 @@ export async function runPrivacyPipeline(input, opts = {}) {
   if (cfg.ocrPii) {
     const t0 = performance.now();
     try {
-      const ocr = await scanImageForPiiRegions(input.imageDataUrl, { rois: ocrRois });
+      // v1.16.0 OCR MEMO — same safety pattern as the YOLO memo (v1.14.1):
+      //   • key = the EXACT capture data-URL string + the serialized ROI list
+      //     (the OCR result depends on BOTH — a different crop set is a
+      //     different scan); string equality means a hit proves byte-identical
+      //     pixels AND an identical crop set, so any pixel or DOM-census change
+      //     forces a miss → full re-scan;
+      //   • stores the region list ONLY (no raw OCR text beyond what the
+      //     regions already carry — the same objects the pipeline itself holds
+      //     in memory for this frame);
+      //   • FAILED and SKIPPED scans are never memoized (fail-closed stays
+      //     honest — an unavailable engine re-reports on every call);
+      //   • 2-entry LRU, in-memory in the offscreen document;
+      //   • cfg.ocrMemo=false disables it entirely (fail-safe switch).
+      const ocrMemoKey = cfg.ocrMemo === false ? null
+        : `${input.imageDataUrl}\u0000${JSON.stringify(ocrRois)}`;
+      let ocr = ocrMemoKey ? ocrMemoGet(ocrMemoKey) : null;
+      ocrMemoHit = Boolean(ocr);
+      if (!ocr) {
+        ocr = await scanImageForPiiRegions(input.imageDataUrl, { rois: ocrRois });
+        if (ocrMemoKey && !ocr.failed && !ocr.skipped) ocrMemoSet(ocrMemoKey, ocr);
+      }
       ocrRegions = ocr.regions || [];
       if (ocr.failed) {
         // v1.13 OCR FAILURE POLICY — the user explicitly enabled visual-PII
@@ -458,6 +496,11 @@ export async function runPrivacyPipeline(input, opts = {}) {
         log(`OCR: FAILED (${ocrFailedReason}) — fail-closed: transmission will be BLOCKED`);
       } else if (ocr.skipped) {
         log(`OCR: skipped (${ocr.reason}); pipeline continues`);
+      } else if (ocrMemoHit) {
+        // Memo hit: report the ACTUAL phase cost (≈0 ms), never the stored
+        // original scan time — the log must stay honest about what ran.
+        log(`OCR [memo hit — unchanged screen+ROIs]: ${ocrRegions.length} PII region(s) reused in ${Math.round(performance.now() - t0)}ms ` +
+          `(original scan ${ocr.ms ?? '?'}ms)`);
       } else {
         log(`OCR: ${ocr.textChars} chars scanned → ${ocrRegions.length} PII region(s) in ${ocr.ms}ms` +
           (ocr.roiRegions ? ` (+${ocr.roiRegions} from ${ocr.roisScanned ?? 0} targeted crop ROI(s))` : ''));
@@ -481,6 +524,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
 
   // ── 4) Text-level PII scan (regex + optional NER)
   let textFindings = [];
+  let knownValues = [];   // v1.16.1: raw matched values for the wire-guard scan
   let sanitizedDomText = input.domText || '';
   if (cfg.redactTextPii && input.domText) {
     const t0 = performance.now();
@@ -570,6 +614,15 @@ export async function runPrivacyPipeline(input, opts = {}) {
   // Also include text-level PII summary (no raw values)
   const textPiiSummary = summariseTextPii(textFindings);
 
+  // v1.16.1 WIRE-GUARD FEED: the RAW matched values the text detector just
+  // redacted stay in-memory only (never serialized into the envelope) and are
+  // handed to the caller so decideViaServer() can run the byte-level
+  // exact-match leakage scan (wire-guard.js) over the outbound payload.
+  // A detector miss upstream cannot survive an exact-match scan downstream.
+  knownValues = [...new Set(textFindings
+    .map(f => String(f?.raw || ''))
+    .filter(v => v.length >= 6 && v.length <= 200))].slice(0, 80);
+
   return {
     sanitizedDataUrl: redactionResult.dataUrl,
     manifest,
@@ -604,11 +657,19 @@ export async function runPrivacyPipeline(input, opts = {}) {
       },
       // v1.14.1 memo telemetry (honest reporting of the reuse path):
       yoloMemoHit,
+      ocrMemoHit,
       faceMemoHit: Boolean(faceDebug?.memoHit),
       // v1.13 fail-closed OCR policy — see the OCR block above.
       ocrFailed,
       ocrFailedReason,
+      // v1.16.1 fail-closed face policy — see the face-detect block above.
+      faceDetectFailed,
+      faceDetectFailedReason,
     },
+    // v1.16.1: internal-only (SW ↔ offscreen channel). Consumed by the
+    // wire-guard byte-level scan in decideViaServer; NEVER serialized into
+    // the firewall envelope or any network payload.
+    knownValues,
   };
 }
 
@@ -693,6 +754,21 @@ function yoloMemoGet(key) {
 }
 function yoloMemoSet(key, val) {
   memoLruSet(_yoloMemo, key, val, 2);
+}
+
+/**
+ * v1.16.0 — unchanged-screen OCR memo. Same pattern and same privacy analysis
+ * as the YOLO memo above; the key additionally folds in the serialized ROI
+ * list because scanImageForPiiRegions() results depend on the crop set too.
+ * Region boxes only, 2-entry LRU, in-memory in the offscreen document,
+ * disableable via cfg.ocrMemo=false. Failed/skipped scans are never stored.
+ */
+const _ocrMemo = new Map();
+function ocrMemoGet(key) {
+  return memoLruGet(_ocrMemo, key);
+}
+function ocrMemoSet(key, val) {
+  memoLruSet(_ocrMemo, key, val, 2);
 }
 
 /**

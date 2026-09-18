@@ -312,7 +312,15 @@ export async function executeAction(tabId, action, agentState) {
 
     // ── New tab ────────────────────────────────────────────────────────
     case 'new_tab': {
-      const tab = await chrome.tabs.create({ url: action.url || 'about:blank', active: true });
+      // v1.16.1 SANDBOX FIX: new_tab created tabs with the model-provided URL
+      // UNCHECKED, while navigate enforces http(s)-only — a prompt-injected
+      // model could open chrome://settings, file:// or the Web Store from a
+      // "sandboxed" run. Same allow-list as navigate now applies.
+      const newTabUrl = String(action.url || '').trim();
+      if (newTabUrl && !/^https?:\/\//i.test(newTabUrl)) {
+        throw new Error(`new_tab: only http(s) URLs are allowed — blocked: "${newTabUrl.slice(0, 80)}"`);
+      }
+      const tab = await chrome.tabs.create({ url: newTabUrl || 'about:blank', active: true });
       agentState.agentTabId = tab.id;
       agentState.taskTabIds = [...new Set([...(agentState.taskTabIds || []), tab.id])];
       // v1.15 TAB-GROUP SANDBOX: task tabs open INSIDE the task group — the
@@ -884,7 +892,11 @@ function domMediaState() {
 // v1.15: mail-send probe host gate. Reads the LIVE tab URL (the state graph
 // may be stale) and only allows the compose/toast probe on actual mail hosts,
 // so unrelated sites never get "mail send flow advanced" verification copy.
-async function isMailHostTab(tabId) {
+// v1.16.1: EXPORTED — sw.js's auto-done "Email sent successfully" path now
+// gates its detectEmailSent() probe behind this same host check (previously
+// a click on ANY page whose body text contained the word "sent" could end
+// the task with a false "email sent").
+export async function isMailHostTab(tabId) {
   try {
     const tab = await chrome.tabs.get(tabId);
     return /(^|\.)mail\.[a-z0-9.-]+\.[a-z]{2,}|^outlook\.(live|office)\.com|^outlook\.com$/i

@@ -23,7 +23,10 @@ import { strategyHintFor } from '../lib/field-matching.js';
 import { sendToOffscreen } from '../lib/offscreen-client.js';
 import { firewallStatusForInspector } from '../lib/privacy-firewall.js';
 
-const MAX_STEPS = 25;
+// v1.16.1: the loop cap now honors Settings → Max steps. The hardcoded 25
+// meant the Settings slider silently did not apply to Privacy Mode.
+const DEFAULT_MAX_STEPS = 25;
+const MAX_STEPS_CAP = 100;
 
 // ── SIH v1.14: FOUR-STATE ACTION VERIFICATION ACCOUNTING ─────────────────
 // The old binary "verified / not verified" conflated two very different
@@ -61,6 +64,25 @@ function logVerifyState(step, action, result, extra = {}) {
 // SIH Phase 22: per-run latency aggregation (measured, never estimated).
 // Emitted in the DONE summary → History + SIH Scorecard ACTUAL column.
 const runTiming = { sanitizeMs: [], vlmMs: [], actionMs: [] };
+
+// v1.16.1: bounded, abortable wait for a mid-run user reply (ask_user).
+// Resolves with the reply text, '__aborted__' when the abort signal fires,
+// or null when the wait window elapsed. Only notes that arrive AFTER the
+// wait started are consumed — earlier notes stay for the next decision turn.
+async function waitForUserReply(stateRef, signal, timeoutMs) {
+  const t0 = Date.now();
+  const baseLen = stateRef.userNotes.length;
+  while (Date.now() - t0 < timeoutMs) {
+    if (signal?.aborted) return '__aborted__';
+    if (stateRef.userNotes.length > baseLen) {
+      const fresh = stateRef.userNotes.splice(baseLen);
+      const text = fresh.map(n => String(n?.text || '').trim()).filter(Boolean).join('\n- ');
+      if (text) return text;
+    }
+    await sleep(500);
+  }
+  return null;
+}
 
 function latencyProfile(t) {
   const pct = (arr, q) => {
@@ -118,6 +140,8 @@ export async function runPrivacyAgent(ctx) {
   let stallCount = 0;
   let hintLevel = 0;
   let pendingHint = '';
+  // v1.16.1: honor the user's max-steps setting (clamped to a sane range).
+  const maxSteps = Math.max(1, Math.min(MAX_STEPS_CAP, Number(settings?.maxSteps) || DEFAULT_MAX_STEPS));
 
   try {
     onStep?.(STEP_TYPE.THINKING, 'Starting privacy-preserving agent loop…', {
@@ -128,7 +152,7 @@ export async function runPrivacyAgent(ctx) {
       onStep?.(STEP_TYPE.THINKING, 'Selected model has no vision input — the agent will decide from sanitized page text instead of the screenshot.', { phase: 'vision-note' });
     }
 
-    while (stepCount < MAX_STEPS) {
+    while (stepCount < maxSteps) {
       if (signal?.aborted) throw new Error('Agent aborted by user');
       const stepT0 = Date.now();
       stepCount++;
@@ -283,7 +307,98 @@ export async function runPrivacyAgent(ctx) {
         onStep?.(STEP_TYPE.PLAN_READY, `VLM is asking the user: ${action.message || plan.thought}`, {
           step: stepCount, phase: 'ask_user', action,
         });
-        // Pause loop until user responds (we just break here for simplicity)
+        // ── v1.16.1 FIX: ZOMBIE RUN. This was a bare `return` — the loop
+        // ended without onDone/onError/history, leaving agentState.running
+        // true, the PRV badge up and the run keepalive immortal. Worse, the
+        // firewall's fail-closed path (privacyBlockedDecision) returns
+        // EXACTLY this shape, so every network-gate block produced a zombie
+        // run. Two honest paths now:
+        //   • privacyBlocked → TERMINAL: the user cannot unblock this turn,
+        //     so finalize immediately with the block explanation.
+        //   • genuine question → PAUSE: wait (bounded, abortable) for the
+        //     user's reply via the sidepanel context box, then continue.
+        const question = String(action.message || plan.thought || '').trim();
+        if (action.privacyBlocked || plan.privacyBlocked) {
+          history.push({
+            action,
+            result: 'blocked by the privacy firewall — nothing was transmitted',
+            latencyMs: decision.networkLatencyMs || 0,
+            step: stepCount,
+          });
+          onStep?.(STEP_TYPE.DONE, 'Privacy firewall blocked this turn — task ended. Nothing was transmitted.', {
+            step: stepCount, phase: 'privacy-blocked', action,
+          });
+          onDone?.({
+            steps: stepCount,
+            history,
+            finalThought: plan.thought || 'Privacy firewall blocked this turn.',
+            finalAnswer: question,
+            totalMs: Date.now() - runT0,
+            latencyProfile: latencyProfile(runTiming),
+            privacy: {
+              frames: runPii.frames, faces: runPii.faces, dom: runPii.dom,
+              objects: runPii.objects, textPii: runPii.textPii, ocr: runPii.ocr,
+              redactions: runPii.faces + runPii.dom + runPii.objects + runPii.textPii + runPii.ocr,
+              inspector: runPii.lastInspector,
+            },
+          });
+          return;
+        }
+        if (stateRef && Array.isArray(stateRef.userNotes)) {
+          onStep?.(STEP_TYPE.THINKING, 'Waiting for your reply — type it in the context box, or press Stop to end the task (auto-ends in 5 minutes).', {
+            step: stepCount, phase: 'ask-user-wait', action,
+          });
+          const reply = await waitForUserReply(stateRef, signal, 5 * 60 * 1000);
+          if (reply === '__aborted__') throw new Error('Agent aborted by user');
+          if (reply == null) {
+            history.push({
+              action,
+              result: 'no user response within the 5-minute wait window — task ended',
+              latencyMs: decision.networkLatencyMs || 0,
+              step: stepCount,
+            });
+            onStep?.(STEP_TYPE.DONE, 'No user response within 5 minutes — task ended.', { step: stepCount, phase: 'ask-user-timeout' });
+            onDone?.({
+              steps: stepCount,
+              history,
+              finalThought: 'ask_user timed out (no user response)',
+              finalAnswer: '',
+              totalMs: Date.now() - runT0,
+              latencyProfile: latencyProfile(runTiming),
+              privacy: {
+                frames: runPii.frames, faces: runPii.faces, dom: runPii.dom,
+                objects: runPii.objects, textPii: runPii.textPii, ocr: runPii.ocr,
+                redactions: runPii.faces + runPii.dom + runPii.objects + runPii.textPii + runPii.ocr,
+                inspector: runPii.lastInspector,
+              },
+            });
+            return;
+          }
+          history.push({
+            action,
+            result: `answered by the user: ${String(reply).substring(0, 300)}`,
+            latencyMs: decision.networkLatencyMs || 0,
+            step: stepCount,
+          });
+          onStep?.(STEP_TYPE.THINKING, `Reply received — continuing with it.`, { step: stepCount, phase: 'ask-user-answered' });
+          continue;   // fresh capture + decision with the reply in history
+        }
+        // No way to receive a reply (legacy caller without live state) →
+        // finalize honestly instead of leaving a zombie run.
+        onDone?.({
+          steps: stepCount,
+          history,
+          finalThought: plan.thought || 'Model asked the user a question.',
+          finalAnswer: question,
+          totalMs: Date.now() - runT0,
+          latencyProfile: latencyProfile(runTiming),
+          privacy: {
+            frames: runPii.frames, faces: runPii.faces, dom: runPii.dom,
+            objects: runPii.objects, textPii: runPii.textPii, ocr: runPii.ocr,
+            redactions: runPii.faces + runPii.dom + runPii.objects + runPii.textPii + runPii.ocr,
+            inspector: runPii.lastInspector,
+          },
+        });
         return;
       }
 

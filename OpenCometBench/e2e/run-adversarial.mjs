@@ -387,7 +387,7 @@ async function main() {
     const row = { id: c.id, channel: c.channel || 'dom', finished, decideSeen: Boolean(call), checks: {} };
 
     if (call && process.env.ADV_DEBUG) {
-      const dbg = `/home/z/my-project/adversarial-debug`;
+      const dbg = join(ROOT, 'adversarial-debug');
       mkdirSync(dbg, { recursive: true });
       writeFileSync(`${dbg}/${c.id}-outbound.jpg`, call.image);
       writeFileSync(`${dbg}/${c.id}-raw.png`, rawShot);

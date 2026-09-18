@@ -110,7 +110,8 @@ console.log('[3] wiring: memo before detector, success-only population, disable 
 {
   const src = readFileSync(join(ROOT, 'src', 'lib', 'privacy-filter.js'), 'utf8');
   const lookupIdx = src.indexOf('yoloMemoGet(input.imageDataUrl)');
-  const detectIdx = src.indexOf('await detectObjects(input.imageDataUrl)');
+  // v1.16.0: the detector call gained the maxEdge opt — match the full form.
+  const detectIdx = src.indexOf('await detectObjects(input.imageDataUrl, { maxEdge: cfg.yoloMaxEdge })');
   const setIdx = src.indexOf('yoloMemoSet(input.imageDataUrl');
   const catchIdx = src.indexOf('[Privacy] YOLO detection failed:');
   check('memo lookup present', lookupIdx > 0);

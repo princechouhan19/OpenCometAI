@@ -1,0 +1,575 @@
+{
+  "meta": {
+    "type": "e2e",
+    "benchmark": "real-extension-loop",
+    "vlm": "mock",
+    "generatedAt": "2026-09-10T22:55:15.738Z",
+    "note": "REAL extension (unpacked) run end-to-end through capture → perception → sanitize → network gate → server validation → action → verification. VLM decisions are MOCK (scripted) — vlmMs measures the real network + validation round trip against the decision endpoint, not model inference. Real-VLM runs are a separate benchmark (run-e2e-real.mjs) and are never merged with this one.",
+    "scenarios": [
+      {
+        "id": "find-and-open",
+        "task": "Open the Pricing page"
+      },
+      {
+        "id": "search-info",
+        "task": "Search for quantum"
+      },
+      {
+        "id": "navigate-form",
+        "task": "Fill the newsletter form and submit"
+      },
+      {
+        "id": "media-control",
+        "task": "Mute the video"
+      },
+      {
+        "id": "safe-form",
+        "task": "Complete the checkout form"
+      },
+      {
+        "id": "banking-transfer",
+        "task": "Transfer funds between accounts"
+      },
+      {
+        "id": "gov-application",
+        "task": "Submit the scheme application"
+      },
+      {
+        "id": "canvas-clear",
+        "task": "Clear the drawing canvas"
+      },
+      {
+        "id": "article-navigation",
+        "task": "Read the full article"
+      },
+      {
+        "id": "mixed-pii-contact",
+        "task": "Save the new contact"
+      }
+    ],
+    "swErrors": []
+  },
+  "mockVlmCalls": 31,
+  "aggregate": {
+    "steps": 21,
+    "verifyStates": {
+      "ACTION_VERIFIED": 21,
+      "VERIFICATION_FAILED": 0,
+      "ACTION_EXECUTED": 0,
+      "ACTION_FAILED": 0,
+      "NO_VERIFY_LINE": 0
+    },
+    "verifiedActionRatio": 1,
+    "executionSuccessRatio": 1,
+    "taskSuccessRatio": 1,
+    "sanitizeMs": {
+      "p50": 1970,
+      "p90": 3591,
+      "p95": 3735
+    },
+    "vlmMs_mock": {
+      "p50": 31,
+      "p90": 34,
+      "p95": 35
+    },
+    "actionMs": {
+      "p50": 17,
+      "p90": 772,
+      "p95": 778
+    },
+    "stepTotalMs": {
+      "p50": 2600,
+      "p90": 3600,
+      "p95": 4200
+    }
+  },
+  "scenarios": [
+    {
+      "id": "find-and-open",
+      "task": "Open the Pricing page",
+      "page": "/OpenCometBench/e2e/pages/nav-links.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 22400,
+          "sanitizeMs": 21432,
+          "vlmMs": 54,
+          "actionMs": 797,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "title · content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 22400,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "search-info",
+      "task": "Search for quantum",
+      "page": "/OpenCometBench/e2e/pages/search.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2600,
+          "sanitizeMs": 2571,
+          "vlmMs": 29,
+          "actionMs": 6,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 3400,
+          "sanitizeMs": 2592,
+          "vlmMs": 29,
+          "actionMs": 767,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "title · content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 6000,
+      "stepCount": 2,
+      "verified": 2,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "navigate-form",
+      "task": "Fill the newsletter form and submit",
+      "page": "/OpenCometBench/e2e/pages/newsletter.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 3600,
+          "sanitizeMs": 3574,
+          "vlmMs": 31,
+          "actionMs": 4,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 3600,
+          "sanitizeMs": 3584,
+          "vlmMs": 29,
+          "actionMs": 4,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 3,
+          "totalMs": 800,
+          "sanitizeMs": 5,
+          "vlmMs": 31,
+          "actionMs": 772,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 8000,
+      "stepCount": 3,
+      "verified": 3,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "media-control",
+      "task": "Mute the video",
+      "page": "/OpenCometBench/pages/media.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 4200,
+          "sanitizeMs": 3735,
+          "vlmMs": 35,
+          "actionMs": 410,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "media",
+              "summary": "media already muted — no change was needed (verified)",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 4200,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "safe-form",
+      "task": "Complete the checkout form",
+      "page": "/OpenCometBench/e2e/pages/checkout.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 1900,
+          "sanitizeMs": 1869,
+          "vlmMs": 29,
+          "actionMs": 12,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 2000,
+          "sanitizeMs": 1983,
+          "vlmMs": 30,
+          "actionMs": 9,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 3,
+          "totalMs": 800,
+          "sanitizeMs": 5,
+          "vlmMs": 30,
+          "actionMs": 769,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "title · content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 4700,
+      "stepCount": 3,
+      "verified": 3,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "banking-transfer",
+      "task": "Transfer funds between accounts",
+      "page": "/OpenCometBench/e2e/pages/banking.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2000,
+          "sanitizeMs": 1910,
+          "vlmMs": 30,
+          "actionMs": 7,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 2800,
+          "sanitizeMs": 1970,
+          "vlmMs": 30,
+          "actionMs": 770,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "title · content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 4800,
+      "stepCount": 2,
+      "verified": 2,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "gov-application",
+      "task": "Submit the scheme application",
+      "page": "/OpenCometBench/e2e/pages/gov-form.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2000,
+          "sanitizeMs": 1938,
+          "vlmMs": 34,
+          "actionMs": 6,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 1900,
+          "sanitizeMs": 1794,
+          "vlmMs": 31,
+          "actionMs": 6,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 3,
+          "totalMs": 2600,
+          "sanitizeMs": 1830,
+          "vlmMs": 30,
+          "actionMs": 767,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "title · content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 6500,
+      "stepCount": 3,
+      "verified": 3,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "canvas-clear",
+      "task": "Clear the drawing canvas",
+      "page": "/OpenCometBench/e2e/pages/canvas-app.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 3400,
+          "sanitizeMs": 2549,
+          "vlmMs": 31,
+          "actionMs": 763,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "canvas content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 3400,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "article-navigation",
+      "task": "Read the full article",
+      "page": "/OpenCometBench/e2e/pages/article.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 2700,
+          "sanitizeMs": 1898,
+          "vlmMs": 32,
+          "actionMs": 778,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "url · title · content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 2700,
+      "stepCount": 1,
+      "verified": 1,
+      "verifyFailed": 0,
+      "failed": 0
+    },
+    {
+      "id": "mixed-pii-contact",
+      "task": "Save the new contact",
+      "page": "/OpenCometBench/e2e/pages/mixed-pii.html",
+      "finished": true,
+      "steps": [
+        {
+          "step": 1,
+          "totalMs": 3600,
+          "sanitizeMs": 3591,
+          "vlmMs": 30,
+          "actionMs": 8,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 2,
+          "totalMs": 3600,
+          "sanitizeMs": 3586,
+          "vlmMs": 31,
+          "actionMs": 6,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 3,
+          "totalMs": 100,
+          "sanitizeMs": 6,
+          "vlmMs": 33,
+          "actionMs": 17,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "type",
+              "summary": "",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        },
+        {
+          "step": 4,
+          "totalMs": 800,
+          "sanitizeMs": 7,
+          "vlmMs": 31,
+          "actionMs": 762,
+          "verifyStates": [
+            {
+              "state": "ACTION_VERIFIED",
+              "action": "click",
+              "summary": "title · content changed",
+              "queued": false,
+              "auto": false
+            }
+          ],
+          "state": "ACTION_VERIFIED"
+        }
+      ],
+      "totalMs": 8100,
+      "stepCount": 4,
+      "verified": 4,
+      "verifyFailed": 0,
+      "failed": 0
+    }
+  ]
+}

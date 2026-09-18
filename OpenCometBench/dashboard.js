@@ -307,7 +307,7 @@ function renderScorecard() {
 
   const authored = currentBrowser?.authoritative;
   $('#verdict').innerHTML = `<b>Authoritative artifact:</b> ${esc(currentBrowser?.file || '—')}
-    (${currentBrowser?.meta?.environment === 'real-hardware-headed' ? 'REAL-HARDWARE · headed · valid for production claims' : 'CI environment — regression only'}). ${authored ? 'This is the report referenced by docs/SIH_READINESS.md. Importing another real-hardware-headed report makes THAT report authoritative.' : ''}
+    (${currentBrowser?.meta?.environment === 'real-hardware-headed' ? 'REAL-HARDWARE · headed · valid for production claims' : 'CI environment — regression only'}). ${authored ? 'This is the report referenced by docs/sih/SIH_READINESS.md. Importing another real-hardware-headed report makes THAT report authoritative.' : ''}
     UNIT / BROWSER / E2E-MOCK / E2E-REAL / ADVERSARIAL rows are never combined. Missing tiers display NOT YET VERIFIED (NYV) rather than a placeholder number.`;
 }
 

@@ -99,7 +99,12 @@ export function sanitizeScreenContext(pipelineResult, meta = {}) {
   // v1.14: ALSO strip invisible/bidi/control smugglers at the wire boundary —
   // zero-width and bidi-override characters must never cross the network
   // inside text that a remote fence will wrap (adversarial browser benchmark).
-  pipelineResult = { ...pipelineResult, sanitizedDomText: stripSmugglers(finalPiiSweepText(pipelineResult?.sanitizedDomText)) };
+  // v1.16.1 ORDER FIX: STRIP FIRST, then sweep. The previous order ran the
+  // secret sweep BEFORE the smuggler strip, so a secret split by zero-width
+  // characters ("pass\u200Bword: hunter2") was invisible to the sweep and only
+  // re-joined afterwards — it shipped clean-past-the-gate. Stripping first
+  // means the sweep always sees the exact byte sequence that would transmit.
+  pipelineResult = { ...pipelineResult, sanitizedDomText: finalPiiSweepText(stripSmugglers(pipelineResult?.sanitizedDomText)) };
   const regions = [
     ...(pipelineResult.manifest || []),
   ];
@@ -120,11 +125,20 @@ export function sanitizeScreenContext(pipelineResult, meta = {}) {
     // NO visual-PII coverage. Silence would be a privacy gap — verification
     // REFUSES, and the network gate blocks the transmission.
     visualPiiCoverageOk: !pipelineResult?.stats?.ocrFailed,
+    // v1.16.1 FACE FAILURE POLICY (fail-closed): same rule as OCR above.
+    // blurFaces is ON by default; if the face stage ERRORED, the frame has
+    // zero verified face coverage and the gate refuses to transmit. (A clean
+    // "scanned, nothing found" run still passes — only a stage ERROR fails.)
+    faceCoverageOk: !pipelineResult?.stats?.faceDetectFailed,
   };
   const passed = Object.values(checks).every(Boolean);
   if (pipelineResult?.stats?.ocrFailed) {
     console.warn('[PrivacyFirewall] OCR was enabled but unavailable — visual-PII coverage missing. '
       + 'FAIL-CLOSED: this frame will not be transmitted. Reason:', pipelineResult?.stats?.ocrFailedReason);
+  }
+  if (pipelineResult?.stats?.faceDetectFailed) {
+    console.warn('[PrivacyFirewall] Face detection ERRORED — face-redaction coverage unproven. '
+      + 'FAIL-CLOSED: this frame will not be transmitted. Reason:', pipelineResult?.stats?.faceDetectFailedReason);
   }
 
   return {
@@ -269,6 +283,15 @@ export function finalPiiSweepText(text) {
 export function scanTextForSecrets(text) {
   if (typeof text !== 'string' || !text) return [];
   return SECRET_TEXT_SWEEP.filter(p => p.re.test(text)).map(p => p.id);
+}
+
+/** v1.16.1: expose the sweep patterns (read-only) for wire-guard.js byte-level
+ * scans — the byte stream must be tested against the SAME regexes as the
+ * fields, not a diverging copy. Returns the live array; callers MUST NOT
+ * mutate it (enforced by convention — module is pure).
+ */
+export function secretSweepPatterns() {
+  return SECRET_TEXT_SWEEP;
 }
 
 // ── v1.15.7 REDACT-AND-VERIFY last-line sweep ────────────────────────────────

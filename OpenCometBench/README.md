@@ -30,6 +30,7 @@ All fixture data is synthetic (no real personal data, ever).
 | `e2e/run-e2e.mjs` | E2E tier — the real unpacked extension driven through 10 reproducible tasks (mock decision brain) |
 | `e2e/run-e2e-real.mjs` | E2E-REAL tier — same loop with YOUR model (BYO provider); **never merged** with the mock run |
 | `e2e/smoke-openrouter-free.mjs` | Pre-flight smoke for OpenRouter free vision models (endpoint + key + vision + JSON shape, in seconds) |
+| `probe-yolo-downscale.mjs` | v1.16.0 A/B correctness probe for the `yoloMaxEdge` detector-input knob — MEASURED: correctness-neutral (box parity IoU = 1.000) but latency-neutral (the detector resizes internally to a fixed resolution). Kept as the honest negative result; keep `yoloMaxEdge: 0`. |
 | `e2e/run-adversarial.mjs` | ADVERSARIAL tier — 23 wire-capture cases (12 privacy + 11 injection), every outbound byte captured |
 | `e2e/mock-vlm.mjs` · `e2e/pages/` · `e2e/adversarial/` | Scripted decision server + fixture pages (`generate-adversarial-pages.mjs`) |
 | `dashboard.html` · `dashboard.js` · `dashboard-data.js` | Admin performance monitor (offline render; `scripts/build_dashboard_data.py` rebuilds the seed) |
@@ -159,12 +160,36 @@ node OpenCometBench/e2e/run-e2e-real.mjs --provider=custom \
     --base-url=https://openrouter.ai/api/v1 \
     --model=inclusionai/ling-3.0-flash-vl:free \
     --api-key="$OPENROUTER_API_KEY" --only=find-and-open
+# v1.16.0 — steady-state measurement: one unmeasured warm-up cycle first
+# (loads YOLO/ViT/OCR + first-inference JIT, ZERO VLM calls, zero API cost),
+# so the reported sanitizeMs is the STEADY STATE, never the one-time cold load:
+node OpenCometBench/e2e/run-e2e-real.mjs --provider=custom \
+    --base-url=https://openrouter.ai/api/v1 \
+    --model=inclusionai/ling-3.0-flash-vl:free \
+    --api-key="$OPENROUTER_API_KEY" --warmup
 ```
 
 Same real loop, REAL decision brain (BYO-provider direct path). Output:
 `e2e-real-benchmark-<ts>.json` (`meta.type:"e2e-real"`) — never merged with mock,
 UNIT, or BROWSER rows. Fail-fast smoke check: nothing is written unless the provider
 endpoint answers.
+
+**Scenario matrix (10 built in):** `find-and-open`, `search-info`, `navigate-form`,
+`media-control`, `safe-form`, `banking-transfer`, `gov-application`,
+`canvas-clear`, `article-navigation`, `mixed-pii-contact`. `--only` accepts a
+comma-separated subset; omit it to run all ten. Report per-phase P50/P90/P95 per
+run. The single-scenario reference below is one row of that matrix — a 5–10
+scenario run is the statistically meaningful SIH evidence block.
+
+**Cold vs steady state (v1.16.0):** the first sanitize of a FRESH profile pays a
+one-time model download + compile (cold-cache ViT load measured 37873 ms on the
+reference hardware — that single load dominated the reference run's
+`sanitizeMs 41487`). Three honest latency conditions exist and are never merged:
+① cold first-step (model load + inference), ② warm memo-hit unchanged screen
+(P50 1216 ms authoritative), ③ changed-frame memo-MISS (12885 ms measured). With
+`--warmup` the report describes ②/③ conditions only and stamps `meta.warmup`;
+production runs warm models at session start (`VISION_WARMUP` in the offscreen
+runtime) so real users never pay ① mid-session.
 
 **Measured OpenRouter reference run** (real hardware, 2026-09-10,
 `results/e2e-real-benchmark-1789066449033.json`, `inclusionai/ling-3.0-flash-vl:free`,

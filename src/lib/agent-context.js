@@ -2,7 +2,7 @@
 // src/lib/agent-context.js
 // Pure, dependency-free helpers that shape the CONTEXT the VLM sees each turn.
 //
-// v1.9.0 VLM-speed package (see docs/vlm-speed-research.md):
+// v1.9.0 VLM-speed package (see docs/research/vlm-speed-research.md):
 //   • compactHistory()      — history window compaction so the prompt does not
 //                             grow every step (fewer prompt tokens + a stable
 //                             prefix improves provider KV/context cache hits).

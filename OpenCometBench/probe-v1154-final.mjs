@@ -5,8 +5,10 @@
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
-const ROOT = '/home/z/my-project/upload/OpenCometAI-SIH-extracted/OpenCometAI-SIH';
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.gz': 'application/gzip', '.tflite': 'application/octet-stream' };
 const srv = createServer((q, r) => {
   const f = ROOT + new URL(q.url, 'http://x').pathname;

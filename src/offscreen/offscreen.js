@@ -33,7 +33,7 @@ import {
   activeDownloadIds,
 } from '../lib/local-llm-engine.js';
 import { runPrivacyPipeline } from '../lib/privacy-filter.js';
-import { disposeLocalVision } from '../lib/local-vision.js';
+import { disposeLocalVision, preloadLocalVision, getImageClassifier } from '../lib/local-vision.js';
 import { disposeFaceDetector } from '../lib/mediapipe-face.js';
 
 // Uncaught errors / unhandled rejections in this context never vanish: they
@@ -170,6 +170,33 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
         })
         .catch(err => {
           mlError(`PRIVACY_SANITIZE failed:`, String(err?.message || err), err?.stack || '');
+          respond({ ok: false, requestId, error: String(err?.message || err) });
+        });
+      return true;   // async response
+    }
+
+    // ── v1.16.0 model warm-up (cold-start off the first-capture critical path)
+    // Loads the YOLO (+ optional ViT) pipelines with NO capture pending, so the
+    // first PRIVACY_SANITIZE of a session pays inference cost only — not the
+    // one-time model download + WASM/GPU compile (measured on the reference
+    // hardware: ViT load ALONE is 37.9 s with a cold browser cache — that load
+    // dominating the real-VLM E2E first-step sanitizeMs 41487). NER stays lazy
+    // (110 MB, only used when useNer is enabled). Fire-and-forget from the SW:
+    // failures are logged and reported, never propagated into a running task.
+    case 'VISION_WARMUP': {
+      const { yolo = true, vit = true, requestId } = msg;
+      withHeartbeats(requestId || 'vision-warmup', async () => {
+        const t0 = performance.now();
+        const parts = [];
+        if (yolo) { await preloadLocalVision({ includeNer: false, includeYolo: true }); parts.push('yolo'); }
+        if (vit) { await getImageClassifier(); parts.push('vit'); }
+        const warmupMs = Math.round(performance.now() - t0);
+        mlLog(`VISION_WARMUP ok · ${warmupMs}ms · ${parts.join('+') || 'nothing to load'}`);
+        return { parts, warmupMs };
+      })
+        .then(result => respond({ ok: true, requestId, result }))
+        .catch(err => {
+          mlWarn('VISION_WARMUP failed (non-fatal — first capture will warm lazily):', String(err?.message || err));
           respond({ ok: false, requestId, error: String(err?.message || err) });
         });
       return true;   // async response

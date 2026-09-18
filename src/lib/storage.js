@@ -103,24 +103,39 @@ export async function removeSkill(id) {
 }
 
 // ── Token Usage Storage ───────────────────────────────────────────────────────
+// v1.16.1 STORAGE WRITE MUTEX: read-modify-write cycles (token usage, model
+// statuses) previously ran concurrently — two overlapping completions could
+// both read the same base and one increment was lost. A tiny promise-chain
+// mutex serializes them. Exported so the SW can serialize its own RMW cycles
+// (LOCAL_STATUS_WRITE) with the same primitive.
+let _rmwChain = Promise.resolve();
+export function serializeStorageWrite(fn) {
+  const run = _rmwChain.then(fn, fn);   // run regardless of the previous outcome
+  _rmwChain = run.catch(() => {});
+  return run;
+}
+
 export async function getTokenUsage() {
   const data = await chrome.storage.local.get(STORAGE_KEYS.TOKEN_USAGE);
   return data[STORAGE_KEYS.TOKEN_USAGE] || {};
 }
 
-export async function recordTokenUsage(model, promptTokens, completionTokens, totalTokens, cost) {
-  const usage = await getTokenUsage();
-  if (!usage[model]) {
-    usage[model] = { promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0 };
-  }
-  usage[model].promptTokens += (promptTokens || 0);
-  usage[model].completionTokens += (completionTokens || 0);
-  usage[model].totalTokens += (totalTokens || 0);
-  usage[model].cost += (cost || 0);
+export function recordTokenUsage(model, promptTokens, completionTokens, totalTokens, cost) {
+  return serializeStorageWrite(async () => {
+    const usage = await getTokenUsage();
+    if (!usage[model]) {
+      usage[model] = { promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0 };
+    }
+    usage[model].promptTokens += (promptTokens || 0);
+    usage[model].completionTokens += (completionTokens || 0);
+    usage[model].totalTokens += (totalTokens || 0);
+    usage[model].cost += (cost || 0);
 
-  await chrome.storage.local.set({ [STORAGE_KEYS.TOKEN_USAGE]: usage });
-  // Broadcast update so settings UI updates if open
-  chrome.runtime.sendMessage({ type: 'TOKEN_USAGE_UPDATED', usage }).catch(() => {});
+    await chrome.storage.local.set({ [STORAGE_KEYS.TOKEN_USAGE]: usage });
+    // Broadcast update so settings UI updates if open
+    chrome.runtime.sendMessage({ type: 'TOKEN_USAGE_UPDATED', usage }).catch(() => {});
+    return usage;
+  });
 }
 
 export async function clearTokenUsage() {

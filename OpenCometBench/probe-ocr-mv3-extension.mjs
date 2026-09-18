@@ -18,10 +18,11 @@
 //   • zero page-scope external (non-extension-origin) requests
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const ROOT = '/home/z/my-project/upload/OpenCometAI-SIH-extracted/OpenCometAI-SIH';
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HEADLESS = process.env.OCR_PROBE_HEADED !== '1';
 const userDataDir = mkdtempSync(join(tmpdir(), 'ocr-mv3-probe-'));
 

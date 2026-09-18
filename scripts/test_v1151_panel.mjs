@@ -23,7 +23,7 @@ import { dirname, join, extname } from 'node:path';
 import crypto from 'node:crypto';
 import { chromium } from 'playwright';
 
-const ROOT = '/home/z/my-project/upload/OpenCometAI-SIH-extracted/OpenCometAI-SIH';
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = 'http://127.0.0.1:8895';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.tflite': 'application/octet-stream', '.gz': 'application/gzip' };
 
@@ -130,18 +130,16 @@ async function main() {
     ],
   });
 
-  const extId = crypto.createHash('sha256').update(ROOT).digest('hex').slice(0, 32)
-    .split('').map(c => String.fromCharCode(97 + parseInt(c, 16))).join('');
-
   const wake = await context.newPage();
   await wake.goto(`${BASE}/OpenCometBench/e2e/pages/nav-links.html`).catch(() => {});
   await wake.waitForTimeout(1200);
   let sw = null;
   for (let i = 0; i < 30 && !sw; i++) {
-    sw = context.serviceWorkers().find(w => w.url().includes(extId));
+    sw = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://'));
     if (!sw) await new Promise(r => setTimeout(r, 500));
   }
   if (!sw) { console.error('SW never appeared'); process.exit(1); }
+  const extId = new URL(sw.url()).hostname;
   console.log('SW online');
 
   // Configure provider → mock endpoint

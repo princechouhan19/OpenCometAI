@@ -31,10 +31,18 @@ Respond ONLY with valid JSON:
 }`;
 }
 
+// v1.16.1 DEFENCE-IN-DEPTH SYNC: the deep-research prompt builders previously
+// interpolated RAW page text WITHOUT the <untrusted_data nonce> fencing that
+// every other page-derived embed point uses (Phase 15 never reached this
+// older path). Page-derived content is now fenced with a fresh nonce at
+// every build site, and smuggler characters (bidi/zero-width) are stripped.
+import { makeFenceNonce, fenceUntrusted, neutralizeUntrusted } from './prompt-defense.js';
+
 export function buildSynthesisPrompt(task, subQueries, sources) {
+  const nonce = makeFenceNonce();
   const sourcesText = (sources || []).slice(0, 20).map((source, index) => {
-    const body = String(source.summary || source.snippet || source.text || '').substring(0, 1200);
-    return `[${index + 1}] ${source.title || source.url || 'Untitled'}\nURL: ${source.url || ''}\n${body}`;
+    const body = neutralizeUntrusted(String(source.summary || source.snippet || source.text || '').substring(0, 1200));
+    return `[${index + 1}] ${source.title || source.url || 'Untitled'}\nURL: ${source.url || ''}\n${fenceUntrusted(body, nonce)}`;
   }).join('\n\n---\n\n');
 
   return `You are an expert research analyst. Write a concise but thorough report using only the provided sources.
@@ -57,6 +65,7 @@ Instructions:
 }
 
 export function buildBrowserSourceAnalysisPrompt(task, source, page, index, total) {
+  const nonce = makeFenceNonce();
   const headings = (page?.headings || []).slice(0, 12).join(' | ');
   const tables = (page?.tables || []).slice(0, 2).map((table, tableIndex) => {
     const rows = (table?.rows || []).slice(0, 5).map(row => row.join(' | ')).join('\n');
@@ -78,7 +87,7 @@ Headings:
 ${headings || 'None'}
 
 Page text:
-${String(page?.readableText || page?.text || '').substring(0, 7000)}
+${fenceUntrusted(neutralizeUntrusted(String(page?.readableText || page?.text || '').substring(0, 7000)), nonce)}
 
 Tables:
 ${tables || 'None'}
@@ -99,6 +108,7 @@ Rules:
 }
 
 export function buildScrapeExtractionPrompt(goal, page) {
+  const nonce = makeFenceNonce();
   const tables = (page?.tables || []).slice(0, 3).map((table, tableIndex) => {
     const rows = (table?.rows || []).slice(0, 8).map(row => row.join(' | ')).join('\n');
     return `Table ${tableIndex + 1}:\n${rows}`;
@@ -115,7 +125,7 @@ Page URL: ${page?.url || ''}
 Headings: ${(page?.headings || []).slice(0, 15).join(' | ') || 'None'}
 
 Page text:
-${String(page?.readableText || page?.text || '').substring(0, 9000)}
+${fenceUntrusted(neutralizeUntrusted(String(page?.readableText || page?.text || '').substring(0, 9000)), nonce)}
 
 Tables:
 ${tables || 'None'}
