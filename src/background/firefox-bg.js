@@ -9,12 +9,14 @@
 //   Firefox: manifest.background.scripts        → this file             (event page)
 //            └─ dynamic import ─► src/background/sw.js (module graph intact)
 //
-// The chrome.offscreen API does not exist on Firefox. HONEST STATUS (v1.16.1):
-// there is NO automatic ML fallback in the event page — offscreen-client.js
-// THROWS when chrome.offscreen is missing, so on-device models (Gemma 4,
-// vision warm-up, OCR) are NOT available on Firefox. Cloud providers, the
-// companion server and the standard agent loop still work; the privacy
-// pipeline requires Chromium for now.
+// v1.17.0 IN-PAGE ML RUNTIME: chrome.offscreen does not exist on Firefox, so
+// offscreen-client.js detects that and hosts the SAME offscreen/offscreen.html
+// document in a hidden iframe inside THIS event page (event pages have a DOM),
+// talking to it over a postMessage RPC bridge. On-device models (Gemma 4,
+// vision warm-up, OCR, face detection) therefore work on Firefox too — same ML
+// code, different transport. Chromium-only niceties (chrome.debugger trusted
+// clicks, chrome.pageCapture MHTML save, chrome.sidePanel, tab groups)
+// degrade gracefully via runtime feature detection.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import(chrome.runtime.getURL('src/background/sw.js')).catch((err) => {

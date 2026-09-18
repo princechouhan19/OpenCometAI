@@ -13,7 +13,7 @@ import {
   buildBrowserSourceAnalysisPrompt,
   buildScrapeExtractionPrompt,
 } from '../lib/deepsearch.js';
-import { getSettings, saveSettings as persistSettings, getHistory, appendHistory, clearHistory, initStorage, appendExport, recordTokenUsage, clearTokenUsage, serializeStorageWrite } from '../lib/storage.js';
+import { getSettings, saveSettings as persistSettings, getHistory, appendHistory, clearHistory, initStorage, appendExport, recordTokenUsage, clearTokenUsage, serializeStorageWrite, STATE_VERSION } from '../lib/storage.js';
 import { sleep, getHostFromUrl, normalizeHost, parseJSON } from '../lib/utils.js';
 import { MSG, STATUS, STEP_TYPE, PROTECTED_ACTION_LABELS, MODEL_PRICING } from '../lib/constants.js';
 import { buildSearchUrl, openResearchTab, scrapeSearchResults, scrapeReadablePage, closeTabs } from '../lib/browser-research.js';
@@ -82,10 +82,27 @@ function trackUsage(usage) {
 // -- Lifecycle -----------------------------------------------------------------
 chrome.runtime.onInstalled.addListener(async () => {
   await initStorage();
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  // v1.17.0: Firefox has no chrome.sidePanel — the toolbar button falls back
+  // to opening the panel as a regular tab (see the onClicked listener below).
+  chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: true });
 });
 
-chrome.action.onClicked.addListener(tab => chrome.sidePanel.open({ tabId: tab.id }));
+chrome.action.onClicked.addListener(tab => {
+  if (chrome.sidePanel?.open) {
+    chrome.sidePanel.open({ tabId: tab.id });
+    return;
+  }
+  // v1.17.0 FIREFOX: the sidebar opens as a tab — same sidepanel.html, same
+  // module UI, no sidePanel API required.
+  try {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('src/sidepanel/sidepanel.html'),
+      index: Number.isInteger(tab?.index) ? tab.index + 1 : undefined,
+    });
+  } catch (err) {
+    console.error('[Open Comet] Could not open the panel as a tab:', err?.message || err);
+  }
+});
 
 // -- Tab event tracking --------------------------------------------------------
 chrome.tabs.onCreated.addListener(async tab => {
@@ -114,10 +131,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
 
   // Offscreen runtime asks us to close it after a long idle period.
   if (msg && msg.type === 'OFFSCREEN_CLOSE_REQUEST') {
-    chrome.offscreen?.closeDocument?.().then(
-      () => console.log('[Open Comet] Offscreen ML runtime closed (idle).'),
-      () => {}
-    );
+    if (chrome.offscreen?.closeDocument) {
+      chrome.offscreen.closeDocument().then(
+        () => console.log('[Open Comet] Offscreen ML runtime closed (idle).'),
+        () => {}
+      );
+    } else if (typeof document !== 'undefined') {
+      // v1.17.0 FIREFOX in-page mode: teardown = removing the hidden iframe.
+      document.getElementById('opencomet-ml-frame')?.remove();
+      console.log('[Open Comet] In-page ML runtime closed (idle).');
+    }
     return;
   }
 
@@ -162,7 +185,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
         const statuses = await serializeStorageWrite(async () => {
           const d = await chrome.storage.local.get(KEY);
           const all = d?.[KEY] || {};
-          all[msg.modelId] = { ...(all[msg.modelId] || {}), ...(msg.patch || {}) };
+          // v1.17.0: each per-model status blob is stamped with stateVersion
+          // (obsolete-state gating) — see storage.js STATE_VERSION.
+          all[msg.modelId] = { stateVersion: STATE_VERSION, ...(all[msg.modelId] || {}), ...(msg.patch || {}) };
           await chrome.storage.local.set({ [KEY]: all });
           return all;
         });
@@ -948,6 +973,9 @@ async function captureContext(tabId) {
 }
 
 async function takeScreenshot(tabId, pageInfo = {}) {
+  // v1.17.0: Firefox has no chrome.debugger — go straight to the
+  // captureVisibleTab fallback instead of dying on the attach call.
+  if (!chrome.debugger) return await fallbackScreenshot(tabId);
   let attached = false;
   let overlayReady = false;
   try {

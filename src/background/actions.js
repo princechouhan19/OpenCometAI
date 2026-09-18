@@ -398,6 +398,11 @@ export async function executeAction(tabId, action, agentState) {
 
     // ── Save current page as MHTML archive ──────────────────────────────────
     case 'save_page': {
+      // v1.17.0: chrome.pageCapture is Chromium-only — fail with an honest,
+      // actionable message on Firefox instead of a TypeError.
+      if (!chrome.pageCapture?.captureMHTML) {
+        throw new Error('save_page needs Chromium (chrome.pageCapture is unavailable on this browser). Use screenshot_save instead.');
+      }
       const mhtml = await chrome.pageCapture.captureMHTML({ tabId });
       if (!mhtml) throw new Error('Could not capture page (chrome:// pages cannot be saved)');
       const title = String(agentState.lastPageInfo?.title || 'page').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').substring(0, 60) || 'page';
@@ -775,6 +780,9 @@ async function trustedClick(tabId, rect) {
   const x = Math.round((rect?.x || 0) + w / 2);
   const y = Math.round((rect?.y || 0) + h / 2);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, reason: 'no click coordinates' };
+  // v1.17.0: chrome.debugger is Chromium-only — Firefox degrades to synthetic
+  // clicks with an honest reason instead of a cryptic TypeError.
+  if (!chrome.debugger) return { ok: false, reason: 'trusted (debugger) clicks need Chromium — synthetic click attempted on this browser' };
   const target = { tabId };
   try {
     await chrome.debugger.attach(target, '1.3');
