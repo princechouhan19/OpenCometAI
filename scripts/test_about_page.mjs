@@ -8,7 +8,7 @@
 //   2. Hero: name, logo (actually loads), SIH/ISRO badges and a version chip
 //      filled from the REAL loaded manifest (chrome.runtime.getManifest) —
 //      must equal the on-disk manifest.json version.
-//   3. What's New: 11 changelog entries, newest first, v1.15.9 marked newest.
+//   3. What's New: 12 changelog entries, newest first, v1.16.0 marked newest.
 //   4. Project details: PS #26171, ISRO, OpenComet-Bench 922-case headline.
 //   5. Copy build info: reports Copied or Printed (never throws), and the
 //      printed/copied text contains the real version.
@@ -21,7 +21,7 @@ import { dirname, join } from 'node:path';
 import crypto from 'node:crypto';
 import { chromium } from 'playwright';
 
-const ROOT = '/home/z/my-project/upload/OpenCometAI-SIH-extracted/OpenCometAI-SIH';
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
 const EXPECTED_VER = MANIFEST.version;
 
@@ -42,8 +42,17 @@ async function main() {
     ],
   });
 
-  const extId = crypto.createHash('sha256').update(ROOT).digest('hex').slice(0, 32)
+  let sw = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://'));
+  context.on('serviceworker', (w) => { if (w.url().startsWith('chrome-extension://')) sw = w; });
+  const wake = await context.newPage();
+  await wake.goto('about:blank').catch(() => {});
+  for (let i = 0; !sw && i < 30; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    sw = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://'));
+  }
+  const extId = sw ? new URL(sw.url()).hostname : crypto.createHash('sha256').update(ROOT).digest('hex').slice(0, 32)
     .split('').map(c => String.fromCharCode(97 + parseInt(c, 16))).join('');
+  await wake.close().catch(() => {});
 
   const panel = await context.newPage();
   const pageErrors = [];
@@ -87,10 +96,10 @@ async function main() {
 
   // 4. What's New
   const clVers = await panel.$$eval('.about-cl-ver', els => els.map(e => e.textContent.trim()));
-  check('11 changelog entries', clVers.length === 11, clVers.join(','));
-  check('changelog newest-first', clVers[0] === 'v1.15.9' && clVers[clVers.length - 1] === 'v1.14', clVers.join(','));
+  check('12 changelog entries', clVers.length === 12, clVers.join(','));
+  check('changelog newest-first', clVers[0] === 'v1.16.0' && clVers[clVers.length - 1] === 'v1.14', clVers.join(','));
   const newestMarked = await panel.$eval('.about-cl-item.newest .about-cl-ver', el => el.textContent.trim());
-  check('v1.15.9 marked newest', newestMarked === 'v1.15.9');
+  check('v1.16.0 marked newest', newestMarked === 'v1.16.0');
   const clText = await panel.$$eval('.about-cl-item', els => els.map(e => e.textContent).join(' '));
   check('changelog mentions avatar guard + face sweep + Indian IDs',
     clText.includes('avatar guard') && clText.includes('face sweep') && clText.includes('Indian ID'), '');

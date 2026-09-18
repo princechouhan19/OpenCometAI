@@ -1,0 +1,766 @@
+{
+  "generatedAt": "2026-09-18T07:38:26.105Z",
+  "results": [
+    {
+      "name": "PII detection (precision / recall / F1)",
+      "pass": true,
+      "metrics": {
+        "overall": {
+          "tp": 365,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1,
+          "recall": 0.997,
+          "f1": 0.999
+        },
+        "perType": {
+          "email": {
+            "tp": 38,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "phone": {
+            "tp": 38,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "credit_card": {
+            "tp": 37,
+            "fp": 0,
+            "fn": 1,
+            "precision": 1,
+            "recall": 0.974,
+            "f1": 0.987
+          },
+          "aadhaar": {
+            "tp": 26,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "pan": {
+            "tp": 20,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "ssn": {
+            "tp": 18,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "iban": {
+            "tp": 18,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "api_key": {
+            "tp": 56,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "password": {
+            "tp": 20,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "otp": {
+            "tp": 18,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "url_cred": {
+            "tp": 14,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "ip": {
+            "tp": 18,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "dob": {
+            "tp": 22,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          },
+          "address": {
+            "tp": 22,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1,
+            "f1": 1
+          }
+        },
+        "targets": {
+          "precision": 0.97,
+          "recall": 0.95
+        },
+        "misses": [
+          {
+            "id": "pos-072",
+            "type": "credit_card",
+            "expected": "5425-3349-1327-2364",
+            "got": "aadhaar:\"5425-3349-1327\""
+          }
+        ],
+        "falsePositives": [],
+        "corpusSize": {
+          "positives": 366,
+          "negatives": 148
+        }
+      },
+      "durationMs": 22
+    },
+    {
+      "name": "Redaction regions (coverage / IoU / over-redaction)",
+      "pass": true,
+      "metrics": {
+        "styleCorrect": "6/6",
+        "avgCoverage": 0.983,
+        "meanIou": 0.938,
+        "overRedactionPct": 5.86,
+        "styleRows": [
+          {
+            "id": "gt-password",
+            "type": "password",
+            "expect": "blackout",
+            "got": "blackout",
+            "ok": true
+          },
+          {
+            "id": "gt-card",
+            "type": "credit_card",
+            "expect": "blackout",
+            "got": "blackout",
+            "ok": true
+          },
+          {
+            "id": "gt-email",
+            "type": "email",
+            "expect": "pixelate",
+            "got": "pixelate",
+            "ok": true
+          },
+          {
+            "id": "gt-phone",
+            "type": "phone",
+            "expect": "pixelate",
+            "got": "pixelate",
+            "ok": true
+          },
+          {
+            "id": "gt-face",
+            "type": "face",
+            "expect": "blur",
+            "got": "blur",
+            "ok": true
+          },
+          {
+            "id": "gt-apikey",
+            "type": "api_key",
+            "expect": "blackout",
+            "got": "blackout",
+            "ok": true
+          }
+        ],
+        "coverageRows": [
+          {
+            "id": "gt-password",
+            "coverage": 0.901
+          },
+          {
+            "id": "gt-card",
+            "coverage": 1
+          },
+          {
+            "id": "gt-email",
+            "coverage": 1
+          },
+          {
+            "id": "gt-phone",
+            "coverage": 1
+          },
+          {
+            "id": "gt-face",
+            "coverage": 1
+          },
+          {
+            "id": "gt-apikey",
+            "coverage": 1
+          }
+        ],
+        "iouRows": [
+          {
+            "id": "gt-password",
+            "iou": 0.897
+          },
+          {
+            "id": "gt-card",
+            "iou": 1
+          },
+          {
+            "id": "gt-email",
+            "iou": 0.729
+          },
+          {
+            "id": "gt-phone",
+            "iou": 1
+          },
+          {
+            "id": "gt-face",
+            "iou": 1
+          },
+          {
+            "id": "gt-apikey",
+            "iou": 1
+          }
+        ],
+        "manifestOk": true,
+        "targets": {
+          "coverage": 0.98,
+          "meanIou": 0.85,
+          "styleAccuracy": 1,
+          "maxOverRedactionPct": 10
+        }
+      },
+      "durationMs": 1
+    },
+    {
+      "name": "Visual context (page-type accuracy / elements / adaptive gate)",
+      "pass": true,
+      "metrics": {
+        "accuracy": 1,
+        "correct": "11/11",
+        "rows": [
+          {
+            "id": "login-form",
+            "expect": "login",
+            "got": "login",
+            "confidence": 0.94,
+            "scene": "not-classified",
+            "elements": [
+              "password_field",
+              "email_field",
+              "form",
+              "button",
+              "credential_form"
+            ],
+            "ok": true
+          },
+          {
+            "id": "signup-form",
+            "expect": "signup",
+            "got": "signup",
+            "confidence": 0.85,
+            "scene": "not-classified",
+            "elements": [
+              "password_field",
+              "email_field",
+              "form",
+              "button"
+            ],
+            "ok": true
+          },
+          {
+            "id": "checkout-flow",
+            "expect": "checkout",
+            "got": "checkout",
+            "confidence": 0.9,
+            "scene": "not-classified",
+            "elements": [
+              "form",
+              "button",
+              "link_list",
+              "price_display",
+              "order_summary"
+            ],
+            "ok": true
+          },
+          {
+            "id": "payment-card",
+            "expect": "payment",
+            "got": "payment",
+            "confidence": 0.93,
+            "scene": "not-classified",
+            "elements": [
+              "form",
+              "button",
+              "price_display",
+              "order_summary"
+            ],
+            "ok": true
+          },
+          {
+            "id": "banking-portal",
+            "expect": "banking",
+            "got": "banking",
+            "confidence": 0.92,
+            "scene": "not-classified",
+            "elements": [
+              "search_box",
+              "button",
+              "link_list"
+            ],
+            "ok": true
+          },
+          {
+            "id": "email-inbox",
+            "expect": "email",
+            "got": "email",
+            "confidence": 0.94,
+            "scene": "not-classified",
+            "elements": [
+              "search_box",
+              "button",
+              "link_list",
+              "text_editor"
+            ],
+            "ok": true
+          },
+          {
+            "id": "media-watch",
+            "expect": "media",
+            "got": "media",
+            "confidence": 0.92,
+            "scene": "not-classified",
+            "elements": [
+              "button",
+              "link_list",
+              "video_player",
+              "media_controls"
+            ],
+            "ok": true
+          },
+          {
+            "id": "article-page",
+            "expect": "article",
+            "got": "article",
+            "confidence": 0.83,
+            "scene": "not-classified",
+            "elements": [
+              "button",
+              "link_list"
+            ],
+            "ok": true
+          },
+          {
+            "id": "gov-form",
+            "expect": "government",
+            "got": "government",
+            "confidence": 0.89,
+            "scene": "not-classified",
+            "elements": [
+              "file_upload",
+              "form",
+              "button",
+              "link_list"
+            ],
+            "ok": true
+          },
+          {
+            "id": "canvas-app-thin-dom",
+            "expect": "form",
+            "got": "form",
+            "confidence": 0.46,
+            "scene": "screen-like",
+            "elements": [],
+            "ok": true
+          },
+          {
+            "id": "portal-mixed-ui",
+            "expect": "unknown",
+            "got": "unknown",
+            "confidence": 0.28,
+            "scene": "not-classified",
+            "elements": [
+              "button",
+              "link_list"
+            ],
+            "ok": true
+          }
+        ],
+        "elementCoverage": "4/4",
+        "gate": {
+          "domSufficientSkips": true,
+          "uncertaintyRuns": true,
+          "unchangedSkips": true,
+          "heavyRuns": true
+        },
+        "targets": {
+          "accuracy": 0.95,
+          "gateOk": true,
+          "elementCoverage": 1
+        }
+      },
+      "durationMs": 12
+    },
+    {
+      "name": "Security & privacy leakage suite",
+      "pass": true,
+      "metrics": {
+        "passed": 29,
+        "total": 29,
+        "results": [
+          {
+            "name": "password leakage blocked",
+            "ok": true
+          },
+          {
+            "name": "email leakage caught by sweep (api key shape)",
+            "ok": true
+          },
+          {
+            "name": "phone leakage allowed (phones are pixelated, not banned)",
+            "ok": true
+          },
+          {
+            "name": "aadhaar leakage blocked by PII sweep upstream (mask check)",
+            "ok": true
+          },
+          {
+            "name": "ip mask must not return the raw IP (regression)",
+            "ok": true
+          },
+          {
+            "name": "raw screenshot smuggled in a text field → BLOCKED",
+            "ok": true
+          },
+          {
+            "name": "raw capture without envelope (privacy off) → BLOCKED",
+            "ok": true
+          },
+          {
+            "name": "failed verification (passed:false) → BLOCKED",
+            "ok": true
+          },
+          {
+            "name": "manifest with raw selector → BLOCKED",
+            "ok": true
+          },
+          {
+            "name": "well-formed sanitized payload → PASS",
+            "ok": true
+          },
+          {
+            "name": "gateOutboundDecision blocks privacy-off payload",
+            "ok": true
+          },
+          {
+            "name": "gateOutboundDecision passes sanitized payload",
+            "ok": true
+          },
+          {
+            "name": "redaction crash + blank fallback → envelope passes (zero-pixel frame)",
+            "ok": true
+          },
+          {
+            "name": "detector crash without blank fallback → envelope FAILS (fail-closed)",
+            "ok": true
+          },
+          {
+            "name": "assertSafeForNetwork throws PrivacyBlockedError",
+            "ok": true
+          },
+          {
+            "name": "buildSafeManifest strips selectors/labels",
+            "ok": true
+          },
+          {
+            "name": "manifest region ids are normalized",
+            "ok": true
+          },
+          {
+            "name": "scanTextForSecrets catches API keys in OCR text",
+            "ok": true
+          },
+          {
+            "name": "scanTextForSecrets ignores prose about passwords",
+            "ok": true
+          },
+          {
+            "name": "prompt-injection: hostile page text stays fenced + neutralized",
+            "ok": true
+          },
+          {
+            "name": "prompt-injection: invisible/bidi smugglers stripped",
+            "ok": true
+          },
+          {
+            "name": "REAL privacy decision prompt: rules present, page text fenced",
+            "ok": true
+          },
+          {
+            "name": "REAL prompt: nonce cannot be closed by page content",
+            "ok": true
+          },
+          {
+            "name": "v1.13: page title/url/dialogs/failed-targets are fenced, not bare",
+            "ok": true
+          },
+          {
+            "name": "cssRectToImage DPR 1.0",
+            "ok": true
+          },
+          {
+            "name": "cssRectToImage DPR 1.25",
+            "ok": true
+          },
+          {
+            "name": "cssRectToImage DPR 1.5",
+            "ok": true
+          },
+          {
+            "name": "cssRectToImage DPR 2.0",
+            "ok": true
+          },
+          {
+            "name": "cssRectToImage never double-scales image-space boxes (scale 1)",
+            "ok": true
+          }
+        ]
+      },
+      "durationMs": 13
+    },
+    {
+      "name": "Privacy leakage fuzz (seeded, 8 families × 9 channels)",
+      "pass": true,
+      "metrics": {
+        "totalCases": 216,
+        "blockedByGate": 0,
+        "safeMaskedOnly": 216,
+        "LEAKED": 0,
+        "fails": [],
+        "matrix": {
+          "password→dom_text": true,
+          "password→dom_text_inline": true,
+          "password→page_title": true,
+          "password→dialog_label": true,
+          "password→history_result": true,
+          "password→history_selector": true,
+          "password→manifest_selector_attack": true,
+          "password→ocr_text": true,
+          "password→visual_context_smuggle": true,
+          "api_key→dom_text": true,
+          "api_key→dom_text_inline": true,
+          "api_key→page_title": true,
+          "api_key→dialog_label": true,
+          "api_key→history_result": true,
+          "api_key→history_selector": true,
+          "api_key→manifest_selector_attack": true,
+          "api_key→ocr_text": true,
+          "api_key→visual_context_smuggle": true,
+          "api_key_aws→dom_text": true,
+          "api_key_aws→dom_text_inline": true,
+          "api_key_aws→page_title": true,
+          "api_key_aws→dialog_label": true,
+          "api_key_aws→history_result": true,
+          "api_key_aws→history_selector": true,
+          "api_key_aws→manifest_selector_attack": true,
+          "api_key_aws→ocr_text": true,
+          "api_key_aws→visual_context_smuggle": true,
+          "email→dom_text": true,
+          "email→dom_text_inline": true,
+          "email→page_title": true,
+          "email→dialog_label": true,
+          "email→history_result": true,
+          "email→history_selector": true,
+          "email→manifest_selector_attack": true,
+          "email→ocr_text": true,
+          "email→visual_context_smuggle": true,
+          "phone→dom_text": true,
+          "phone→dom_text_inline": true,
+          "phone→page_title": true,
+          "phone→dialog_label": true,
+          "phone→history_result": true,
+          "phone→history_selector": true,
+          "phone→manifest_selector_attack": true,
+          "phone→ocr_text": true,
+          "phone→visual_context_smuggle": true,
+          "aadhaar→dom_text": true,
+          "aadhaar→dom_text_inline": true,
+          "aadhaar→page_title": true,
+          "aadhaar→dialog_label": true,
+          "aadhaar→history_result": true,
+          "aadhaar→history_selector": true,
+          "aadhaar→manifest_selector_attack": true,
+          "aadhaar→ocr_text": true,
+          "aadhaar→visual_context_smuggle": true,
+          "credit_card→dom_text": true,
+          "credit_card→dom_text_inline": true,
+          "credit_card→page_title": true,
+          "credit_card→dialog_label": true,
+          "credit_card→history_result": true,
+          "credit_card→history_selector": true,
+          "credit_card→manifest_selector_attack": true,
+          "credit_card→ocr_text": true,
+          "credit_card→visual_context_smuggle": true,
+          "url_cred→dom_text": true,
+          "url_cred→dom_text_inline": true,
+          "url_cred→page_title": true,
+          "url_cred→dialog_label": true,
+          "url_cred→history_result": true,
+          "url_cred→history_selector": true,
+          "url_cred→manifest_selector_attack": true,
+          "url_cred→ocr_text": true,
+          "url_cred→visual_context_smuggle": true
+        },
+        "sampleSize": 216,
+        "knownLimitations": {
+          "barePasswordNoKeyword": {
+            "cases": 27,
+            "undetected": 27,
+            "note": "A password string with no \"password\" label in ±40 chars is indistinguishable from ordinary text. Realistic occurrences (form fields, OCR of labelled fields) are caught. DOM password values never appear as text (inputs do not expose values); on screen they exist only as pixels, where the OCR path sees the label."
+          }
+        }
+      },
+      "durationMs": 26
+    },
+    {
+      "name": "Server inbound validation (reject malformed/unsafe payloads)",
+      "pass": true,
+      "metrics": {
+        "passed": 25,
+        "total": 25,
+        "results": [
+          {
+            "name": "valid sanitized payload → OK",
+            "ok": true
+          },
+          {
+            "name": "missing task → rejected",
+            "ok": true
+          },
+          {
+            "name": "oversized task → rejected",
+            "ok": true
+          },
+          {
+            "name": "missing image → rejected",
+            "ok": true
+          },
+          {
+            "name": "non-image bytes (MZ exe header) → rejected",
+            "ok": true
+          },
+          {
+            "name": "declared MIME text/plain → rejected",
+            "ok": true
+          },
+          {
+            "name": "JPEG bytes accepted",
+            "ok": true
+          },
+          {
+            "name": "manifest with selector key → rejected",
+            "ok": true
+          },
+          {
+            "name": "manifest with raw value key → rejected",
+            "ok": true
+          },
+          {
+            "name": "manifest with bad regionId → rejected",
+            "ok": true
+          },
+          {
+            "name": "manifest not an array → rejected",
+            "ok": true
+          },
+          {
+            "name": "manifest JSON string parsed then validated",
+            "ok": true
+          },
+          {
+            "name": "oversized manifest → rejected",
+            "ok": true
+          },
+          {
+            "name": "missing privacyVerification → rejected (fail-closed server)",
+            "ok": true
+          },
+          {
+            "name": "privacyVerification.passed=false → rejected even with enforced=true",
+            "ok": true
+          },
+          {
+            "name": "OPENCOMET_ACCEPT_UNVERIFIED still rejects passed=false",
+            "ok": true
+          },
+          {
+            "name": "OPENCOMET_ACCEPT_UNVERIFIED allows MISSING envelope (diagnostics only)",
+            "ok": true
+          },
+          {
+            "name": "unknown settings keys stripped, known kept",
+            "ok": true
+          },
+          {
+            "name": "settings with function-shaped garbage → rejected",
+            "ok": true
+          },
+          {
+            "name": "unknown provider → rejected",
+            "ok": true
+          },
+          {
+            "name": "history oversize → rejected",
+            "ok": true
+          },
+          {
+            "name": "history entry with huge echoed page text → rejected",
+            "ok": true
+          },
+          {
+            "name": "magic bytes: PNG sniff",
+            "ok": true
+          },
+          {
+            "name": "magic bytes: JPEG sniff",
+            "ok": true
+          },
+          {
+            "name": "magic bytes: unknown",
+            "ok": true
+          }
+        ]
+      },
+      "durationMs": 1
+    }
+  ]
+}

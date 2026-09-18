@@ -48,12 +48,15 @@ const API_KEY = arg('api-key') || process.env.OPENCOMET_REAL_KEY || '';
 const BASE_URL = arg('base-url') || '';
 const OLLAMA_URL = arg('ollama-url') || 'http://127.0.0.1:11434';
 const ONLY = arg('only');                                   // optional scenario filter
+const WARMUP = argv.includes('--warmup');                   // v1.16.0: unmeasured warm-up cycle first
 
 if (!PROVIDER || !MODEL) {
   const usage = 'usage: node OpenCometBench/e2e/run-e2e-real.mjs --provider=ollama --model=<vision-model>\n' +
     '       node OpenCometBench/e2e/run-e2e-real.mjs --provider=openai --model=gpt-4o-mini --api-key=sk-…\n' +
     '       node OpenCometBench/e2e/run-e2e-real.mjs --provider=custom --base-url=https://openrouter.ai/api/v1 \\\n' +
-    '             --model=inclusionai/ling-3.0-flash-vl:free --api-key="$OPENROUTER_API_KEY" --only=find-and-open';
+    '             --model=inclusionai/ling-3.0-flash-vl:free --api-key="$OPENROUTER_API_KEY" --only=find-and-open [--warmup]\n' +
+    '       --warmup: run ONE unmeasured sanitize cycle first (loads YOLO/ViT/OCR + first-inference JIT) so the\n' +
+    '                 reported sanitizeMs describes the STEADY STATE, never the one-time cold model load.';
   console.error(usage);
   process.exit(1);
 }
@@ -167,6 +170,51 @@ async function main() {
     await context.close(); srv.close(); process.exit(1);
   }
 
+  // v1.16.0 --warmup: ONE unmeasured cycle so the one-time model download +
+  // WASM/GPU compile + first-inference JIT costs land OUTSIDE the measured
+  // scenarios. Cold-cache model load dominated the first real-VLM run's
+  // sanitizeMs (41487 ms; ViT load ALONE measured 37873 ms on the same
+  // hardware). With --warmup, the report's sanitizeMs describes the STEADY
+  // STATE — meta.warmup records the condition so cold/warm numbers are never
+  // merged. NO VLM call is made during warm-up (zero API cost): it drives the
+  // offscreen runtime directly (VISION_WARMUP + two PRIVACY_SANITIZE rounds —
+  // the second proves both detector memos re-hit on identical bytes).
+  let warmupInfo = null;
+  if (WARMUP) {
+    console.log('[warmup] loading vision models + first sanitize (unmeasured)…');
+    const wpage = await context.newPage();
+    await wpage.goto(`${BASE}/OpenCometBench/pages/login.html`, { waitUntil: 'networkidle' }).catch(() => {});
+    await wpage.waitForTimeout(300);
+    const shot = await wpage.screenshot({ type: 'png' });
+    const imageDataUrl = `data:image/png;base64,${shot.toString('base64')}`;
+    const warmupOpts = { blurFaces: true, runYolo: true, ocrPii: true, useNer: false, yoloMaxEdge: 0 };
+    warmupInfo = await Promise.race([
+      wpage.evaluate(async ({ imageDataUrl, opts }) => {
+        const t0 = Date.now();
+        const send = (msg) => new Promise((res) => {
+          try {
+            chrome.runtime.sendMessage({ target: 'offscreen', ...msg }, (r) =>
+              res(r || { ok: false, error: chrome.runtime.lastError?.message || 'no response' }));
+          } catch (e) { res({ ok: false, error: String(e?.message || e) }); }
+        });
+        const w = await send({ type: 'VISION_WARMUP', yolo: true, vit: true });
+        const s1 = await send({ type: 'PRIVACY_SANITIZE', requestId: 'warmup-first', input: { imageDataUrl, domText: '', domSensitive: [] }, opts });
+        const s2 = await send({ type: 'PRIVACY_SANITIZE', requestId: 'warmup-memo', input: { imageDataUrl, domText: '', domSensitive: [] }, opts });
+        return {
+          warmup: { ok: w?.ok === true, error: w?.error || null, parts: w?.result?.parts || null, warmupMs: w?.result?.warmupMs ?? null },
+          firstSanitizeOk: s1?.ok === true, firstSanitizeMs: s1?.result?.stats?.totalMs ?? null,
+          memoSanitizeOk: s2?.ok === true, memoSanitizeMs: s2?.result?.stats?.totalMs ?? null,
+          yoloMemoHit: s2?.result?.stats?.yoloMemoHit ?? null,
+          ocrMemoHit: s2?.result?.stats?.ocrMemoHit ?? null,
+          wallMs: Date.now() - t0,
+        };
+      }, { imageDataUrl, opts: warmupOpts }),
+      new Promise(res => setTimeout(() => res({ status: 'timeout-after-300s' }), 300000)),
+    ]).catch(e => ({ error: String(e?.message || e) }));
+    console.log('[warmup]', JSON.stringify(warmupInfo));
+    await wpage.close().catch(() => {});
+  }
+
   const results = [];
   for (const sc of RUN) {
     console.log(`\n[e2e-real ${PROVIDER}/${MODEL}] ${sc.id}: "${sc.task}"`);
@@ -272,6 +320,10 @@ async function main() {
       note: 'REAL extension loop with a REAL model brain (BYO-provider direct path — the production configuration for bring-your-own-key users). vlmMs here measures TRUE model inference + transport for the sanitized payload. This report is NEVER merged with the mock-VLM e2e benchmark or with UNIT/BROWSER tiers. Runs on real user hardware only — never quoted from headless CI machines.',
       provider: { provider: PROVIDER, model: MODEL, endpoint: PROVIDER === 'ollama' ? OLLAMA_URL : (BASE_URL || 'https://api.openai.com/v1'), local: PROVIDER === 'ollama' },
       scenarios: RUN.map(s => ({ id: s.id, task: s.task })),
+      ...(WARMUP ? {
+        warmup: warmupInfo,
+        warmupNote: '--warmup was ON: an unmeasured cycle (VISION_WARMUP + 2x PRIVACY_SANITIZE, zero VLM calls) ran before every measured scenario, so sanitizeMs here describes the STEADY STATE. Cold-start numbers (model download + compile) are a DIFFERENT condition and are never merged with this report.',
+      } : { warmup: false }),
     },
     aggregate,
     scenarios: results,

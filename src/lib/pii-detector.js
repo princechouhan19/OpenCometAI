@@ -60,10 +60,13 @@ const REGEX_PATTERNS = [
     re: /\b\d{3}-\d{2}-\d{4}\b/g,
     confidence: 0.99,
   },
-  // Indian Aadhaar (12 digits, optional spaces, may end with Verhoeff-valid check digit — we accept format)
+  // Indian Aadhaar (12 digits; space, hyphen or no separator — the hyphen-
+  // separated form is how printed/physical cards render it, e.g.
+  // 1234-5678-9012; v1.16.1 closes that miss). Verhoeff-validated below:
+  // strong (checksum-valid) fires bare, checksum-failures need a keyword.
   {
     type: 'aadhaar',
-    re: /\b\d{4}\s?\d{4}\s?\d{4}\b/g,
+    re: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
     confidence: 0.90,
   },
   // Indian PAN (ABCDE1234F)
@@ -165,7 +168,7 @@ const REGEX_PATTERNS = [
   // the card validator and lands here; a Verhoeff-VALID run wins in dedupe.
   {
     type: 'aadhaar',
-    re: /\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b/g,
+    re: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
     confidence: 0.62,
   },
   // Voter ID / EPIC (e.g. ABC1234567) — 3 letters + 7 digits, specific
@@ -201,10 +204,21 @@ const REGEX_PATTERNS = [
   // UPI VPA (e.g. prince@okhdfcbank, name@paytm, name@ybl). Handle list is
   // the known PSP/bank namespaces; e-mail never matches (its handle carries
   // a dot TLD, none of these do).
+  // v1.16.1 SPLIT — precision fix: the previous single pattern carried the
+  // catch-all ok[a-z]{2,12} at confidence 0.88, so ANY handle@ok<word> fired
+  // bare ("team@okcomputer" — an ordinary .com-style handle — was pixelated).
+  // Now: (a) KNOWN PSP namespaces stay strong (0.88, fire bare); (b) the
+  // generic ok* catch-all drops to 0.60 — below the 0.70 threshold — so it
+  // only redacts when a UPI/VPA/pay keyword sits in its ±80 context window.
   {
     type: 'upi',
-    re: /\b[a-zA-Z0-9][a-zA-Z0-9._-]{1,40}@(?:okaxis|oksbi|okicici|okhdfcbank|ok[a-z]{2,12}|paytm|ybl|ibl|axl|apl|icici|yapl|aubank|ikwik|airtel|slice|jupiteraxis|federal|finobank|indusind|payzapp|fbl|upi)\b/g,
+    re: /\b[a-zA-Z0-9][a-zA-Z0-9._-]{1,40}@(?:okaxis|oksbi|okicici|okhdfcbank|paytm|ybl|ibl|axl|apl|icici|yapl|aubank|ikwik|airtel|slice|jupiteraxis|federal|finobank|indusind|payzapp|fbl|upi)\b/g,
     confidence: 0.88,
+  },
+  {
+    type: 'upi',
+    re: /\b[a-zA-Z0-9][a-zA-Z0-9._-]{1,40}@ok[a-z]{2,12}\b/g,
+    confidence: 0.60,
   },
   // GSTIN (15 chars, e.g. 27ABCDE1234F1Z5) — embeds a PAN at chars 3-12, so
   // both candidates fire; GSTIN is priced 0.97 > PAN 0.95 so the dedupe
@@ -903,12 +917,34 @@ function dedupe(findings) {
   // matches on overlap (a Luhn-valid card overlapping a 12-digit run is a
   // card, not an aadhaar).
   const eff = (f) => (Number(f.confidence) || 0) + (f.validated ? 0.5 : 0);
+  // v1.16.1 EXPLICIT CARD-OVER-AADHAAR ARBITRATION: the hyphen-aware aadhaar
+  // patterns now match fragments INSIDE hyphen-formatted credit cards (a
+  // Luhn-valid 16-digit run contains a Verhoeff-valid 12-digit prefix ~10%
+  // of the time — the bench caught pos-072 "Card no: 5425-3349-1327-2364"
+  // mislabeled as aadhaar). When a Luhn-VALID card candidate overlaps an
+  // aadhaar candidate, the card wins the type label (both would be redacted
+  // either way; this keeps the type semantics + the bench contract honest).
   findings.sort((a, b) => a.start - b.start || eff(b) - eff(a));
   const out = [];
   for (const f of findings) {
     const conflict = out.find(o => !(f.end <= o.start || f.start >= o.end));
-    if (conflict && eff(conflict) >= eff(f)) continue;
-    if (conflict) out.splice(out.indexOf(conflict), 1);
+    if (conflict) {
+      const card = conflict.type === 'credit_card' && conflict.validated ? conflict
+        : (f.type === 'credit_card' && f.validated ? f : null);
+      if (card) {
+        const other = card === conflict ? f : conflict;
+        if (other.type === 'aadhaar') {
+          if (card === conflict) continue;          // incoming aadhaar loses
+          out.splice(out.indexOf(conflict), 1);     // stored aadhaar replaced
+          out.push(f);
+          continue;
+        }
+      }
+      if (eff(conflict) >= eff(f)) continue;
+      out.splice(out.indexOf(conflict), 1);
+      out.push(f);
+      continue;
+    }
     out.push(f);
   }
   return out.sort((a, b) => a.start - b.start);

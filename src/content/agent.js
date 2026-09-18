@@ -335,15 +335,19 @@
       'animation:nc-pop-in 0.3s cubic-bezier(0.16,1,0.3,1)',
     ].join(';');
 
+    // v1.16.1: escape interpolated values — the redaction card is built from
+    // pipeline stats/labels; unescaped innerHTML interpolation is a hardening
+    // gap even when the data is extension-internal.
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const rows = Object.entries(r).map(([k, v]) =>
-      `<div style="display:flex;justify-content:space-between;padding:2px 0"><span style="color:rgba(255,255,255,0.6)">${k}</span><span style="font-weight:600">${v}</span></div>`
+      `<div style="display:flex;justify-content:space-between;padding:2px 0"><span style="color:rgba(255,255,255,0.6)">${esc(k)}</span><span style="font-weight:600">${esc(v)}</span></div>`
     ).join('');
 
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
         <div style="width:8px;height:8px;border-radius:50%;background:#d9875a;box-shadow:0 0 8px #d9875a"></div>
         <span style="font-weight:600;font-size:11px">Privacy pipeline</span>
-        <span style="color:rgba(255,255,255,0.5);margin-left:auto">${stats.totalMs||0}ms · ${stats.backend||''}</span>
+        <span style="color:rgba(255,255,255,0.5);margin-left:auto">${esc(stats.totalMs||0)}ms · ${esc(stats.backend||'')}</span>
       </div>
       <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-bottom:6px">
         Redacted ${total} sensitive region${total===1?'':'s'} before sending

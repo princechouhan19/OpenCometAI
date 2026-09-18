@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "type": "probe-yolo-downscale",
+    "environment": "headless-ci",
+    "note": "Headless-CI WASM latencies are INDICATIVE of the relative speedup only; production timing claims require the user real-hardware run. Default cfg.yoloMaxEdge stays 0 until a real-hardware redaction-matrix A/B shows coverage/leak parity.",
+    "maxEdgeB": 960,
+    "generatedAt": "2026-09-10T22:46:39.573Z"
+  },
+  "verdict": {
+    "countsParity": true,
+    "meanIou": 1,
+    "latencyRatio": 0.99,
+    "gate": true
+  },
+  "pages": [
+    {
+      "page": "/OpenCometBench/pages/redaction-lab.html",
+      "rawA": {
+        "count": 0,
+        "ms": 10537
+      },
+      "rawB": {
+        "count": 0,
+        "ms": 10593
+      },
+      "match": {
+        "matched": 0,
+        "meanIou": 1,
+        "unmatchedA": 0,
+        "unmatchedB": 0
+      },
+      "pipeline": {
+        "objectDetectMsA": 10825,
+        "objectDetectMsB": 10625,
+        "yoloCountA": 0,
+        "yoloCountB": 0,
+        "parityMeanIou": 1
+      }
+    },
+    {
+      "page": "/OpenCometBench/pages/mixed-ui.html",
+      "rawA": {
+        "count": 0,
+        "ms": 10238
+      },
+      "rawB": {
+        "count": 0,
+        "ms": 10278
+      },
+      "match": {
+        "matched": 0,
+        "meanIou": 1,
+        "unmatchedA": 0,
+        "unmatchedB": 0
+      },
+      "pipeline": {
+        "objectDetectMsA": 10537,
+        "objectDetectMsB": 10301,
+        "yoloCountA": 0,
+        "yoloCountB": 0,
+        "parityMeanIou": 1
+      }
+    },
+    {
+      "page": "/OpenCometBench/pages/media.html",
+      "rawA": {
+        "count": 1,
+        "ms": 10387
+      },
+      "rawB": {
+        "count": 1,
+        "ms": 10548
+      },
+      "match": {
+        "matched": 1,
+        "meanIou": 1,
+        "unmatchedA": 0,
+        "unmatchedB": 0
+      },
+      "pipeline": {
+        "objectDetectMsA": 10861,
+        "objectDetectMsB": 10639,
+        "yoloCountA": 0,
+        "yoloCountB": 0,
+        "parityMeanIou": 1
+      }
+    }
+  ]
+}

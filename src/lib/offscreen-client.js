@@ -63,3 +63,23 @@ export function sendToOffscreen(message, { timeoutMs = 0 } = {}) {
     }
   });
 }
+
+/**
+ * v1.16.0 — fire-and-forget vision model warm-up: asks the offscreen document
+ * to load the YOLO (+ optional ViT) pipelines BEFORE the first capture, moving
+ * the one-time model download + WASM/GPU-compile cost off the first-capture
+ * critical path (cold-cache ViT load measured at 37.9 s on the reference
+ * hardware — that single load dominated the real-VLM E2E first-step
+ * sanitizeMs 41487). Resolves { ok, result } or { ok:false, error } —
+ * NEVER throws: a warm-up failure must not affect the running session
+ * (the first capture then warms lazily exactly as before).
+ */
+export async function warmupVisionModels({ yolo = true, vit = true } = {}) {
+  try {
+    await ensureOffscreen();
+    const resp = await sendToOffscreen({ type: 'VISION_WARMUP', yolo, vit });
+    return resp || { ok: false, error: 'offscreen did not respond' };
+  } catch (err) {
+    return { ok: false, error: String(err?.message || err) };
+  }
+}

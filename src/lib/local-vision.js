@@ -183,12 +183,49 @@ export async function getNerPipeline() {
  * Run YOLO object detection on an image.
  * Accepts a data-URL (preferred — RawImage handles it natively) or
  * anything Transformers.js can read (URL / Blob / RawImage).
+ * opts.maxEdge: v1.16.0 OPTIONAL input downscale — longest edge in px for the
+ * detector input. Boxes are mapped BACK to full-image coordinates so redaction
+ * semantics are unchanged. Default 0 = disabled (bit-identical to the previous
+ * behavior). Any downscale failure falls back to the original input
+ * (fail-safe).
+ * MEASURED (OpenCometBench/probe-yolo-downscale.mjs, headless-ci): correctness
+ * is preserved exactly (box parity IoU=1.000) but latency is NEUTRAL — the
+ * model resizes internally to a fixed resolution, so input size does not
+ * drive compute. The knob exists for input-size control, not as a latency
+ * lever; the changed-frame YOLO cost is addressed by the memo + warm-up
+ * instead.
  * Returns { detections: [{label, score, bounds}], latencyMs }
  */
-export async function detectObjects(image) {
+export async function detectObjects(image, { maxEdge = 0 } = {}) {
   const pipe = await getObjectDetector();
   const t0 = performance.now();
-  const out = await pipe(image);
+  let workInput = image;
+  let sx = 1, sy = 1;   // box back-scale factors (1 → identical to no-downscale path)
+  if (maxEdge > 0 && typeof image === 'string' && image.startsWith('data:')) {
+    try {
+      const tr = await loadTransformers();
+      const raw = await tr.RawImage.fromURL(image);
+      const longest = Math.max(raw.width, raw.height);
+      if (longest > maxEdge) {
+        const k = maxEdge / longest;
+        const w = Math.max(1, Math.round(raw.width * k));
+        const h = Math.max(1, Math.round(raw.height * k));
+        // The vendored pipeline accepts STRING inputs (data-URLs) natively but
+        // rejects RawImage instances ("Unsupported input type"), so hand the
+        // downscaled pixels back as a PNG data-URL (small: ≤ maxEdge px).
+        const blob = await raw.resize(w, h).toBlob('image/png');
+        workInput = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(String(fr.result));
+          fr.onerror = () => reject(new Error('FileReader failed on downscaled blob'));
+          fr.readAsDataURL(blob);
+        });
+        sx = raw.width / w;
+        sy = raw.height / h;
+      }
+    } catch { workInput = image; sx = 1; sy = 1; }   // fail-safe: original input
+  }
+  const out = await pipe(workInput);
   const ms = Math.round(performance.now() - t0);
   _stats.calls.objectDetection++;
   _stats.totalMs.objectDetection += ms;
@@ -198,10 +235,10 @@ export async function detectObjects(image) {
     label: o.label,
     score: o.score,
     bounds: {
-      x: Math.round(o.box.xmin),
-      y: Math.round(o.box.ymin),
-      w: Math.round(o.box.xmax - o.box.xmin),
-      h: Math.round(o.box.ymax - o.box.ymin),
+      x: Math.round(o.box.xmin * sx),
+      y: Math.round(o.box.ymin * sy),
+      w: Math.round((o.box.xmax - o.box.xmin) * sx),
+      h: Math.round((o.box.ymax - o.box.ymin) * sy),
     },
   }));
   return { detections, latencyMs: ms };

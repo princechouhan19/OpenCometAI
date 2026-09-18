@@ -613,7 +613,7 @@ async function callOllama(settings, model, prompt, images, options = {}) {
 }
 
 // ── OpenAI-compatible providers (kimi / deepseek / glm / custom) ─────────────
-// v1.9.0 VLM-speed package. Research basis (docs/vlm-speed-research.md):
+// v1.9.0 VLM-speed package. Research basis (docs/research/vlm-speed-research.md):
 //   • Kimi K3 ALWAYS reasons and ignores the old "thinking" switch — the only
 //     control is the TOP-LEVEL `reasoning_effort` field ("low"/"high"/"max")
 //     (platform.kimi.ai → "Thinking Models"). Some OpenRouter-routed providers

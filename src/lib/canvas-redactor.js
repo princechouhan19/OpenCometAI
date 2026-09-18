@@ -183,11 +183,18 @@ function loadImage(dataUrl) {
 }
 
 function blurRegion(srcCanvas, dstCanvas, x, y, w, h, radius) {
+  // v1.16.1 SIZE-ADAPTIVE RADIUS: the fixed 18px Gaussian was fine for small
+  // UI elements but left coarse identity-revealing structure (hairline, jaw,
+  // glasses) on LARGE portraits — an 18px blur on a ~1200px DPR-2 face box is
+  // plausibly recoverable. The radius now scales with the box (min edge / 3),
+  // floored at the caller's radius and capped at 120px (GPU/CPU cost bound).
+  // The opaque eye-bar in redactImage() remains the identity-killer either way.
+  const adaptive = Math.max(radius, Math.min(120, Math.round(Math.min(w, h) / 3)));
   // Use OffscreenCanvas/HTMLCanvas filter where available; fallback to manual box blur.
   const tmp = document.createElement('canvas');
   tmp.width = w; tmp.height = h;
   const tmpCtx = tmp.getContext('2d');
-  tmpCtx.filter = `blur(${radius}px)`;
+  tmpCtx.filter = `blur(${adaptive}px)`;
   tmpCtx.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
   dstCanvas.getContext('2d').drawImage(tmp, x, y);
 }

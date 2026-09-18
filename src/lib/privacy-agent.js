@@ -32,8 +32,15 @@ import {
   buildSafeManifest, finalPiiSweepText,
   scanTextForSecrets,
   maskSecretShapedText,
+  secretSweepPatterns,
   PrivacyBlockedError,
 } from './privacy-firewall.js';
+// v1.16.1 WIRE GUARD (finally wired): byte-level exact-payload verification —
+// the SIH-brief-mandated "exact serialized payload / byte-level leakage test".
+// This module existed since the v1.17 docs round but was never imported by any
+// runtime code; the last-line byte-level scan never actually ran. It now guards
+// EVERY outbound fetch in decideViaServer below.
+import { serializeWirePayload, byteLevelLeakageScan } from './wire-guard.js';
 // SIH Phase 5/6: structured visual context + adaptive ViT gating.
 import { classifyFromDomSignals, shouldRunVisionClassifier } from './page-classifier.js';
 // SIH Phase 15: prompt-injection defense — page-derived text is DATA, never
@@ -411,7 +418,7 @@ export async function captureAndSanitize(tabId, overrides = {}, sandbox = null) 
       args: [],
     }).catch(() => [{ result: null }]),
   ]);
-  const { sensitive = [], text = '', census = {}, photoCandidates = [], pixelTextRects = [] } = scanRes?.[0]?.result || {};
+  const { sensitive = [], text = '', census = {}, photoCandidates = [], pixelTextRects = [], visualSig = '' } = scanRes?.[0]?.result || {};
   const probe = dprInfo?.[0]?.result || { dpr: 1, w: 1280, h: 720, scrollY: 0, url: '', title: '', videos: [], audios: 0 };
   const { dpr, w, h, url: pageUrl, title: pageTitle, videos: pageVideos, audios: pageAudios } = probe;
 
@@ -423,6 +430,9 @@ export async function captureAndSanitize(tabId, overrides = {}, sandbox = null) 
   const pageIdentity = {
     url: pageUrl, title: pageTitle, videos: pageVideos || [], audios: pageAudios || 0,
     dialogs: probe.dialogs || [], editables: probe.editables || 0, focused: probe.focused || null,
+    // v1.16.1: hashed img/canvas pixel-proxy census (see pageContextScan) —
+    // a pixel-only mutation now invalidates the cached shot.
+    visualSig,
   };
   const fingerprint = computeShotFingerprint({ page: pageIdentity, domText: text, scrollY: probe.scrollY || 0 });
   const videosPlaying = (pageVideos || []).some(v => !v.paused);
@@ -544,8 +554,14 @@ export async function captureAndSanitize(tabId, overrides = {}, sandbox = null) 
  */
 async function sanitizeViaOffscreen(input, opts) {
   await ensureOffscreen();
-  const resp = await sendToOffscreen({ type: 'PRIVACY_SANITIZE', input, opts });
-  if (!resp) throw new Error('Offscreen ML runtime did not respond to PRIVACY_SANITIZE.');
+  // v1.16.1: BOUNDED WAIT. This RPC previously had no timeout — a hung WASM/
+  // WebGPU compile in the offscreen document stalled the privacy loop forever
+  // (heartbeats keep the SW alive, so the wait was truly unbounded). Worst
+  // MEASURED sanitize is ~12.9 s (changed frame, YOLO+OCR); a 120 s cap is
+  // ~9× headroom and turns a hung runtime into an honest error the loop
+  // reports instead of a silent freeze.
+  const resp = await sendToOffscreen({ type: 'PRIVACY_SANITIZE', input, opts }, { timeoutMs: 120000 });
+  if (!resp) throw new Error('Offscreen ML runtime did not respond to PRIVACY_SANITIZE (120s cap).');
   if (!resp.ok) throw new Error(resp.error || 'Privacy pipeline failed in offscreen runtime.');
   return resp.result;
 }
@@ -618,7 +634,36 @@ function gateOutboundDecision(payload, task, history) {
   return null;
 }
 
-// ── v1.15.7 REDACT-AND-VERIFY OUTBOUND TEXT SWEEP ───────────────────────
+// ── v1.16.1 WIRE GUARD — byte-level exact-payload verification ─────────────
+// The layer BELOW the field gate: serialize the EXACT bytes about to hit the
+// wire and verify the byte stream itself. The image is EXCLUDED from the
+// regex pass (random JPEG base64 false-positives on "sk-…" shapes) but
+// INCLUDED in the decode pass (data: URLs are decoded and their printable
+// runs scanned, so text smuggled inside an encoded field cannot pass by
+// obfuscation). `knownValues` are the RAW values the pipeline just redacted
+// (payload.knownValues — internal-only, from the offscreen pipeline): a
+// detector miss upstream cannot survive an exact-match scan downstream.
+// Runs LAST, immediately before every fetch — fail-closed as always.
+function wireGuardScanOutbound(wirePayload, knownValues, fullBytesExtra = '') {
+  const known = (Array.isArray(knownValues) ? knownValues : [])
+    .filter(v => typeof v === 'string' && v.length >= 6 && v.length <= 200);
+  const { bytes } = serializeWirePayload(wirePayload);
+  const fullBytes = `${bytes},${String(fullBytesExtra || '')}`;
+  const scan = byteLevelLeakageScan(bytes, {
+    secretRes: secretSweepPatterns().map(p => p.re),
+    knownValues: known,
+    fullBytes,
+  });
+  if (!scan.ok) {
+    console.error('[Privacy] WIRE GUARD blocked the outbound payload (byte-level):', scan.reasons, scan.checks);
+    return privacyBlockedDecision([
+      `byte-level wire verification failed: ${scan.reasons.slice(0, 3).join('; ')}`,
+    ]);
+  }
+  return null;
+}
+
+// ── v1.15.7 REDACT-AND-VERIFY OUTBOUND TEXT SWEEP ─────────────────────
 // The old last-line policy ABORTED the decision turn when any free-text
 // field carried a secret-shaped fragment — which killed "summarize this
 // page" on ANY page that displays a key (API docs, config viewers, chats
@@ -782,6 +827,24 @@ export async function decideViaServer(payload, task, history = [], providerSetti
     console.error('[Privacy] NETWORK GATE BLOCKED — secret-shaped text in the assembled prompt:', promptSecrets);
     return privacyBlockedDecision([`prompt failed secret sweep: ${promptSecrets.join(', ')}`]);
   }
+  // ── v1.16.1 WIRE GUARD (byte-level, last check before the provider) ────
+  // Scanned WITHOUT the trusted profile trailer (user-typed data on the
+  // user's own channel — an exact-match against page-found values there
+  // would be a false positive by design). The sanitized image rides in
+  // fullBytes for the decode-and-scan pass only.
+  const wireBlockDirect = wireGuardScanOutbound(
+    {
+      task,
+      prompt: promptClean,
+      history,
+      provider: settings.provider,
+      model: settings.model,
+      providerBaseUrl: settings.providerBaseUrl,
+    },
+    payload.knownValues,
+    payload.sanitizedDataUrl || '',
+  );
+  if (wireBlockDirect) return wireBlockDirect;
 
   // ── 2) Direct provider path — no companion server required ──────────
   if (isProviderConfigured(settings)) {
@@ -831,21 +894,43 @@ export async function decideViaServer(payload, task, history = [], providerSetti
   // it has been through the firewall's final sweep AND the smuggler strip.
   // The raw pipeline field bypassed the strip (measured: bidi isolates
   // \u2066/\u2069 survived on the wire in the adversarial benchmark).
-  fd.append('sanitizedText', payload.privacy?.sanitizedText ?? (payload.sanitizedDomText || ''));
-  // SIH: the SAFE manifest only — raw selectors/labels never leave the browser.
-  fd.append('manifest', JSON.stringify(payload.privacy?.safeManifest || buildSafeManifest(payload.manifest || [])));
-  fd.append('privacyVerification', JSON.stringify(payload.privacy?.privacyVerification || null));
-  fd.append('task', task);
-  fd.append('history', JSON.stringify(history));
-  fd.append('settings', JSON.stringify({
+  const serverSanitizedText = payload.privacy?.sanitizedText ?? (payload.sanitizedDomText || '');
+  const serverManifest = JSON.stringify(payload.privacy?.safeManifest || buildSafeManifest(payload.manifest || []));
+  const serverVerification = JSON.stringify(payload.privacy?.privacyVerification || null);
+  // v1.16.1 KEY EGRESS IS NOW OPT-IN: the user's API key previously shipped
+  // to the companion server by DEFAULT. A credential egress on the same POST
+  // as the payload should never be the silent default — the server falls
+  // back to its own env keys (which now REQUIRE a shared token — see
+  // server/server.js). Send the key only when the user explicitly opted in
+  // via Settings (allowServerKey === true).
+  const serverSettings = JSON.stringify({
     provider: settings.provider,
     model: settings.model,
-    // Opt-in: the user's key is shared with the companion server unless
-    // settings.allowServerKey === false (the server falls back to env keys).
-    ...(settings.allowServerKey === false ? {} : { apiKey: settings.apiKey }),
+    ...(settings.allowServerKey === true ? { apiKey: settings.apiKey } : {}),
     providerBaseUrl: settings.providerBaseUrl,
     ollamaBaseUrl: settings.ollamaBaseUrl,
-  }));
+  });
+  // ── v1.16.1 WIRE GUARD (byte-level, last check before the fetch) ───────
+  const wireBlockSrv = wireGuardScanOutbound(
+    {
+      task,
+      sanitizedText: serverSanitizedText,
+      manifest: serverManifest,
+      privacyVerification: serverVerification,
+      history,
+      settings: serverSettings,
+    },
+    payload.knownValues,
+    payload.sanitizedDataUrl || '',
+  );
+  if (wireBlockSrv) return wireBlockSrv;
+  fd.append('sanitizedText', serverSanitizedText);
+  // SIH: the SAFE manifest only — raw selectors/labels never leave the browser.
+  fd.append('manifest', serverManifest);
+  fd.append('privacyVerification', serverVerification);
+  fd.append('task', task);
+  fd.append('history', JSON.stringify(history));
+  fd.append('settings', serverSettings);
 
   const t0 = performance.now();
   const resp = await fetch(url, { method: 'POST', body: fd });
@@ -865,7 +950,12 @@ export { buildPrivacyDecisionPrompt, gateOutboundDecision };
 // This function is serialized and executed in the page; it has access to the
 // live `document`.  Keep it self-contained — no external imports.
 function pageContextScan() {
-  const PII_HINT_RE = /(password|passwd|pwd|secret|api[-_]?key|access[-_]?token|cvv|cvc|csc|ssn|aadhaar|pan[-_]?number|credit[-_]?card|cc[-_]?number|account[-_]?number|otp|pin|token|private[-_]?key)/i;
+  // v1.16.1: synced with the library copy (pii-detector.js) — the two copies
+  // had DRIFTED: the page-injected scan was missing the entire v1.15.2 Indian
+  // ID family (pan/voter/passport/dl/gst/ifsc/upi/vpa/ration/bank), so the
+  // same field classified differently depending on which copy scanned it.
+  // This function is serialized into the page — keep it self-contained.
+  const PII_HINT_RE = /(password|passwd|pwd|secret|api[-_]?key|access[-_]?token|cvv|cvc|csc|ssn|aadhaar|aadhar|uidai|pan[-_]?number|credit[-_]?card|cc[-_]?number|account[-_]?number|otp|pin|token|private[-_]?key|\bpan(?:card|[-_ ]?(?:no|number|id))?\b|\bvoter[-_ ]?(?:id|no|number|card)?\b|\belection[-_ ]?card\b|epic[-_ ]?(?:no|number|id)|\bpassport(?:[-_ ]?(?:no|number))?\b|driving[-_ ]?licen[cs]e|\bdl[-_ ]?(?:no|number)\b|\bgst(?:in)?[-_ ]?(?:no|number|in)?\b|\bifsc\b|\bupi[-_ ]?(?:id|vpa|no|number)?\b|\bvpa\b|ration[-_ ]?card|debit[-_ ]?card|\bbank[-_ ]?account\b|\bacct[-_ ]?(?:no|number)\b)/i;
   // v1.15.4 — PERSON-NAME field family. Field-reported leak: the "Master
   // Perception Test" page renders <label>Full name</label><input value="Aarav
   // Sharma"> with NO name/id/placeholder on the input, so the attribute-blob
@@ -999,7 +1089,9 @@ function pageContextScan() {
     // families carry a minimum digit count so dates/counts never match.
     const BATTERY = [
       ['email', /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/],
-      ['aadhaar', /\b\d{4}\s?\d{4}\s?\d{4}\b/],
+      // v1.16.1: hyphen-separated Aadhaar added (printed-card form, e.g.
+      // 1234-5678-9012) — the page battery missed it just like the main detector.
+      ['aadhaar', /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/],
       ['pan', /\b[A-Z]{5}\d{4}[A-Z]\b/],
       ['api_key', /\b(?:sk|gh[pousr]|xox|AKIA|AIza)[-_A-Za-z0-9]{10,}\b/],
       ['card', /\b(?:\d[ -]?){13,19}\b/, 13],
@@ -1253,7 +1345,42 @@ function pageContextScan() {
     };
   } catch { census = {}; }
 
-  return { sensitive, text, census, photoCandidates, pixelTextRects };
+  // ── v1.16.1 VISUAL CHANGE CENSUS — closes the shot-reuse pixel blind spot ──
+  // The shot fingerprint is DOM-derived; a page can swap an <img> src or
+  // REDRAW a <canvas> without moving url/title/scroll/text-hash, and the
+  // stale (already-sanitized) frame would be re-sent for up to ~45–60 s.
+  // This census adds a cheap pixel-proxy signal: a HASH of the <img> src
+  // list (+ natural sizes) and a 24×24 downsample fingerprint of every
+  // same-origin canvas (tainted canvases degrade to their dimensions).
+  // Hashes only — no URLs and no pixel data ever leave the page from here.
+  let visualSig = '';
+  try {
+    const h36 = (s) => {
+      let h = 5381;
+      for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+      return (h >>> 0).toString(36);
+    };
+    const imgParts = [];
+    document.querySelectorAll('img').forEach(img => {
+      if (imgParts.length >= 64) return;
+      imgParts.push(`${img.currentSrc || img.src || ''}#${img.naturalWidth}x${img.naturalHeight}`);
+    });
+    const canvasParts = [];
+    document.querySelectorAll('canvas').forEach(cv => {
+      if (canvasParts.length >= 16) return;
+      try {
+        const t = document.createElement('canvas');
+        t.width = 24; t.height = 24;
+        t.getContext('2d').drawImage(cv, 0, 0, 24, 24);
+        canvasParts.push(t.toDataURL().slice(-32));
+      } catch {
+        canvasParts.push(`tainted#${cv.width}x${cv.height}`);
+      }
+    });
+    visualSig = `${h36(imgParts.join('|'))}.${h36(canvasParts.join('|'))}`;
+  } catch { visualSig = ''; }
+
+  return { sensitive, text, census, photoCandidates, pixelTextRects, visualSig };
 }
 
 // ── On-device / provider decision prompt ─────────────────────────────────────

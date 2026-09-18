@@ -133,6 +133,20 @@ app.post('/agent/decide', upload.single('image'), async (req, res) => {
     if (!image) return res.status(400).json({ error: 'Missing sanitized image' });
 
     const backend = detectBackend(settings);
+    // ── v1.16.1 OPEN-PROXY FIX ────────────────────────────────────────
+    // Previously an UNAUTHENTICATED request could set provider:'openai' with
+    // no apiKey and silently spend the OPERATOR's env key — with open CORS
+    // and the token optional, any client could burn the operator's credits.
+    // Now: env-key fallback requires the shared token to be configured AND
+    // valid (checked by the middleware above). Without a token, callers must
+    // bring their own key; Ollama (local, no key) is exempt.
+    const envKeyBackends = ['openai', 'anthropic', 'gemini', 'mistral', 'groq', 'deepseek', 'kimi', 'glm', 'custom'];
+    if (!SHARED_TOKEN && !settings.apiKey && envKeyBackends.includes(backend)) {
+      return res.status(403).json({
+        ok: false,
+        error: 'Refusing to spend operator-provided keys on an unauthenticated request. Set X-OpenComet-Token (server env OPENCOMET_TOKEN) or send your own settings.apiKey.',
+      });
+    }
     const basePrompt = buildPrompt(task, sanitizedText, manifest, history);
 
     let modelResponse;

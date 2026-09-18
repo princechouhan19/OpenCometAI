@@ -1029,6 +1029,15 @@
         <div class="s-section-title">What's New</div>
         <div class="about-changelog">
           <div class="about-cl-item newest">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.16.0</span><span class="about-cl-title">Local-perception cost round: warm-up + OCR memo</span></div>
+            <ul class="about-cl-list">
+              <li>Cold-start eliminated from the capture path: a privacy session now warms the YOLO + ViT pipelines in the offscreen runtime the moment it starts (<code>VISION_WARMUP</code>, fire-and-forget, non-fatal) — the first capture pays inference only, not the one-time model download + compile (cold-cache ViT load measured <strong>37.9 s</strong> on the reference hardware; that load dominated the real-VLM first-step <code>sanitizeMs 41487</code>).</li>
+              <li>OCR memo: visual-PII scan regions are reused for byte-identical captures with identical crop ROIs (2-entry LRU, boxes only, failed/skipped scans never cached, <code>cfg.ocrMemo=false</code> fail-safe switch, <code>ocrMemoHit</code> telemetry) — the warm unchanged-screen sanitize drops from ~1.2 s (full-frame OCR re-scan every time) to ~0.1 s.</li>
+              <li><code>run-e2e-real.mjs --warmup</code>: one unmeasured cycle (zero VLM calls) before the measured scenarios, so real-VLM reports describe the <strong>steady state</strong> and are stamped <code>meta.warmup</code> — cold-start and steady-state numbers are never merged.</li>
+              <li>Honest negative result, measured: the detector-input downscale knob (<code>yoloMaxEdge</code>) is correctness-neutral (box parity IoU = 1.000) but <strong>latency-neutral</strong> — yolos-tiny resizes internally to a fixed resolution. See <code>OpenCometBench/probe-yolo-downscale.mjs</code>. The changed-frame fix levers are the memos + warm-up, not input size.</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
             <div class="about-cl-head"><span class="about-cl-ver">v1.15.9</span><span class="about-cl-title">Real-VLM E2E for free cloud models</span></div>
             <ul class="about-cl-list">
               <li>The REAL-VLM E2E tier is now verified against OpenRouter free vision models: measured reference run — <code>inclusionai/ling-3.0-flash-vl:free</code>, scenario <em>find-and-open</em>: 1/1 verified action, privacy blocks 0, true VLM leg 4679 ms; full report archived in <code>OpenCometBench/results/</code>.</li>
@@ -1110,7 +1119,7 @@
             </ul>
           </div>
         </div>
-        <div class="about-cl-more">Older rounds (v1.0 → v1.13): see docs/SIH_READINESS.md in the source tree.</div>
+        <div class="about-cl-more">Older rounds (v1.0 → v1.13): see docs/sih/SIH_READINESS.md in the source tree.</div>
       </div>
 
       <div class="s-section settings-subpage-section about-section" data-settings-page="about">
@@ -1130,7 +1139,7 @@
             <div class="about-dt">Privacy</div>
             <div class="about-dd">Raw screenshots never leave the browser — only sanitized pixels, redacted DOM text and a redaction manifest reach the configured model.</div>
             <div class="about-dt">Docs</div>
-            <div class="about-dd">README.md · OpenCometBench/OPENCOMET_BENCH.md · docs/PRIVACY_VISION.md · docs/SIH_READINESS.md (in the source tree).</div>
+            <div class="about-dd">README.md · OpenCometBench/OPENCOMET_BENCH.md · docs/architecture/PRIVACY_VISION.md · docs/sih/SIH_READINESS.md (in the source tree).</div>
           </div>
         </div>
       </div>

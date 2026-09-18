@@ -13,7 +13,7 @@ import {
   buildBrowserSourceAnalysisPrompt,
   buildScrapeExtractionPrompt,
 } from '../lib/deepsearch.js';
-import { getSettings, saveSettings as persistSettings, getHistory, appendHistory, clearHistory, initStorage, appendExport, recordTokenUsage, clearTokenUsage } from '../lib/storage.js';
+import { getSettings, saveSettings as persistSettings, getHistory, appendHistory, clearHistory, initStorage, appendExport, recordTokenUsage, clearTokenUsage, serializeStorageWrite } from '../lib/storage.js';
 import { sleep, getHostFromUrl, normalizeHost, parseJSON } from '../lib/utils.js';
 import { MSG, STATUS, STEP_TYPE, PROTECTED_ACTION_LABELS, MODEL_PRICING } from '../lib/constants.js';
 import { buildSearchUrl, openResearchTab, scrapeSearchResults, scrapeReadablePage, closeTabs } from '../lib/browser-research.js';
@@ -30,7 +30,7 @@ import {
 } from '../lib/agent-runtime.js';
 import { enrichCapturedPageInfo, getLoopPageSignature, getScreenshotOverlayItems } from '../lib/page-state.js';
 import { createEmptyAgentState } from './state.js';
-import { executeAction, describeAction, getMonitors, saveMonitors, fetchPageText } from './actions.js';
+import { executeAction, describeAction, getMonitors, saveMonitors, fetchPageText, isMailHostTab } from './actions.js';
 import { toChatTemplateTools } from '../lib/tool-schemas.js';
 import { runPrivacyAgent } from './privacy-loop.js';
 // v1.15 TAB-GROUP SANDBOX: single source of truth for the task boundary
@@ -38,7 +38,7 @@ import { runPrivacyAgent } from './privacy-loop.js';
 import { ensureTaskGroup } from '../lib/tab-sandbox.js';
 import { configurePrivacy, getPrivacySettings, captureAndSanitize, getLastPrivacyRun, getCumulativePrivacyStats } from '../lib/privacy-agent.js';
 import { listLocalModels, downloadLocalModel, deleteLocalModel, getLocalDevice } from '../lib/local-llm.js';
-import { ensureOffscreen, sendToOffscreen } from '../lib/offscreen-client.js';
+import { ensureOffscreen, sendToOffscreen, warmupVisionModels } from '../lib/offscreen-client.js';
 import { detectSkillsForTask } from '../lib/skill-matcher.js';
 import { getAllSkills } from '../lib/skills.js';
 import { loadLibrarySkills } from '../lib/skill-library.js';
@@ -57,6 +57,12 @@ const logML     = createLogger('LocalML', { relayType: 'DIAG_LOG', relayLevel: '
 
 // -- Global agent state --------------------------------------------------------
 let agentState = createEmptyAgentState();
+// v1.16.1 START TOCTOU GUARD: `running` was checked BEFORE several awaits and
+// only set AFTER them, so two rapid START_AGENT messages (double-click) could
+// both pass the check and run two concurrent agent loops over one state.
+// This synchronous flag closes the window between the check and the state
+// swap; it is released when the handler exits (success or failure).
+let _startBusy = false;
 
 function trackUsage(usage) {
   if (!usage) return;
@@ -150,11 +156,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     'LOCAL_STATUS_WRITE':    () => (async () => {
       try {
         const KEY = 'opencometLocalModels';
-        const d = await chrome.storage.local.get(KEY);
-        const all = d?.[KEY] || {};
-        all[msg.modelId] = { ...(all[msg.modelId] || {}), ...(msg.patch || {}) };
-        await chrome.storage.local.set({ [KEY]: all });
-        respond({ ok: true, statuses: all });
+        // v1.16.1: the get→merge→set cycle is now serialized with the shared
+        // storage-write mutex — concurrent per-file progress patches during a
+        // multi-file model download used to race and drop updates.
+        const statuses = await serializeStorageWrite(async () => {
+          const d = await chrome.storage.local.get(KEY);
+          const all = d?.[KEY] || {};
+          all[msg.modelId] = { ...(all[msg.modelId] || {}), ...(msg.patch || {}) };
+          await chrome.storage.local.set({ [KEY]: all });
+          return all;
+        });
+        respond({ ok: true, statuses });
       } catch (e) { respond({ ok: false, error: String(e?.message || e) }); }
     })(),
   };
@@ -188,6 +200,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
 // chrome.alarms fires in the SW even after it was killed. Each alarm re-fetches
 // the monitored URL, diffs against the stored snapshot, and notifies on change.
 chrome.alarms?.onAlarm.addListener(alarm => {
+  // v1.16.1 RUN-KEEPALIVE BACKSTOP: if the SW was killed despite the 20s
+  // interval (the interval dies WITH the worker it protects), this alarm
+  // wakes it. agentState is fresh after a wake — the boot reconciliation at
+  // the bottom of this file finalizes the interrupted run; here we only
+  // touch the runtime API so a STILL-ALIVE run gets its idle timer reset.
+  if (alarm?.name === 'opencomet_run_keepalive') {
+    if (agentState.running) {
+      try { chrome.runtime.getPlatformInfo(() => {}); } catch { /* noop */ }
+    }
+    return;
+  }
   if (!alarm?.name?.startsWith('opencomet_monitor_')) return;
   const id = alarm.name.replace('opencomet_monitor_', '');
   (async () => {
@@ -208,7 +231,9 @@ chrome.alarms?.onAlarm.addListener(alarm => {
           title: 'Open Comet — page monitor',
           message: `${label}\n${monitor.url}`,
         });
-        broadcastMessage({ type: 'MONITOR_ALERT', monitor: { id: monitor.id, url: monitor.url }, reason: label });
+        // v1.16.1: the parallel MONITOR_ALERT broadcast was removed — it had no
+        // listener anywhere (the chrome.notifications toast below is the actual
+        // delivery); dead traffic on every monitor hit.
       }
       monitor.lastText = text.substring(0, 8000);
       monitor.lastCheckedAt = Date.now();
@@ -281,301 +306,6 @@ async function handleGetOllamaModels(msg, respond) {
   }
 }
 
-// -----------------------------------------------------------------------------
-// DEEP RESEARCH (multi-provider: LangSearch, Brave, Serper, DDG fallback)
-// -----------------------------------------------------------------------------
-async function legacyHandleDeepResearchApiProviders(msg, respond) {
-  const settings = await getSettings();
-
-  // Need at least one search provider OR we use DDG fallback (no key needed)
-  // But we do require an AI key for decomposition + synthesis
-  if (!settings.apiKey) {
-    respond({ ok: false, error: 'No AI API key configured in Settings.' });
-    return;
-  }
-
-  respond({ ok: true }); // ack immediately so the sidepanel doesn't time out
-
-  const task = String(msg.task || '').trim();
-  if (!task) {
-    broadcastMessage({ type: MSG.DEEP_RESEARCH_ERROR, error: 'No research question provided.' });
-    return;
-  }
-
-  const onProgress = text => broadcastMessage({ type: MSG.DEEP_RESEARCH_STEP, text });
-
-  // Build keys object for the multi-provider engine
-  const searchKeys = {
-    langSearchKey: settings.langSearchKey  || '',
-    braveSearchKey: settings.braveSearchKey || '',
-    serperKey:     settings.serperKey      || '',
-  };
-
-  // Warn if no paid key — will fall back to DuckDuckGo
-  const hasKey = searchKeys.langSearchKey || searchKeys.braveSearchKey || searchKeys.serperKey;
-  if (!hasKey) {
-    onProgress('?? No search API key configured — using DuckDuckGo (limited results). Add LangSearch/Brave/Serper key in Settings for best results.');
-  }
-
-  try {
-    onProgress('?? Starting deep research…');
-
-    // -- Phase 1: Search -----------------------------------------------------
-    const { subQueries, sources } = await deepResearch(
-      task,
-      searchKeys,
-      onProgress,
-      (aiSettings, prompt) => callAI(aiSettings, prompt, null, { onUsage: trackUsage }),
-      settings
-    );
-
-    if (sources.length === 0) {
-      broadcastMessage({
-        type: MSG.DEEP_RESEARCH_ERROR,
-        error: 'No results found. Check your API key(s) in Settings ? Deep Research, or try a different query.',
-      });
-      return;
-    }
-
-    // -- Phase 2: AI synthesis -----------------------------------------------
-    onProgress('?? Synthesizing report from ' + sources.length + ' sources…');
-    const synthesisPrompt = buildSynthesisPrompt(task, subQueries, sources);
-
-    let report = '';
-    try {
-      report = await callAIRaw(settings, synthesisPrompt, { onUsage: trackUsage });
-    } catch (e) {
-      report = '?? AI synthesis failed: ' + e.message;
-    }
-
-    // -- Phase 3: Broadcast result -------------------------------------------
-    broadcastMessage({
-      type: MSG.DEEP_RESEARCH_DONE,
-      task,
-      report,
-      subQueries,
-      sources: sources.slice(0, 20), // send top 20 sources to UI
-    });
-
-    // Persist to history
-    await appendHistory({
-      id:     'dr_' + Date.now(),
-      task,
-      status: 'done',
-      result: report.substring(0, 300),
-      steps:  subQueries.length,
-      time:   Date.now(),
-      mode:   'deep_research',
-    });
-
-  } catch (err) {
-    broadcastMessage({ type: MSG.DEEP_RESEARCH_ERROR, error: err.message });
-  }
-}
-
-// -----------------------------------------------------------------------------
-async function legacyHandleDeepResearchBrowserDraft(msg, respond) {
-  const settings = await getSettings();
-  if (!settings.apiKey) {
-    respond({ ok: false, error: 'No AI API key configured in Settings.' });
-    return;
-  }
-
-  const task = String(msg.task || '').trim();
-  if (!task) {
-    respond({ ok: false, error: 'No research question provided.' });
-    return;
-  }
-
-  respond({ ok: true });
-
-  const options = {
-    maxSites: clampInt(msg.maxSites, settings.deepResearchMaxSites || 6, 2, 12),
-    maxQueries: clampInt(msg.maxQueries, settings.deepResearchMaxQueries || 4, 1, 6),
-    searchEngine: String(msg.searchEngine || settings.deepResearchSearchEngine || 'google').toLowerCase(),
-    useSubAgents: msg.useSubAgents ?? settings.useSubAgents ?? true,
-  };
-  const onProgress = text => broadcastMessage({ type: MSG.DEEP_RESEARCH_STEP, text });
-  const openedTabs = [];
-
-  try {
-    onProgress(`Starting deep research with browser search (${options.searchEngine})...`);
-
-    const raw = await callAI(settings, buildDecompositionPrompt(task), null, { onUsage: trackUsage });
-    const subQueries = Array.isArray(raw?.queries) && raw.queries.length
-      ? raw.queries.slice(0, options.maxQueries).map(String).filter(Boolean)
-      : [task];
-
-    onProgress(`Planner created ${subQueries.length} search angles.`);
-
-    const seenUrls = new Set();
-    const candidateSources = [];
-
-    for (let i = 0; i < subQueries.length; i++) {
-      const query = subQueries[i];
-      onProgress(`Search ${i + 1}/${subQueries.length}: ${query}`);
-      const searchTab = await openResearchTab(buildSearchUrl(options.searchEngine, query), false);
-      openedTabs.push(searchTab.id);
-      const results = await scrapeSearchResults(searchTab.id, options.searchEngine);
-
-      for (const result of results) {
-        const url = String(result.url || '');
-        if (!url || seenUrls.has(url)) continue;
-        seenUrls.add(url);
-        candidateSources.push({
-          title: result.title || url,
-          url,
-          snippet: result.snippet || '',
-          summary: result.snippet || '',
-          source: options.searchEngine,
-        });
-        if (candidateSources.length >= options.maxSites * 2) break;
-      }
-      if (candidateSources.length >= options.maxSites * 2) break;
-    }
-
-    const selectedSources = candidateSources.slice(0, options.maxSites);
-    if (!selectedSources.length) {
-      broadcastMessage({ type: MSG.DEEP_RESEARCH_ERROR, error: 'No browser research sources were found.' });
-      return;
-    }
-
-    onProgress(`Opening ${selectedSources.length} source tabs...`);
-    const scrapedSources = [];
-    for (const source of selectedSources) {
-      const tab = await openResearchTab(source.url, false);
-      openedTabs.push(tab.id);
-      const page = await scrapeReadablePage(tab.id);
-      scrapedSources.push({ ...source, page });
-    }
-
-    const analyzedSources = options.useSubAgents
-      ? await Promise.all(scrapedSources.map((source, index) => analyzeResearchSource(settings, task, source, index + 1, onProgress)))
-      : scrapedSources.map((source, index) => ({
-          index: index + 1,
-          title: source.page.title || source.title,
-          url: source.url,
-          summary: summarizeScrapedPage(source.page),
-          facts: [],
-        }));
-
-    onProgress(`Synthesizing report from ${analyzedSources.length} source analysts...`);
-    const report = await callAIRaw(settings, buildBrowserResearchSynthesisPrompt(task, subQueries, analyzedSources), { onUsage: trackUsage });
-
-    broadcastMessage({
-      type: MSG.DEEP_RESEARCH_DONE,
-      task,
-      report,
-      subQueries,
-      sources: analyzedSources.map(source => ({
-        title: source.title,
-        url: source.url,
-        snippet: source.summary,
-        summary: source.summary,
-      })),
-      meta: {
-        maxSites: options.maxSites,
-        searchEngine: options.searchEngine,
-        usedBrowserResearch: true,
-        subAgentsUsed: Boolean(options.useSubAgents),
-      },
-    });
-
-    await appendHistory({
-      id:     'dr_' + Date.now(),
-      task,
-      status: 'done',
-      result: report.substring(0, 300),
-      steps:  subQueries.length,
-      time:   Date.now(),
-      mode:   'deep_research',
-    });
-  } catch (err) {
-    broadcastMessage({ type: MSG.DEEP_RESEARCH_ERROR, error: err.message });
-  } finally {
-    await closeTabs(openedTabs);
-  }
-}
-
-async function legacyHandleSummarizePage(msg, respond) {
-  const settings = await getSettings();
-  if (!settings.apiKey) {
-    respond({ ok: false, error: 'No AI API key configured in Settings.' });
-    return;
-  }
-
-  respond({ ok: true });
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const page = await scrapeReadablePage(tab.id);
-    const prompt = buildSummarizePrompt(msg.task || 'Summarize this page clearly.', page, settings.profileData || {});
-    const answer = await callAIRaw(settings, prompt, { onUsage: trackUsage });
-    broadcastMessage({ type: MSG.SUMMARIZE_DONE, answer, page });
-  } catch (err) {
-    logSW.error('summarize failed:', err?.message || String(err));
-    broadcastMessage({ type: MSG.SUMMARIZE_ERROR, error: err.message });
-  }
-}
-
-async function legacyHandleScrapePage(msg, respond) {
-  const settings = await getSettings();
-  if (!settings.apiKey) {
-    respond({ ok: false, error: 'No AI API key configured in Settings.' });
-    return;
-  }
-
-  respond({ ok: true });
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const page = await scrapeReadablePage(tab.id);
-    const task = String(msg.task || '').trim();
-    const structured = settings.useSubAgents
-      ? await analyzeScrapeWithSubAgents(settings, task, page)
-      : buildDefaultScrapeResult(task, page);
-
-    let exportMeta = null;
-    if (msg.autoExport || settings.autoExportScrapes) {
-      const formats = Array.isArray(msg.formats) && msg.formats.length
-        ? msg.formats
-        : [msg.format || settings.exportFormat || structured.recommendedFormat || 'json'];
-      exportMeta = await exportDataPayload({
-        kind: 'scrape',
-        task,
-        page,
-        structured,
-      }, {
-        formats,
-        baseName: `scrape-${Date.now()}`,
-        settings,
-      });
-    }
-
-    broadcastMessage({
-      type: MSG.SCRAPE_DONE,
-      task,
-      result: structured,
-      page,
-      exportMeta,
-    });
-  } catch (err) {
-    broadcastMessage({ type: MSG.SCRAPE_ERROR, error: err.message });
-  }
-}
-
-async function legacyHandleExportData(msg, respond) {
-  try {
-    const settings = await getSettings();
-    const result = await exportDataPayload(msg.dataset || msg.payload, {
-      formats: msg.formats || [msg.format || settings.exportFormat],
-      baseName: msg.baseName || `open-comet-export-${Date.now()}`,
-      settings,
-    });
-    const exportsList = Array.isArray(result) ? result : [result];
-    respond({ ok: true, exports: exportsList });
-  } catch (err) {
-    respond({ ok: false, error: err.message });
-  }
-}
 
 // START
 // -----------------------------------------------------------------------------
@@ -585,6 +315,20 @@ async function legacyHandleExportData(msg, respond) {
  * @param {Function} respond - Callback to send a response.
  */
 async function handleStart(msg, respond) {
+  if (agentState.running || _startBusy) {
+    logBusy.warn('START_AGENT rejected — an agent task is already running (busy).');
+    respond({ ok: false, error: 'Already running' });
+    return;
+  }
+  _startBusy = true;
+  try {
+    await handleStartInner(msg, respond);
+  } finally {
+    _startBusy = false;
+  }
+}
+
+async function handleStartInner(msg, respond) {
   if (agentState.running) {
     logBusy.warn('START_AGENT rejected — an agent task is already running (busy).');
     respond({ ok: false, error: 'Already running' });
@@ -652,6 +396,7 @@ async function handleStart(msg, respond) {
   });
 
   startRunKeepalive();   // MV3: hold the SW alive for the whole run (see helper)
+  writeActiveRunSnapshot({ sessionId: agentState.sessionId, task: agentState.task, mode: agentState.mode });   // v1.16.1 crash-recovery snapshot
 
   // -- Feature: Skill Auto-Detection ----------------------------------------
   // Automatically activate relevant skills based on task text + current URL,
@@ -1083,11 +828,19 @@ async function executionPhase() {
       // -- Auto-done: detect send/submit completion -------------------------
       // If the agent just clicked a "Send" button, check whether the compose
       // window closed — if so, the email was sent and we're done.
+      // v1.16.1 TWO FIXES:
+      //   (a) the whole probe is HOST-GATED behind isMailHostTab — previously
+      //       clicking "Send feedback" on ANY page whose body text happened
+      //       to contain the word "sent" ended the task with a false
+      //       "Email sent successfully";
+      //   (b) the body-text regex is narrowed to the "message sent" phrase
+      //       (the bare \bsent\b alternative matched any page containing
+      //       "sent" — an order-status page was enough).
       if (action.type === 'click') {
         const sel       = String(action.selector || action.text || '').toLowerCase();
         const matched   = String(meta?.matchedText || '').toLowerCase();
         const isSendBtn = /\bsend\b|\bsubmit\b|\bsend email\b|\benvoyer\b/.test(sel + ' ' + matched);
-        if (isSendBtn) {
+        if (isSendBtn && await isMailHostTab(agentState.agentTabId || tabId)) {
           await sleep(1800); // let Gmail animate the send
           const sentState = await detectEmailSent(agentState.agentTabId || tabId);
           if (sentState.sent) {
@@ -1233,7 +986,10 @@ async function detectEmailSent(tabId) {
     target: { tabId },
     func: () => {
       const bodyText = String(document.body?.innerText || '').toLowerCase();
-      const toastSent = /\bmessage sent\b|\bsent\b/.test(bodyText);
+      // v1.16.1: the bare \bsent\b alternative removed — it matched ANY page
+      // containing the word "sent" (order confirmations, blog posts,
+      // "Sent from my iPhone" signatures) and faked task success.
+      const toastSent = /\bmessage sent\b|\bmail sent\b/.test(bodyText);
       const composeOpen = Boolean(document.querySelector('.aDh,.nH.if,.M9,[role="dialog"] [aria-label*="Message Body"],div[aria-label="Message Body"]'));
       const sendButton = [...document.querySelectorAll('button,[role="button"],div[role="button"]')]
         .find(el => /\bsend\b/.test(String(el.textContent || el.getAttribute?.('aria-label') || '').toLowerCase()));
@@ -1510,7 +1266,16 @@ async function pauseForApproval(approval) {
 // -----------------------------------------------------------------------------
 function updateLoopSignals(pageInfo, screenshot) {
   const pageSig  = getLoopPageSignature(pageInfo);
-  const shotSig  = String(screenshot||'').slice(0,160);
+  // v1.16.1: the old screenshot signature was the FIRST 160 chars of the
+  // data-URL — mostly the constant JPEG/PNG header, a near-useless loop
+  // signal. Now samples head/middle/tail + length, so identical frames still
+  // match but different frames almost never do.
+  const shotSig = (() => {
+    const s = String(screenshot || '');
+    if (!s) return '';
+    const n = s.length;
+    return `${n}:${s.slice(0, 64)}:${s.slice(n >> 1, (n >> 1) + 64)}:${s.slice(-64)}`;
+  })();
   const ls       = agentState.loopState;
 
   ls.repeatedPageCount       = pageSig  && pageSig  === ls.lastPageSignature       ? ls.repeatedPageCount + 1       : 0;
@@ -1595,53 +1360,6 @@ function onDeviceExtras() {
     tools: toChatTemplateTools(),
     sessionId: String(agentState.sessionId || ''),
     stream: true,
-  };
-}
-
-function compactPageInfoForAI(pageInfo, settings = {}, compactMode = 'normal') {
-  const provider = String(settings.provider || '').toLowerCase();
-  if (provider !== 'mistral') return pageInfo;
-
-  const minimal = compactMode === 'minimal';
-
-  const pickInteractive = item => ({
-    uid: item?.uid || '',
-    role: item?.role || '',
-    tag: item?.tag || '',
-    type: item?.type || '',
-    text: String(item?.text || '').substring(0, minimal ? 48 : 80),
-    placeholder: String(item?.placeholder || '').substring(0, minimal ? 48 : 80),
-    href: minimal ? '' : String(item?.href || '').substring(0, 120),
-    editable: Boolean(item?.editable),
-    disabled: Boolean(item?.disabled),
-    bounds: minimal ? null : item?.bounds || null,
-    selector: item?.selector || '',
-  });
-
-  return {
-    ...pageInfo,
-    text: String(pageInfo?.text || '').substring(0, minimal ? 700 : 1800),
-    readableText: String(pageInfo?.readableText || pageInfo?.text || '').substring(0, minimal ? 2200 : 4800),
-    headings: (pageInfo?.headings || []).slice(0, minimal ? 8 : 16),
-    tables: (pageInfo?.tables || []).slice(0, minimal ? 1 : 2),
-    openTabs: (pageInfo?.openTabs || []).slice(0, minimal ? 4 : 8).map(tab => ({
-      title: String(tab?.title || '').substring(0, minimal ? 50 : 80),
-      url: String(tab?.url || '').substring(0, minimal ? 90 : 180),
-      host: tab?.host || '',
-      active: Boolean(tab?.active),
-    })),
-    inputs: (pageInfo?.inputs || []).slice(0, minimal ? 6 : 10).map(input => ({
-      type: input?.type || '',
-      name: String(input?.name || '').substring(0, minimal ? 48 : 80),
-      selector: input?.selector || '',
-    })),
-    links: (pageInfo?.links || []).slice(0, minimal ? 0 : 8).map(link => ({
-      text: String(link?.text || '').substring(0, 60),
-      href: String(link?.href || '').substring(0, 120),
-      selector: link?.selector || '',
-    })),
-    clickables: (pageInfo?.clickables || []).slice(0, minimal ? 0 : 12).map(pickInteractive),
-    interactiveElements: (pageInfo?.interactiveElements || []).slice(0, minimal ? 20 : 30).map(pickInteractive),
   };
 }
 
@@ -2105,11 +1823,14 @@ async function groupTaskTabs(tabIds) {
 // STOP / RESET
 // -----------------------------------------------------------------------------
 async function handleStop(respond) {
+  const wasPaused  = agentState.paused;     // capture BEFORE clearing (v1.16.1)
+  const wasRunning = agentState.running;
   agentState.stopRequested  = true;
   agentState.running        = false;
   agentState.paused         = false;
   agentState.pendingApproval= null;
   stopRunKeepalive();   // user ended the run — release the heartbeat
+  clearActiveRunSnapshot();   // v1.16.1: crash-recovery snapshot no longer needed
   // v1.15.1 ASK-BEFORE-ACTING: a run paused on the per-action approval card
   // must be released too, or the loop would wait forever on a dead gate.
   resolveAllActionApprovals('stop');
@@ -2117,6 +1838,27 @@ async function handleStop(respond) {
   // its AbortSignal and nothing ever called .abort(). Pull it here so the
   // Stop button (and Reset) actually interrupts a privacy run.
   try { agentState._privacyAbort?.abort?.(); } catch { /* already aborted */ }
+  // v1.16.1 ZOMBIE-UI FIX: when the standard loop had ALREADY returned at the
+  // approval gate (agentState.paused), nothing was alive to broadcast
+  // AGENT_STOPPED — the sidepanel stayed setRunning(true) forever. A paused
+  // run has no live loop, so Stop must finalize it here. (A LIVE privacy run
+  // finalizes via its own onError on the abort above; a live standard loop
+  // sees stopRequested on its next check.)
+  if (wasPaused && wasRunning) {
+    agentState.finalStatus = 'stopped';
+    setBadge('', '#7c6af7');
+    pushStep(STEP_TYPE.EXECUTING, 'Task stopped by you.');
+    broadcastMessage({ type: MSG.AGENT_STOPPED });
+    appendHistory({
+      id: agentState.sessionId,
+      task: agentState.task,
+      status: 'stopped',
+      result: 'Stopped by user while paused for approval.',
+      steps: agentState.steps.length,
+      time: Date.now(),
+      mode: agentState.mode || 'agent',
+    });
+  }
   if (respond) respond({ ok: true });
 }
 
@@ -2514,11 +2256,6 @@ async function handleExportData(msg, respond) {
   }
 }
 
-function inferTaskProfileFallback(taskProfile, skills = []) {
-  if (taskProfile) return taskProfile;
-  return (skills || []).some(skill => String(skill?.id || '').includes('summar')) ? 'summarize' : 'default';
-}
-
 function parseSiteHints(value) {
   const rawList = Array.isArray(value)
     ? value
@@ -2757,6 +2494,19 @@ function waitForTabLoad(tabId, timeoutMs = 15000) {
 }
 
 async function handlePrivacyStart(msg, respond) {
+  if (agentState.running || _startBusy) {
+    respond({ ok: false, error: 'Already running' });
+    return;
+  }
+  _startBusy = true;
+  try {
+    await handlePrivacyStartInner(msg, respond);
+  } finally {
+    _startBusy = false;
+  }
+}
+
+async function handlePrivacyStartInner(msg, respond) {
   if (agentState.running) {
     respond({ ok: false, error: 'Already running' });
     return;
@@ -2777,6 +2527,22 @@ async function handlePrivacyStart(msg, respond) {
 
   let activeTab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0] || null;
   if (!activeTab) { respond({ ok: false, error: 'No active tab' }); return; }
+
+  // v1.16.0 COLD-START ELIMINATION: warm the on-device vision models in the
+  // background while the session's first DOM steps run. The first capture then
+  // pays INFERENCE cost only — not the one-time model download + compile
+  // (cold-cache ViT load measured 37.9 s on the reference hardware; that load
+  // dominated the real-VLM E2E first-step sanitizeMs 41487). YOLO is warmed
+  // only when this session opted into it; ViT is warmed unconditionally (the
+  // adaptive gate can trigger it on any thin-DOM page). Fire-and-forget: a
+  // warm-up failure must never block or fail the session — the first capture
+  // would then warm lazily exactly as in every previous version.
+  warmupVisionModels({ yolo: Boolean(privacyCfg.runYolo), vit: true })
+    .then(r => {
+      if (r?.ok) console.log('[Privacy] vision warm-up done:', (r.result?.parts || []).join('+'), `${r.result?.warmupMs ?? '?'}ms`);
+      else console.warn('[Privacy] vision warm-up unavailable (non-fatal):', r?.error || 'no response');
+    })
+    .catch(() => {});
 
   // Browser-internal page (chrome://newtab etc.) → auto-navigate to a page
   // inferred from the task instead of dead-ending with an error.
@@ -2842,6 +2608,7 @@ async function handlePrivacyStart(msg, respond) {
   broadcast(MSG.AGENT_STARTED);
   setBadge('PRV', '#d9875a');
   startRunKeepalive();
+  writeActiveRunSnapshot({ sessionId: agentState.sessionId, task: agentState.task, mode: agentState.mode });   // v1.16.1 crash-recovery snapshot
 
   const controller = new AbortController();
   agentState._privacyAbort = controller;
@@ -2950,14 +2717,77 @@ console.log(`[OpenComet] v${(chrome.runtime && typeof chrome.runtime.getManifest
 // as "(Inactive)" and the task dies. While any run is active, a 20s heartbeat
 // via chrome.runtime.getPlatformInfo() resets the idle timer; the interval is
 // cleared the moment the run finishes/stops/errors.
+//
+// v1.16.1 CRASH RECOVERY (three stacked mechanisms):
+//   1. the 20s interval (primary, as before);
+//   2. a 30s chrome.alarms backstop — the interval cannot survive the SW kill
+//      it is meant to prevent; an alarm wakes the worker even after a crash;
+//   3. a chrome.storage.session run snapshot — boot reconciliation (below)
+//      turns a crash mid-run into an honest finalized error instead of an
+//      orphaned tab group + a sidepanel stuck on "running".
 let _runKeepaliveTimer = null;
 function startRunKeepalive() {
   if (_runKeepaliveTimer) return;
   _runKeepaliveTimer = setInterval(() => {
     try { chrome.runtime.getPlatformInfo(() => {}); } catch { /* noop */ }
   }, 20000);
+  // Backstop alarm (~30s minimum period). Failure is non-fatal — the interval
+  // and the snapshot still cover the common cases.
+  try {
+    chrome.alarms?.create('opencomet_run_keepalive', { periodInMinutes: 0.5 });
+  } catch { /* alarms unavailable — belt without braces */ }
 }
 function stopRunKeepalive() {
   if (_runKeepaliveTimer) { clearInterval(_runKeepaliveTimer); _runKeepaliveTimer = null; }
+  try { chrome.alarms?.clear('opencomet_run_keepalive'); } catch { /* noop */ }
+  clearActiveRunSnapshot();   // every terminal path funnels through here
 }
+
+// ── v1.16.1 ACTIVE-RUN SNAPSHOT (chrome.storage.session) ─────────────────
+// Written when a run starts, cleared on EVERY terminal path (finish/stop/
+// reset/error — all call stopRunKeepalive). If the SW ever boots and the
+// snapshot is still present, the previous worker died mid-run.
+const ACTIVE_RUN_KEY = 'opencometActiveRun';
+function writeActiveRunSnapshot(info) {
+  try {
+    const p = chrome.storage?.session?.set({ [ACTIVE_RUN_KEY]: { ...info, startedAt: Date.now() } });
+    if (p?.catch) p.catch(() => {});
+  } catch { /* session storage unavailable — recovery degrades to no-op */ }
+}
+function clearActiveRunSnapshot() {
+  try {
+    const p = chrome.storage?.session?.remove(ACTIVE_RUN_KEY);
+    if (p?.catch) p.catch(() => {});
+  } catch { /* noop */ }
+}
+
+// ── v1.16.1 BOOT RECONCILIATION (crash mid-run → honest finalization) ────
+// Top-level, runs on every SW start. The snapshot can only still be present
+// when the worker died mid-run (every live finalization clears it first):
+// the run's async loop is necessarily dead, so we record an honest history
+// entry, reset the badge, and release the alarm. The task's tab group is left
+// in place (the user may want the tabs) but nothing resumes the dead loop.
+(async () => {
+  try {
+    const data = await chrome.storage?.session?.get(ACTIVE_RUN_KEY);
+    const run = data?.[ACTIVE_RUN_KEY];
+    if (!run) return;
+    await chrome.storage?.session?.remove(ACTIVE_RUN_KEY);
+    if (_runKeepaliveTimer) { clearInterval(_runKeepaliveTimer); _runKeepaliveTimer = null; }
+    try { await chrome.alarms?.clear('opencomet_run_keepalive'); } catch { /* noop */ }
+    try { setBadge('', '#7c6af7'); } catch { /* noop */ }
+    await appendHistory({
+      id: String(run.sessionId || `session_${Date.now()}`),
+      task: String(run.task || '(task text unavailable)'),
+      status: 'error',
+      result: 'Extension service worker restarted mid-run — the task was interrupted. No further actions were taken.',
+      steps: 0,
+      time: Date.now(),
+      mode: String(run.mode || 'agent'),
+    });
+    console.warn('[OpenComet] Crash recovery: previous run', run.sessionId, 'was interrupted by a service-worker restart — finalized in History.');
+  } catch (err) {
+    console.warn('[OpenComet] Crash-recovery reconciliation failed (non-fatal):', err?.message || err);
+  }
+})();
 

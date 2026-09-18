@@ -345,7 +345,7 @@ that "clicks" without changing the page cannot score.
 (`meta.type: "e2e-real"`) and are **never merged** with mock, UNIT or
 BROWSER rows. As of v1.15.4 this tier is partially verified (Ollama vision
 models, 2026-09-07/08, with a documented 429 rate-limit run) — see
-`docs/SIH_READINESS.md` §E2E-REAL. Partial evidence is labeled partial.
+`docs/sih/SIH_READINESS.md` §E2E-REAL. Partial evidence is labeled partial.
 
 ## 7. Tier D — ADVERSARIAL (`OCB-A1/A2`): the wire is the judge
 
@@ -411,7 +411,7 @@ checks run on real browser pixels with the real vendored models
 | OCB-H7 | `test_v1154_fixes.mjs` | 23 | Avatar guard, person-name fields, pixel-ROI OCR, walker budget |
 | OCB-H8 | `test_privacy_coords.mjs` | 17 | DPR/coordinate-space integrity of redaction boxes |
 
-Latest full regression (v1.15.4, recorded in `docs/SIH_READINESS.md`):
+Latest full regression (v1.15.4, recorded in `docs/sih/SIH_READINESS.md`):
 **all green** — 41/41, 17/17, 25/25, 28/28, 12/12, 31/31, 23/23, 17/17,
 with UNIT tier unchanged (P/R 1.00/1.00, fuzz 0 leaks, security 29/29,
 server 25/25, redaction coverage 0.983).

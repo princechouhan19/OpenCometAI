@@ -132,14 +132,14 @@ node OpenCometBench/e2e/run-e2e-real.mjs --warmup # real-VLM tier, steady-state 
 
 | Metric | Measured | Source |
 |---|---|---|
-| PII precision / recall | **1.00 / 1.00** (366+ corpus, checksum-validated) | `privacy.bench.js` |
-| Redaction coverage / mean IoU | **1.000 / 0.987**, pixel leakage 0/340, over-redaction 0% | `redaction.bench.js` |
-| Visual context accuracy | **12/12** DOM-fused, **12/12** ViT-fused | `visual-context.bench.js` |
+| PII precision / recall | **1.00 / 1.00** (366+ corpus, checksum-validated; synthetic corpus built from the detector's own checksum/label rules) | `privacy.bench.js` |
+| Redaction coverage / mean IoU | **1.000 / 0.987**, pixel leakage 0/340, over-redaction 0% (real-browser pixel tier) — unit harness on the same build: 0.983 / 0.938 / 5.9% over-redaction | `browser/harness.mjs` (browser report) · `redaction.bench.js` |
+| Visual context accuracy | **12/12** DOM-fused, **12/12** ViT-fused (browser tier; unit harness: 11/11) | `browser/harness.mjs` (browser report) · `visual-context.bench.js` |
 | Security / fuzz / server-validation | 29/29 · 0 leaks in 216 · 25/25 | `security/fuzz/server-validation` |
-| Sanitize P50 **warm** (unchanged screen) | **1216 ms** (memo hit; OCR memo collapses the OCR leg) | browser report |
+| Sanitize P50 **warm** (unchanged screen) | **1216 ms** (memo hit; OCR memo collapses the OCR leg; n=7) | browser report |
 | Changed frame (memo miss, full re-detect) | 12885 ms (YOLO 7841 + OCR 3402) — by design, scene-change-attack verified | browser report |
-| Real-VLM step (OpenRouter free model) | VLM 4679 ms · action 777 ms · **0 privacy blocks** · verified 1/1 | `e2e-real` report |
-| Cold first step (one-time model load) | ViT load 37873 ms — eliminated by v1.16.0 session warm-up | `e2e-real` + warm-up probe |
+| Real-VLM step (OpenRouter free model) | VLM 4679 ms · action 777 ms · **0 privacy blocks** · verified 1/1 (single-step reference run) | `e2e-real` report |
+| Cold first step (one-time model load) | ViT load 37873 ms — v1.16.0 adds a session warm-up (`--warmup`); a committed warm-up results artifact is still pending | `e2e-real` + warm-up probe |
 
 **Honesty rule:** cold-start, warm-unchanged-screen and changed-frame numbers are
 different conditions and are never merged. OCR geometric coverage is honestly
