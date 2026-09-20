@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/constants.js
 // Shared constants across background, content, and sidepanel.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Storage keys */
 export const STORAGE_KEYS = {
@@ -25,7 +23,7 @@ export const DEFAULT_SETTINGS = {
   ollamaVisionModel:   '',
   maxSteps:            25,
   screenshotDelay:     1200,
-  // v1.10 — GENERALIZED VLM speed controls (work with ANY provider):
+  // GENERALIZED VLM speed controls (work with ANY provider):
   vlmSpeedProfile:     'balanced', // fast | balanced | quality (see speed-profile.js)
   vlmReasoningEffort:  'low',      // low | medium | high | '' (send nothing)
   vlmMaxTokens:        0,          // decision-turn output cap; 0 = follow profile
@@ -170,7 +168,7 @@ export const PROVIDER_MODELS = {
   ollama:    ['llama3.2:3b', 'qwen2.5vl:7b', 'gemma3:4b', 'llava:7b'],
 };
 
-// ── Skills messages (added in v1.1) ──────────────────────────────────────────
+// Skills messages (added in )
 // These are handled entirely in the sidepanel (no background needed for CRUD).
 // The background reads skills from agentState.skills during execution.
 export const SKILL_MSG = {

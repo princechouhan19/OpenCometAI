@@ -1,6 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/roi-diff.js
-// v1.21.0 — REGION-OF-INTEREST CHANGE DETECTION (pure, dependency-free).
+// REGION-OF-INTEREST CHANGE DETECTION (pure, dependency-free).
 //
 // The dominant sanitize cost on changed frames is re-running the FULL
 // perception stack (objectDetect 7841 ms + OCR 3402 ms on the reference
@@ -25,7 +24,6 @@
 // than its tolerance — deliberately conservative (false-CHANGED is cheap,
 // false-UNCHANGED is a privacy risk). All pure TypedArray math: fully
 // unit-testable in Node without a browser.
-// ─────────────────────────────────────────────────────────────────────────────
 
 // Proxy size (downsampled grayscale) and block grid.
 export const ROI_PROXY_W = 96;
@@ -49,7 +47,7 @@ export const ROI_DEFAULTS = Object.freeze({
   minRegionPx: 24,         // regions smaller than this are still scanned (kept)
 });
 
-// ── 1) RGBA pixels → grayscale (Rec.601 luma, 0-255 Uint8) ───────────────────
+// 1) RGBA pixels → grayscale (Rec.601 luma, 0-255 Uint8)
 export function toGray(pixels, w, h) {
   if (!pixels || w <= 0 || h <= 0 || pixels.length < w * h * 4) {
     throw new Error(`toGray: bad input (${pixels?.length ?? 'null'} bytes for ${w}×${h})`);
@@ -61,7 +59,7 @@ export function toGray(pixels, w, h) {
   return g;
 }
 
-// ── 2) Box-downsample full-res gray → proxy-size gray ────────────────────────
+// 2) Box-downsample full-res gray → proxy-size gray
 export function downsampleGray(gray, w, h, gw = ROI_PROXY_W, gh = ROI_PROXY_H) {
   if (!gray || w <= 0 || h <= 0) throw new Error('downsampleGray: bad input');
   const out = new Uint8Array(gw * gh);
@@ -80,7 +78,7 @@ export function downsampleGray(gray, w, h, gw = ROI_PROXY_W, gh = ROI_PROXY_H) {
   return out;
 }
 
-// ── 3) Block fingerprints: mean / variance / gradient energies per block ─────
+// 3) Block fingerprints: mean / variance / gradient energies per block
 export function blockFingerprints(g, gw, gh, cols = ROI_GRID_COLS, rows = ROI_GRID_ROWS) {
   if (!g || g.length < gw * gh) throw new Error('blockFingerprints: bad input');
   const n = cols * rows;
@@ -113,7 +111,7 @@ export function blockFingerprints(g, gw, gh, cols = ROI_GRID_COLS, rows = ROI_GR
   return { means, vars, gxs, gys };
 }
 
-// ── 4) Diff two fingerprint sets → changed-block mask ────────────────────────
+// 4) Diff two fingerprint sets → changed-block mask
 export function diffFingerprints(prev, curr, tol = ROI_DEFAULTS) {
   if (!prev || !curr) throw new Error('diffFingerprints: missing fingerprint set');
   const n = prev.means.length;
@@ -131,7 +129,7 @@ export function diffFingerprints(prev, curr, tol = ROI_DEFAULTS) {
   return { changed, changedCount, ratio: n ? changedCount / n : 1 };
 }
 
-// ── 5) Decision: full scan or ROI scan (fail-toward-more-work) ───────────────
+// 5) Decision: full scan or ROI scan (fail-toward-more-work)
 // Every reason here is a forced-FULL reason; ROI is the LAST resort, only
 // when every privacy precondition holds.
 export function planPerception({ hasPrevState = false, urlMatched = false, ratio = 1, consecutive = 0, error = null, caps = ROI_DEFAULTS }) {
@@ -143,7 +141,7 @@ export function planPerception({ hasPrevState = false, urlMatched = false, ratio
   return { mode: 'roi', reason: 'blocks-localized' };
 }
 
-// ── 6) Changed-block mask → scan regions (connected components, merged) ──────
+// 6) Changed-block mask → scan regions (connected components, merged)
 // INVARIANTS (unit-tested):
 //   • every changed block lies inside SOME returned region (overflow
 //     components merge into one bounding region — never dropped);
@@ -207,7 +205,7 @@ export function regionsFromMask(changed, cols, rows, imgW, imgH, opts = {}) {
   return regions;
 }
 
-// ── 7) Geometry helpers (detection keep/merge semantics) ─────────────────────
+// 7) Geometry helpers (detection keep/merge semantics)
 export function boxIntersectsRegion(b, r) {
   if (!b || !r) return false;
   return b.x < r.x + r.w && r.x < b.x + b.w && b.y < r.y + r.h && r.y < b.y + b.h;

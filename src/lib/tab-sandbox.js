@@ -1,11 +1,8 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/tab-sandbox.js
-// v1.15 — TAB-GROUP SANDBOX (Claude-for-Chrome-style task boundary)
+// TAB-GROUP SANDBOX (Claude-for-Chrome-style task boundary)
 //
-// User field report (v1.14.3, YouTube run): "why is the agent accessing other
-// tabs? The Claude extension first creates a group of tabs — if the task needs
-// more tabs, they open inside that group, so it acts as a boundary/sandbox
-// for the agent."
+// The task's tabs live inside a dedicated tab group: any tabs the task
+// needs are opened within it, so the group itself is the sandbox.
 //
 // This module is the single source of truth for that boundary. It is shared by
 // src/background/sw.js (group lifecycle) and src/background/actions.js
@@ -20,7 +17,6 @@
 //     logs a warning) instead of pretending the boundary exists. Grouping is
 //     cosmetic containment; taskTabIds enforcement (actions.js) is the hard
 //     boundary and keeps working even if Chrome refuses to group.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const SANDBOX_GROUP_COLOR = 'blue';
 

@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/tool-schemas.js
 // WebMCP-style tool declarations for the agent's native actions — the single
 // source of truth used BOTH for:
@@ -8,7 +7,6 @@
 //     these schemas so cloud providers see the same contract).
 // Shape mirrors the gemma4-browser-extension WebMCPTool interface:
 //   { name, description, inputSchema: { type:'object', properties, required } }
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const AGENT_TOOL_SCHEMAS = [
   {

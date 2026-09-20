@@ -1,8 +1,6 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/core/events.js
 // Typed event bus — thin safety wrapper around chrome.runtime messaging.
 // Prevents magic-string bugs; all message types come from constants.js.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { MSG } from '../lib/constants.js';
 

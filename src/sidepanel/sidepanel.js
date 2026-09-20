@@ -1,10 +1,8 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // sidepanel.js — Open Comet UI controller
-// ─────────────────────────────────────────────────────────────────────────────
 import { loadLibrarySkills, peekLibrarySkills } from '../lib/skill-library.js';
 import { createLogger, installGlobalErrorTraps } from '../core/logger.js';
 
-// ── Diagnostics: uncaught sidepanel errors never vanish ──────────────────────
+// Diagnostics: uncaught sidepanel errors never vanish
 // They print here with a full stack AND relay to the SW console
 // ([Relay:sidepanel:Sidepanel]), so background DevTools sees them too.
 const logPanel = createLogger('Sidepanel');
@@ -40,7 +38,7 @@ const LOCAL_MODEL_NAMES = {
   'all-minilm-l6-v2': 'MiniLM Embeddings',
 };
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// State
 let currentMode     = 'auto';
 let currentProvider = 'openai';
 let isRunning       = false;
@@ -58,13 +56,13 @@ let slashMenuOpen = false;
 let slashSelectedIndex = 0;
 let filteredSlashSkills = [];
 
-// ── Sounds ────────────────────────────────────────────────────────────────────
+// Sounds
 function playNotificationSound(type = 'complete') {
   const audio = new Audio(`../../assets/sounds/${type}.mp3`);
   audio.play().catch(e => console.warn('[Sound] Playback inhibited:', e));
 }
 
-// ── DOM refs (all null-safe) ──────────────────────────────────────────────────
+// DOM refs (all null-safe)
 const $ = id => document.getElementById(id);
 
 const taskInput      = $('taskInput');
@@ -212,9 +210,7 @@ function getProviderDefaultBaseUrl(provider) {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // NAVIGATION
-// ══════════════════════════════════════════════════════════════════════════════
 function showView(name) {
   const bottomNav = $('bottomNav');
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -314,9 +310,7 @@ document.querySelectorAll('[data-settings-target]').forEach(btn => {
   btn.addEventListener('click', () => openSettingsPage(btn.dataset.settingsTarget || 'home'));
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
 // MODE DROPDOWN  (opens upward above the toggle button)
-// ══════════════════════════════════════════════════════════════════════════════
 function closeModeDropdown() {
   if (modeDropdown) modeDropdown.classList.remove('open');
 }
@@ -346,7 +340,7 @@ document.querySelectorAll('.mode-option').forEach(opt => {
       const chk = o.querySelector('.mode-check');
       if (chk) chk.classList.toggle('visible', isThis);
     });
-    // v1.15.1: persist the choice — ask mode now genuinely changes behaviour
+    // persist the choice — ask mode now genuinely changes behaviour
     // (it gates every privacy-run action behind an approval card), so losing
     // it on every panel reload made the feature feel dead.
     try { localStorage.setItem('opencometAgentMode', currentMode); } catch {}
@@ -358,7 +352,7 @@ document.querySelectorAll('.mode-option').forEach(opt => {
 if (modeIcon)  modeIcon.textContent  = '⚡';
 if (modeLabel) modeLabel.textContent = 'Act without asking';
 
-// v1.15.1: …then restore the persisted mode (default 'auto').
+// …then restore the persisted mode (default 'auto').
 try {
   const savedMode = localStorage.getItem('opencometAgentMode');
   if (savedMode === 'ask' || savedMode === 'auto') {
@@ -377,9 +371,7 @@ try {
   }
 } catch {}
 
-// ══════════════════════════════════════════════════════════════════════════════
 // MODEL SELECTOR DROPDOWN
-// ══════════════════════════════════════════════════════════════════════════════
 function closeModelSelector() {
   const dropdown = $('modelSelectorDropdown');
   if (dropdown) dropdown.classList.remove('open');
@@ -467,9 +459,7 @@ async function selectDropdownModel(provider, modelId) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // INPUT TABS  (Chat | Deep Research | Scrape)
-// ══════════════════════════════════════════════════════════════════════════════
 const tabChat         = $('tabChat');
 const tabDeepResearch = $('tabDeepResearch');
 const tabScrape       = $('tabScrape');
@@ -520,7 +510,7 @@ if (tabChat)         tabChat.addEventListener('click',          () => setInputTa
 if (tabDeepResearch) tabDeepResearch.addEventListener('click',  () => setInputTab('deep_research'));
 if (tabScrape)       tabScrape.addEventListener('click',        () => setInputTab('scrape'));
 
-// ── Quick-start suggestion chips (empty state) ──
+// Quick-start suggestion chips (empty state)
 // Event-delegated on document so handlers survive resetConversationUI()'s
 // innerHTML restore of the empty state markup.
 document.addEventListener('click', e => {
@@ -551,9 +541,7 @@ document.addEventListener('click', e => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
 // SEND / STOP
-// ══════════════════════════════════════════════════════════════════════════════
 async function addRunningNote() {
   const note = taskInput?.value.trim();
   if (!note) return;
@@ -729,9 +717,7 @@ async function runScrapePage() {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // BACKGROUND MESSAGES
-// ══════════════════════════════════════════════════════════════════════════════
 chrome.runtime.onMessage.addListener(msg => {
   switch (msg.type) {
     case 'AGENT_STARTED':
@@ -769,12 +755,12 @@ chrome.runtime.onMessage.addListener(msg => {
     case 'AGENT_DONE':
       currentRunKind = null;
       setRunning(false);
-      // v1.15.6: privacy runs now carry the FINAL ANSWER (information/summary
+      // privacy runs now carry the FINAL ANSWER (information/summary
       // tasks) — render it instead of a bare "Task complete."
       renderResultCard(msg.answer || msg.summary?.finalAnswer || msg.summary?.finalThought || 'Task complete.');
       renderHistory();
       playNotificationSound('complete');
-      // SIH Phase 26: feed the measured run latency profile to the Scorecard.
+      // feed the measured run latency profile to the Scorecard.
       try { document.dispatchEvent(new CustomEvent('sih-run-finished', { detail: msg.summary || null })); } catch {}
       break;
 
@@ -790,7 +776,7 @@ chrome.runtime.onMessage.addListener(msg => {
       }
       break;
 
-    // ── Deep Research messages ───────────────────────────────────────────────
+    // Deep Research messages
     case 'DEEP_RESEARCH_STEP':
       addStep('spin', msg.text || '');
       break;
@@ -869,9 +855,7 @@ chrome.runtime.onMessage.addListener(msg => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
 // CONVO HELPERS
-// ══════════════════════════════════════════════════════════════════════════════
 function hideEmpty() {
   const e = $('emptyState');
   if (e) e.style.display = 'none';
@@ -993,7 +977,7 @@ function appendAgentBlock() {
   return el;
 }
 
-// ── Per-step timing chips ────────────────────────────────────────────────────
+// Per-step timing chips
 // Slow VLM turns (90s+ with image models) used to look like a hung panel.
 // Every step now shows HOW LONG it took; the in-flight step shows a live
 // ticking timer so the user sees the agent is working, not frozen.
@@ -1116,7 +1100,7 @@ function addStep(type, text, meta = null) {
   scrollConvo();
 }
 
-// ── Screenshot step with inline thumbnail ─────────────────────────────────────
+// Screenshot step with inline thumbnail
 function addScreenshotStep(dataUrl, text, meta = null) {
   if (!agentBlockEl) agentBlockEl = appendAgentBlock();
   if (!agentBlockEl) return;
@@ -1156,7 +1140,7 @@ function addScreenshotStep(dataUrl, text, meta = null) {
   scrollConvo();
 }
 
-// ── Lightbox ──────────────────────────────────────────────────────────────────
+// Lightbox
 function openLightbox(src) {
   const lb  = $('lightbox');
   const img = $('lightboxImg');
@@ -1184,7 +1168,7 @@ function scrollConvo() {
   }
 }
 
-// ── Plan card ─────────────────────────────────────────────────────────────────
+// Plan card
 function renderPlanCard(plan) {
   if (!plan || !agentBlockEl) return;
 
@@ -1259,10 +1243,10 @@ function renderPlanCard(plan) {
   });
 }
 
-// ── Approval card ─────────────────────────────────────────────────────────────
+// Approval card
 function renderApprovalCard(approval) {
   if (!approval || !agentBlockEl) return;
-  // v1.15.1 ASK-BEFORE-ACTING: kind-aware card. kind:'action' (privacy loop,
+  // ASK-BEFORE-ACTING: kind-aware card. kind:'action' (privacy loop,
   // ask mode) gets the three Claude-style verdicts; legacy host-access cards
   // keep Allow once / Cancel.
   const isAction = approval.kind === 'action';
@@ -1297,7 +1281,7 @@ function renderApprovalCard(approval) {
   });
 }
 
-// ── Research report card ──────────────────────────────────────────────────────
+// Research report card
 function renderResearchCard(task, report, subQueries, sources) {
   if (!agentBlockEl) return;
   const card = document.createElement('div');
@@ -1439,7 +1423,7 @@ function markdownToHtml(md) {
     .replace(/\[(\d+)\]/g, '<sup class="cite">[$1]</sup>');
 }
 
-// ── Result card ───────────────────────────────────────────────────────────────
+// Result card
 /** Escape HTML special characters for safe DOM insertion. */
 function esc(str) {
   return String(str || '')
@@ -1493,9 +1477,7 @@ function renderResultCard(answer) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // RUNNING STATE
-// ══════════════════════════════════════════════════════════════════════════════
 function setRunning(on) {
   isRunning = on;
   if (stopBtn) stopBtn.classList.toggle('visible', on);
@@ -1508,9 +1490,7 @@ function setRunning(on) {
   updateComposerState();
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // SETTINGS
-// ══════════════════════════════════════════════════════════════════════════════
 const providerGrid = $('providerGrid');
 if (providerGrid) {
   providerGrid.addEventListener('click', e => {
@@ -1721,7 +1701,7 @@ async function loadSettings() {
     if (ollamaVisionModelInput) ollamaVisionModelInput.value = settings.ollamaVisionModel || settings.model || '';
     if (settings.maxSteps        && maxStepsInput)  maxStepsInput.value = settings.maxSteps;
     if (settings.screenshotDelay && delayInput)     delayInput.value    = settings.screenshotDelay;
-    // v1.10 — generalized VLM speed controls
+    // generalized VLM speed controls
     const vlmSpeedProfileInput    = $('vlmSpeedProfileInput');
     const vlmReasoningEffortInput = $('vlmReasoningEffortInput');
     const vlmMaxTokensInput       = $('vlmMaxTokensInput');
@@ -1793,11 +1773,9 @@ $('ollamaVisionModelInput')?.addEventListener('input', () => {
     });
   }
 });
-// ══════════════════════════════════════════════════════════════════════════════
 // SETTINGS (Profile is stored locally only — no cloud account in this build)
-// ══════════════════════════════════════════════════════════════════════════════
 
-// ── v1.15.6 Custom info (Settings → Profile): user-defined label/value rows
+// Custom info (Settings → Profile): user-defined label/value rows
 // the agent may use for form filling and answering questions about the user.
 function buildCustomInfoRow(key = '', value = '') {
   const row = document.createElement('div');
@@ -1990,9 +1968,7 @@ async function getSettingsBg() {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // HISTORY
-// ══════════════════════════════════════════════════════════════════════════════
 function renderHistory() {
   const list = $('historyList');
   if (!list) return;
@@ -2045,9 +2021,7 @@ if (clearHistoryBtn) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // UTILS
-// ══════════════════════════════════════════════════════════════════════════════
 function fmtTime(ts) {
   return new Date(ts).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
 }
@@ -2073,11 +2047,9 @@ if (taskInput) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // SLASH COMMANDS
 // (slashMenuOpen / slashSelectedIndex / filteredSlashSkills are declared in the
 //  top state block so early calls to closeSlashMenu() can never hit the TDZ.)
-// ══════════════════════════════════════════════════════════════════════════════
 
 function handleSlashCommand() {
   const val = taskInput.value;
@@ -2182,13 +2154,10 @@ function updateSlashSelection() {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SKILLS  (v1.1)
-// Full CRUD: list, create, edit, delete, activate/deactivate per session
-// ══════════════════════════════════════════════════════════════════════════════
+// SKILLS — full CRUD: list, create, edit, delete, activate/deactivate per session
 
-// ── Built-in skills (offline fallback — the folder library in /skills is the
-//    primary source; these are used only if SKILL.md files fail to load) ──────
+// Built-in skills (offline fallback — the folder library in /skills is the
+// primary source; these are used only if SKILL.md files fail to load)
 const BUILT_IN_SKILLS = [
   {
     id: 'builtin_summarise', name: 'Summarise Page', icon: '📄', category: 'Research', builtIn: true,
@@ -2258,15 +2227,13 @@ function skillToMeta(skill) {
 const BUILT_IN_SKILL_MAP = new Map(BUILT_IN_SKILLS.map(skill => [skill.id, skill]));
 const BUILT_IN_SKILL_META = BUILT_IN_SKILLS.map(skillToMeta);
 
-// ── Active skills state (for current session, not persisted) ──────────────────
+// Active skills state (for current session, not persisted)
 let activeSkillIds = new Set(); // IDs of skills active for next task
 
-// ── Skill data cache ──────────────────────────────────────────────────────────
+// Skill data cache
 let allSkillsCache = [];
 
-// ── Nav hookup ────────────────────────────────────────────────────────────────
-// ── Nav hookup ────────────────────────────────────────────────────────────────
-// navSkills removed from bottom nav in v1.2
+// Nav hookup
 
 // Patch showView to handle 'skills'
 const _origShowView = showView;
@@ -2277,7 +2244,7 @@ window.showView = function(name) {
   }
 };
 
-// ── Load and render skills ────────────────────────────────────────────────────
+// Load and render skills
 let librarySkills = [];
 
 async function loadSkills() {
@@ -2366,7 +2333,7 @@ function deleteStoredSkill(id) {
   });
 }
 
-// ── Render skills list ────────────────────────────────────────────────────────
+// Render skills list
 function renderSkillsList(skills) {
   const list = $('skillsList');
   if (!list) return;
@@ -2484,7 +2451,7 @@ function toggleSkillActive(id, cardEl = null) {
   updateActiveSkillsBar();
 }
 
-// ── Active skills bar (shown in the Agent composer) ────────────────────────────
+// Active skills bar (shown in the Agent composer)
 // Bounded by design: collapsed state shows at most ASB_COLLAPSED_LIMIT chips
 // (≈2 rows) plus a "+N more" expander; expanded state caps the chip area at
 // 118px and scrolls, so an "all skills active" session can never stretch the
@@ -2555,7 +2522,7 @@ if (asbClear) asbClear.addEventListener('click', () => {
   });
 });
 
-// ── Skill Editor Modal ────────────────────────────────────────────────────────
+// Skill Editor Modal
 let editingSkillId = null;
 
 async function openSkillEditor(id = null) {
@@ -2618,7 +2585,7 @@ $('smSave')?.addEventListener('click', async () => {
   loadSkills();
 });
 
-// ── Get active skills for agent dispatch ──────────────────────────────────────
+// Get active skills for agent dispatch
 async function getActiveSkillsForAgent() {
   const fullSkills = await materializeSkillsByIds([...activeSkillIds]);
   return fullSkills.map(s => ({
@@ -2631,7 +2598,7 @@ async function getActiveSkillsForAgent() {
   }));
 }
 
-// ── Patch runAgent to pass active skills ──────────────────────────────────────
+// Patch runAgent to pass active skills
 // Override the existing runAgent by monkey-patching sendMessage
 const _origRunAgent = window.runAgent;
 
@@ -2734,11 +2701,11 @@ if (sendBtnEl) {
   newSendBtn.addEventListener('click', submitComposer);
 }
 
-// ── Init skills on load ────────────────────────────────────────────────────────
+// Init skills on load
 loadSkills(); // pre-warm the cache so getActiveSkillsForAgent() works immediately
 
 
-// ── Eye-toggle for API key inputs (replaces inline onclick — CSP safe) ─────────
+// Eye-toggle for API key inputs (replaces inline onclick — CSP safe)
 document.addEventListener('click', e => {
   const btn = e.target.closest('.ai-eye-btn');
   if (!btn) return;
@@ -2761,7 +2728,7 @@ document.addEventListener('click', e => {
        </svg>`;
 });
 
-// ── Provider Type Switcher (.ptype-btn) ──────────────────────────────────────────
+// Provider Type Switcher (.ptype-btn)
 document.querySelectorAll('.ptype-btn').forEach(tab => {
   tab.addEventListener('click', () => {
     const type = tab.dataset.type;
@@ -2787,7 +2754,7 @@ document.querySelectorAll('.ptype-btn').forEach(tab => {
   });
 });
 
-// ── Local hub sub-switcher (In-browser models ↔ Ollama server) ────────────
+// Local hub sub-switcher (In-browser models ↔ Ollama server)
 function setLocalSubPane(sub) {
   document.querySelectorAll('.local-sub-btn').forEach(b => {
     const on = b.dataset.localSub === sub;
@@ -2816,9 +2783,7 @@ document.querySelectorAll('.local-sub-btn').forEach(btn => {
   });
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
 // ON-DEVICE MODELS (Transformers.js) — settings UI controller
-// ══════════════════════════════════════════════════════════════════════════════
 let localModelCatalog = [];
 let selectedLocalModelId = '';
 let localDevice = 'wasm';   // authoritative backend reported by LOCAL_MODEL_LIST
@@ -3013,9 +2978,7 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
 // USAGE DASHBOARD
-// ══════════════════════════════════════════════════════════════════════════════
 /**
  * Formats a raw token count into a human-readable string (e.g., 1.2M, 45k).
  * @param {number} count - The number of tokens.
@@ -3100,9 +3063,7 @@ if (clearUsageBtn) {
 }
 
 
-// ══════════════════════════════════════════════════════════════════════════════
 // INIT
-// ══════════════════════════════════════════════════════════════════════════════
 renderModelChips('openai');
 updateComposerState();
 renderHistory();
@@ -3124,12 +3085,10 @@ requestAgentStateHydration({ force: true });
 
 
 
-// ─────────────────────────────────────────────────────────────────────────────
 // PRIVACY MODE CONTROLLER (SIH addition)
 // The home page keeps the quick toggle + live stats. All pipeline
 // configuration lives in Settings → Privacy & Vision and applies instantly
 // on change (no Save button needed).
-// ─────────────────────────────────────────────────────────────────────────────
 (function privacyModeController() {
   const $ = id => document.getElementById(id);
 
@@ -3137,8 +3096,8 @@ requestAgentStateHydration({ force: true });
   const chip         = $('privacyChip');          // the chip itself (off-state styling)
   const chipState    = $('privacyChipState');     // On/Off badge text
   const settingsToggle = $('privacyEnabledInput'); // settings master switch
-  // v1.15.1: #privacyConfigureBtn (top-right "sun" icon) removed — the bottom
-  // Settings nav is the single entry point (user request).
+  // #privacyConfigureBtn (top-right "sun" icon) removed — the bottom
+  // Settings nav is the single entry point.
   const testBtn      = $('privacyTestBtn');
   const statsBox     = $('privacyStats');
   const psLastMs     = $('psLastMs');
@@ -3177,7 +3136,7 @@ requestAgentStateHydration({ force: true });
   // Push initial config to background
   sendConfigure();
 
-  // ── Event wiring ──
+  // Event wiring
   toggle?.addEventListener('change', () => {
     setPrivacyEnabled(toggle.checked);
   });
@@ -3187,7 +3146,7 @@ requestAgentStateHydration({ force: true });
   });
 
   // Gear icon on the home bar → jump to the dedicated settings page.
-  // v1.15.1: configureBtn listener removed together with the button —
+  // configureBtn listener removed together with the button —
   // Settings → Privacy & Vision remains reachable via the bottom nav.
 
   // Auto-apply pipeline option changes instantly.
@@ -3302,11 +3261,11 @@ requestAgentStateHydration({ force: true });
     psFaces.textContent   = String(c.faces || 0);
     psPii.textContent     = String((c.domSensitive || 0) + (c.textPii || 0));
     psBackend.textContent = s.backend || '—';
-    // SIH Phase 25: mirror the REAL firewall envelope into the inspector table.
+    // mirror the REAL firewall envelope into the inspector table.
     if (result.inspector) renderInspector(result.inspector);
   }
 
-  // ── SIH Phase 25: Privacy Firewall Inspector (real runtime values only) ──
+  // Privacy Firewall Inspector (real runtime values only)
   function renderInspector(ins) {
     const set = (id, v, cls) => {
       const el = $(id); if (!el) return;
@@ -3323,7 +3282,7 @@ requestAgentStateHydration({ force: true });
     set('sihVerify', ins.verification || '—', ins.verification === 'PASSED' ? 'ok' : 'warn');
   }
 
-  // ── SIH v1.13: Scorecard — score · n · benchmark type · timestamp.
+  // : Scorecard — score · n · benchmark type · timestamp.
   // UNIT (Node logic), BROWSER (real Chromium pixels) and E2E (live loop)
   // results are stored SEPARATELY and never merged into a single number.
   const SC_TARGETS = {
@@ -3375,7 +3334,7 @@ requestAgentStateHydration({ force: true });
   }
 
   // BROWSER data = OpenCometBench/results/browser-benchmark-*.json (harness export)
-  // v1.14.1 §14: the source report is STAMPED under the table — environment
+  // §14: the source report is STAMPED under the table — environment
   // (real-hardware-headed = AUTHORITATIVE vs headless-ci = regression only),
   // generatedAt and file name — so multiple reports can never be silently
   // substituted for one another.
@@ -3390,7 +3349,7 @@ requestAgentStateHydration({ force: true });
     }
     const ocr = data.ocrVisualPii;
     if (ocr) {
-      // v1.14.1 §3: geometric coverage and pixel-regions-altered are DIFFERENT
+      // §3: geometric coverage and pixel-regions-altered are DIFFERENT
       // metrics and are displayed as such. Real hardware measured 0.75 geo
       // coverage with 4/4 pixel regions altered → the row reads MEASURED with
       // both numbers visible; a missing pixel redaction would be FAIL.
@@ -3401,7 +3360,7 @@ requestAgentStateHydration({ force: true });
       setScorecard('ocr-visual', `${geo != null ? geo : '—'} (geometric) · ${altered}/${perGt.length} pixel regions altered`, allAltered ? 'MEASURED' : 'FAIL', { n: ocr.meta?.n, type: 'BROWSER', ts });
     }
     const res = data.resources;
-    // v1.14.2: when the report carries a changed-frame (memo-MISS) measurement,
+    // when the report carries a changed-frame (memo-MISS) measurement,
     // BOTH sanitize totals are shown — the warm memo-hit steady state and the
     // changed-frame full re-detection cost. Never quote one without the other.
     if (res?.sanitizeTotalMs) setScorecard('sanitize-p50',
@@ -3419,7 +3378,7 @@ requestAgentStateHydration({ force: true });
     });
   }
 
-  // v1.14.1: single stamp line under the scorecard — which report produced the
+  // single stamp line under the scorecard — which report produced the
   // current BROWSER rows and whether it is authoritative for production claims.
   function stampScorecardSource({ kind, name, ts, environment, authoritative }) {
     const el = document.getElementById('sihScorecardSource');
@@ -3433,7 +3392,7 @@ requestAgentStateHydration({ force: true });
 
   function scorecardFromRun(profile, privacy, steps) {
     // Live values from the last completed privacy run (E2E — live task loop).
-    // v1.15.2: also renders the per-task PRIVACY CENSUS (privacy-loop DONE
+    // also renders the per-task PRIVACY CENSUS (privacy-loop DONE
     // summary) into the new live row — what THIS task actually redacted.
     // Purely measured counters, kept in the E2E tier, never merged with the
     // UNIT/BROWSER benchmark rows.
@@ -3452,7 +3411,7 @@ requestAgentStateHydration({ force: true });
     }
   }
 
-  // v1.14: E2E (mock brain) + ADVERSARIAL + E2E-REAL report importers.
+  // E2E (mock brain) + ADVERSARIAL + E2E-REAL report importers.
   // Each keeps its OWN benchmark type — rows never merge tiers.
   function scorecardFromE2e(data) {
     const ts = data.meta?.generatedAt || null;
@@ -3540,7 +3499,7 @@ requestAgentStateHydration({ force: true });
     if (savedAdv) scorecardFromAdversarial(JSON.parse(savedAdv));
     const savedReal = localStorage.getItem('opencometSihE2eRealBenchmarks');
     if (savedReal) scorecardFromE2eReal(JSON.parse(savedReal));
-    // v1.15.2: restore the last live-task report (privacy census + latency).
+    // restore the last live-task report (privacy census + latency).
     const savedLive = localStorage.getItem('opencometSihLiveRun');
     if (savedLive) {
       const lr = JSON.parse(savedLive);
@@ -3548,10 +3507,10 @@ requestAgentStateHydration({ force: true });
     }
   } catch { /* ignore corrupt cache */ }
   // Live run latency profile + privacy census → Scorecard (AGENT_DONE
-  // carries both from the privacy loop's DONE summary). v1.15.2: the last
-  // live report is PERSISTED so the rows survive a panel reload — same
-  // policy as the imported benchmark tiers (measured data only, stored
-  // locally, never fabricated).
+  // carries both from the privacy loop's DONE summary). The last live
+  // report is persisted so the rows survive a panel reload — same policy
+  // as the imported benchmark tiers (measured data only, stored locally,
+  // never fabricated).
   document.addEventListener('sih-run-finished', (e) => {
     const summary = e.detail;
     if (!summary) return;
@@ -3578,10 +3537,10 @@ requestAgentStateHydration({ force: true });
     }, 1600);
   }
 
-  // ── Intercept STEP_UPDATE messages to refresh stats during a privacy run ──
+  // Intercept STEP_UPDATE messages to refresh stats during a privacy run
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'STEP_UPDATE' && msg.step?.type === 'screenshot') {
-      // v1.8: steps now arrive ONLY in the canonical pushStep shape (payload
+      // steps now arrive ONLY in the canonical pushStep shape (payload
       // spread into the step) — the SW's raw second broadcast was removed.
       // Accept both shapes for robustness.
       const phase = msg.step.phase || msg.step.payload?.phase;
@@ -3593,7 +3552,7 @@ requestAgentStateHydration({ force: true });
     }
   });
 
-  // ── Intercept the Send button: when privacy is on, route to PRIVACY_START ──
+  // Intercept the Send button: when privacy is on, route to PRIVACY_START
   const origSend = chrome.runtime.sendMessage.bind(chrome.runtime);
   chrome.runtime.sendMessage = function patchedSendMessage(msg, ...rest) {
     if (msg && msg.type === 'START_AGENT' && privacyEnabled) {
@@ -3611,13 +3570,13 @@ requestAgentStateHydration({ force: true });
   console.log('[OpenComet-SIH] Privacy Mode controller initialised. Enabled:', privacyEnabled);
 })();
 
-// v1.8 build banner — identifies the exact running build in the sidepanel
+// build banner — identifies the exact running build in the sidepanel
 // console (stale unpacked copies were indistinguishable from fresh ones).
 const _ocV = (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getManifest === 'function')
   ? chrome.runtime.getManifest().version : 'dev';
 console.log(`[OpenComet] v${_ocV} · side panel`);
 
-// ── About page (v1.15.5): live version chip + build-info copy ──────────────
+// About page (): live version chip + build-info copy
 // The version chip is filled from the ACTUAL loaded manifest, so a stale
 // unpacked copy can never lie about which build is running.
 (function aboutPageController() {
@@ -3648,7 +3607,7 @@ console.log(`[OpenComet] v${_ocV} · side panel`);
   }
 })();
 
-// ── SIH Competition Mode controller (v1.13) ────────────────────────────────
+// SIH Competition Mode controller ()
 (function sihModeController() {
   const $ = id => document.getElementById(id);
   const input = $('sihModeInput');

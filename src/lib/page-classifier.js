@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/page-classifier.js
 // SIH Phase 5 — STRUCTURED VISUAL CONTEXT.
 //
@@ -21,7 +20,6 @@
 //
 // PURE module — no chrome.* APIs, no DOM — safe for the SW, the offscreen
 // document, and the Node benchmark suite.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const PAGE_TYPES = [
   'login', 'signup', 'checkout', 'payment', 'banking', 'profile',
@@ -29,7 +27,7 @@ export const PAGE_TYPES = [
   'media', 'email', 'government', 'unknown',
 ];
 
-// ── URL heuristics (path/host keywords per page type) ────────────────────────
+// URL heuristics (path/host keywords per page type)
 const URL_SIGNALS = {
   login:     [/\/(login|signin|sign-in|auth|session)\b/i, /\baccounts?\.[a-z]+\.[a-z]+\/(login|signin)/i],
   signup:    [/\/(signup|register|create-account|join)\b/i],
@@ -45,8 +43,8 @@ const URL_SIGNALS = {
   government:[/\b(gov|govt|nic\.in|sarkari|uidai|incometax|gst)\b/i],
 };
 
-// ── DOM-text heuristics (keyword → [weight, strength]) ──────────────────────────
-// v1.14 CONFIDENCE FIX — each keyword is tagged STRONG ('s': a phrase specific
+// DOM-text heuristics (keyword → [weight, strength])
+// CONFIDENCE FIX — each keyword is tagged STRONG ('s': a phrase specific
 // to exactly one page type: "apply online", "account balance", "cvv", …) or
 // WEAK ('w': generic vocabulary that appears on many page kinds: "portal",
 // "payment", "submit", …).
@@ -82,7 +80,7 @@ const TEXT_SIGNALS = {
 const DECIDE_MIN_STRONG = 3;
 const DECIDE_MIN_TOTAL = 6;
 
-// ── Visual-element vocabulary (derived from the DOM census) ──────────────────
+// Visual-element vocabulary (derived from the DOM census)
 const INPUT_LABEL = {
   password: 'password_field', email: 'email_field', search: 'search_box',
   tel: 'phone_field', checkbox: 'checkbox', radio: 'radio', file: 'file_upload',
@@ -234,7 +232,7 @@ export function classifyVisualContext(p = {}, vitLabels = null, extra = {}) {
   const vit = mapVitLabelsToScene(vitLabels);
   const vitUsed = Boolean(vitLabels && vitLabels.length);
 
-  // SIH v1.14 — EXPLICIT SOURCE ATTRIBUTION. Every perception result now says
+  // — EXPLICIT SOURCE ATTRIBUTION. Every perception result now says
   // WHERE each piece of evidence came from (the SIH brief requires
   // sources: { dom, url, vit, visualDetector }).
   //   dom      — always evaluated (free)

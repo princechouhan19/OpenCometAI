@@ -1,5 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// server/validate.js — SIH v1.13 INBOUND VALIDATION for /agent/decide.
+// server/validate.js — INBOUND VALIDATION for /agent/decide.
 //
 // The companion server previously trusted almost every client field: any
 // manifest shape, any settings object, any history size, no MIME checks and
@@ -15,7 +14,6 @@
 //
 // PURE module (no express imports) so the benchmark suite exercises the exact
 // validation the server runs.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const LIMITS = {
   taskMaxChars: 4000,
@@ -68,12 +66,12 @@ function isSafeManifestEntry(e) {
 export function validateInboundRequest(input = {}) {
   const reasons = [];
 
-  // ── required fields ────────────────────────────────────────────────────────
+  // required fields
   const task = typeof input.task === 'string' ? input.task.trim() : '';
   if (!task) reasons.push('missing required field: task');
   if (task.length > LIMITS.taskMaxChars) reasons.push(`task exceeds ${LIMITS.taskMaxChars} chars`);
 
-  // ── image: present, allowed type (magic bytes, not the declared MIME),
+  // image: present, allowed type (magic bytes, not the declared MIME),
   //    sane size ──────────────────────────────────────────────────────────────
   const buf = input.imageBuffer;
   if (!buf || !buf.length) {
@@ -87,13 +85,13 @@ export function validateInboundRequest(input = {}) {
     }
   }
 
-  // ── sanitizedText ──────────────────────────────────────────────────────────
+  // sanitizedText
   if (input.sanitizedText != null) {
     if (typeof input.sanitizedText !== 'string') reasons.push('sanitizedText must be a string');
     else if (input.sanitizedText.length > LIMITS.sanitizedTextMaxChars) reasons.push(`sanitizedText exceeds ${LIMITS.sanitizedTextMaxChars} chars`);
   }
 
-  // ── manifest: array of safe shapes only ────────────────────────────────────
+  // manifest: array of safe shapes only
   let manifest = input.manifest;
   if (typeof manifest === 'string') {
     try { manifest = JSON.parse(manifest); } catch { manifest = { __parseError: true }; }
@@ -107,7 +105,7 @@ export function validateInboundRequest(input = {}) {
     }
   }
 
-  // ── privacyVerification: the firewall envelope is REQUIRED (fail-closed) ───
+  // privacyVerification: the firewall envelope is REQUIRED (fail-closed)
   const pv = input.privacyVerification;
   const requireVerified = process.env.OPENCOMET_ACCEPT_UNVERIFIED !== '1';
   if (requireVerified) {
@@ -122,7 +120,7 @@ export function validateInboundRequest(input = {}) {
     reasons.push('privacyVerification.passed is false — refusing (OPENCOMET_ACCEPT_UNVERIFIED only relaxes ABSENCE)');
   }
 
-  // ── history ────────────────────────────────────────────────────────────────
+  // history
   let history = input.history;
   if (typeof history === 'string') {
     try { history = JSON.parse(history); } catch { history = { __parseError: true }; }
@@ -137,7 +135,7 @@ export function validateInboundRequest(input = {}) {
     }
   }
 
-  // ── settings allowlist ─────────────────────────────────────────────────────
+  // settings allowlist
   let settings = input.settings;
   if (typeof settings === 'string') {
     try { settings = JSON.parse(settings); } catch { settings = { __parseError: true }; }

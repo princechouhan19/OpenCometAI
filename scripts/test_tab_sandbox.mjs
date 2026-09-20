@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_tab_sandbox.mjs — v1.15 TAB-GROUP SANDBOX unit tests
 //
 // Tests the REAL shipped modules (no re-implementations):
@@ -7,7 +6,6 @@
 //
 // chrome.* is mocked per-test; every test installs a FRESH mock so state can
 // never leak between cases. Run: node scripts/test_tab_sandbox.mjs
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { strict as assert } from 'node:assert';
 
@@ -20,7 +18,7 @@ function test(name, fn) {
     .catch(err => { failed++; failures.push(`${name}: ${err.message}`); console.log(`  FAIL  ${name}\n        ${err.message}`); });
 }
 
-// ── chrome mock harness ───────────────────────────────────────────────────────
+// chrome mock harness
 function freshChrome(overrides = {}) {
   const calls = { group: [], update: [], tabsUpdate: [], warns: [] };
   const chrome = {
@@ -75,7 +73,7 @@ const sandboxState = (over = {}) => ({
   ...over,
 });
 
-// ── tab-sandbox.js ────────────────────────────────────────────────────────────
+// tab-sandbox.js
 await test('ensureTaskGroup creates + styles the group on first use', async () => {
   const { chrome, calls } = freshChrome();
   chrome.tabs._nextGroupId = 77;
@@ -153,7 +151,7 @@ await test('filterToSandbox + isSandboxTab: pure membership, legacy-safe', async
   assert.equal(isSandboxTab({ settings: {} }, 2), false);
 });
 
-// ── privacy-agent.js — resolvePrivacyTab sandbox constraints ────────────────
+// privacy-agent.js — resolvePrivacyTab sandbox constraints
 await test('resolvePrivacyTab: preferred alive + FOREIGN active tab → re-focus task tab', async () => {
   const { chrome, calls } = freshChrome();
   chrome.tabs._db = new Map([[5, { id: 5, windowId: 1 }]]);

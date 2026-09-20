@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/prompt-defense.js
 // SIH Phase 15 — PROMPT-INJECTION DEFENSE.
 //
@@ -33,7 +32,6 @@
 //      stays fenced and neutralized.
 //
 // PURE module — no chrome.* APIs. Safe for Node tests.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Fresh per-request nonce (8 chars, base36 — collision odds ~ 3.6e-12). */
 export function makeFenceNonce() {
@@ -51,13 +49,13 @@ export function makeFenceNonce() {
 const SPOOF_RE = /^\s*(<\/?untrusted[^\n>]*>|system\s*:|assistant\s*:|developer\s*:|###?\s*(system|instruction|rule)s?\b|\b(rule|instruction)s?\s*:\s*\d|(end\s+of\s+)?(system|trusted)\s+(prompt|section|instructions?)\b|\[\/?untrusted[^\]]*\])/i;
 
 /** Invisible/bidi characters used to smuggle or hide instructions.
- *  v1.14: includes the Unicode ISOLATE characters (LRI/RLI/FSI/PDI,
+ *  includes the Unicode ISOLATE characters (LRI/RLI/FSI/PDI,
  *  \u2066-\u2069) — measured surviving an earlier \u2060-\u2064 range in the
  *  adversarial benchmark (dom-bidi case). */
 const INVISIBLE_RE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\u00AD]/g;
 
 /**
- * v1.14 WIRE-LEVEL SMUGGLER STRIP: remove invisible/bidi + control characters
+ * WIRE-LEVEL SMUGGLER STRIP: remove invisible/bidi + control characters
  * from OUTBOUND text (sanitizeScreenContext boundary). Unlike
  * neutralizeUntrusted this does NOT re-prefix lines — it is safe to apply to
  * any text that is about to leave the device, and guarantees that zero-width,

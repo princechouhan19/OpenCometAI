@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_ocr_memo.mjs — v1.16.0 OCR MEMO SAFETY TEST
 //
 // The OCR memo (privacy-filter.js) reuses visual-PII scan results for
 // byte-identical captures + identical ROI sets — the same safety pattern the
-// v1.14.1 YOLO memo introduced. What it proves, without a browser:
+// YOLO memo introduced. What it proves, without a browser:
 //
 //   1. Key composition: the memo key is the EXACT capture data-URL string PLUS
 //      the serialized ROI list — any pixel change OR different crop set is a
@@ -29,7 +28,6 @@
 //      stamps meta.warmup so steady-state reports are self-describing.
 //
 // Run: node scripts/test_ocr_memo.mjs
-// ─────────────────────────────────────────────────────────────────────────────
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -43,7 +41,7 @@ function check(name, cond, detail = '') {
 }
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
-// ── 1) Key composition: exact capture + ROI serialization ────────────────────
+// 1) Key composition: exact capture + ROI serialization
 console.log('[1] OCR memo key composition (exact capture + ROI list)');
 {
   const shotA = 'data:image/png;base64,AAAA-shooting-range-safe-frame';
@@ -65,7 +63,7 @@ console.log('[1] OCR memo key composition (exact capture + ROI list)');
     key(shotA, rois1).includes('\u0000'));
 }
 
-// ── 2) Store/no-store policy wiring in privacy-filter.js ────────────────────
+// 2) Store/no-store policy wiring in privacy-filter.js
 console.log('[2] privacy-filter.js OCR memo wiring (static)');
 {
   const src = read('src/lib/privacy-filter.js');
@@ -92,7 +90,7 @@ console.log('[2] privacy-filter.js OCR memo wiring (static)');
     /function ocrMemoGet\(key\) \{\s*\n\s*return memoLruGet\(_ocrMemo, key\);/.test(src));
 }
 
-// ── 3) YOLO maxEdge knob ─────────────────────────────────────────────────────
+// 3) YOLO maxEdge knob
 console.log('[3] yoloMaxEdge downscale knob (static)');
 {
   const lv = read('src/lib/local-vision.js');
@@ -112,7 +110,7 @@ console.log('[3] yoloMaxEdge downscale knob (static)');
     /detectObjects\(input\.imageDataUrl, \{ maxEdge: cfg\.yoloMaxEdge \}\)/.test(pf));
 }
 
-// ── 4) Vision warm-up wiring ─────────────────────────────────────────────────
+// 4) Vision warm-up wiring
 console.log('[4] VISION_WARMUP / cold-start elimination wiring (static)');
 {
   const off = read('src/offscreen/offscreen.js');

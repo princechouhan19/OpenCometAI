@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/pii-detector.js
 // Lightweight PII / sensitive-text detector that runs ENTIRELY client-side.
 // Combines deterministic regex patterns (high precision, zero model cost)
@@ -19,7 +18,6 @@
 //     confidence:  number,           // 0..1
 //     source:      'regex' | 'ner' | 'dom',
 //   }
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Mask helper — keeps first/last char, replaces middle with • */
 export function maskValue(str, keep = 1) {
@@ -28,7 +26,7 @@ export function maskValue(str, keep = 1) {
   return str.slice(0, keep) + '•'.repeat(Math.min(str.length - keep * 2, 12)) + str.slice(-keep);
 }
 
-// ── Deterministic regex patterns ──────────────────────────────────────────────
+// Deterministic regex patterns
 // Each pattern: { type, re, confidence, preprocessor? }
 const REGEX_PATTERNS = [
   // Email (also covers indented/quoted forms)
@@ -62,7 +60,7 @@ const REGEX_PATTERNS = [
   },
   // Indian Aadhaar (12 digits; space, hyphen or no separator — the hyphen-
   // separated form is how printed/physical cards render it, e.g.
-  // 1234-5678-9012; v1.16.1 closes that miss). Verhoeff-validated below:
+  // 1234-5678-9012). Verhoeff-validated below:
   // strong (checksum-valid) fires bare, checksum-failures need a keyword.
   {
     type: 'aadhaar',
@@ -75,7 +73,7 @@ const REGEX_PATTERNS = [
     re: /\b[A-Z]{5}\d{4}[A-Z]\b/g,
     confidence: 0.95,
   },
-  // SIH v1.15.2 — PARTIAL / MID-ENTRY PAN ("ABCDE1234", check letter not yet
+  // — PARTIAL / MID-ENTRY PAN ("ABCDE1234", check letter not yet
   // typed). Field-reported leak: a live gov-form screenshot showed exactly
   // this, and the strict 10-char pattern above correctly (but unhelpfully)
   // ignored it. The bare 9-char form is context-gated: a PAN keyword within
@@ -98,7 +96,7 @@ const REGEX_PATTERNS = [
     re: /\b(?:sk|pk|rk|AKIA|ghp|gho|ghu|ghs|xoxb|xoxp|AIza)[A-Za-z0-9_\-]{16,}\b/g,
     confidence: 0.93,
   },
-  // Bearer / Authorization headers rendered on screen (SIH v1.13)
+  // Bearer / Authorization headers rendered on screen
   {
     type: 'api_key',
     re: /\bBearer\s+[A-Za-z0-9._\-]{16,}/g,
@@ -122,12 +120,12 @@ const REGEX_PATTERNS = [
     re: /\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})\b/g,
     confidence: 0.65,
   },
-  // SIH v1.13 — PASSWORD / TOKEN assignments in TEXT (incl. OCR output).
+  // — PASSWORD / TOKEN assignments in TEXT (incl. OCR output).
   // A rendered screen that shows "Password: hunter2" or "token=eyJ…" must be
   // redacted even though the DOM saw nothing. Requires a secret-LIKE value
   // (contains a digit, or is a quoted string) so prose such as
   // "Password: required" never matches (same rule as the firewall sweep).
-  // v1.15.8 — the lookaheads are BOUNDED TO THE VALUE RUN. (?=.*\d) anchored
+  // the lookaheads are BOUNDED TO THE VALUE RUN. (?=.*\d) anchored
   // at the value start but scanned to END OF the scanned string, and the OCR
   // full-page reconstruction is ONE newline-free blob — so mere prose mentions
   // ("three literal token formats", "four surviving secret families:",
@@ -145,7 +143,7 @@ const REGEX_PATTERNS = [
     re: /\b(?:token|secret(?:\s+key)?|api[-_]?key|key)\s*(?:[:=]\s*|\s+)(?:['"][^'"]{4,}['"]|(?=[A-Za-z0-9_.\-+\/=]*\d)(?=[A-Za-z0-9_.\-+\/=]*[A-Za-z])[A-Za-z0-9_.\-+\/=]{6,})/gi,
     confidence: 0.90,
   },
-  // SIH v1.13 — POSTAL / ZIP codes in ADDRESS context. A bare 5/6-digit run
+  // — POSTAL / ZIP codes in ADDRESS context. A bare 5/6-digit run
   // is an order id until the surrounding ±80 chars say "address". The context
   // scorer enforces that: without an address keyword the base 0.65 sits below
   // the 0.70 threshold and the candidate is dropped (precision lever).
@@ -155,7 +153,7 @@ const REGEX_PATTERNS = [
     confidence: 0.65,
   },
 
-  // ── SIH v1.15.2: INDIAN GOVERNMENT / FINANCIAL ID EXPANSION ──────────────
+  // SIH INDIAN GOVERNMENT / FINANCIAL ID EXPANSION
   // The original set covered Aadhaar + full PAN only; India's on-screen PII
   // surface is much wider (Voter ID, passport, driving licence, IFSC, UPI
   // VPA, GSTIN, bank accounts, CVV, Aadhaar VID). Patterns follow the same
@@ -204,7 +202,7 @@ const REGEX_PATTERNS = [
   // UPI VPA (e.g. prince@okhdfcbank, name@paytm, name@ybl). Handle list is
   // the known PSP/bank namespaces; e-mail never matches (its handle carries
   // a dot TLD, none of these do).
-  // v1.16.1 SPLIT — precision fix: the previous single pattern carried the
+  // SPLIT — precision fix: the previous single pattern carried the
   // catch-all ok[a-z]{2,12} at confidence 0.88, so ANY handle@ok<word> fired
   // bare ("team@okcomputer" — an ordinary .com-style handle — was pixelated).
   // Now: (a) KNOWN PSP namespaces stay strong (0.88, fire bare); (b) the
@@ -245,7 +243,7 @@ const REGEX_PATTERNS = [
   },
 ];
 
-// ── DOM-driven sensitive-field detection ──────────────────────────────────────
+// DOM-driven sensitive-field detection
 // Inspects element type/attributes — these are extremely high-confidence
 // because the page itself is telling us "this is sensitive".
 //
@@ -286,17 +284,17 @@ export function detectSensitiveDomElements(root = document, opts = {}) {
     push(el, 'password', 1.0)
   );
 
-  // 1b) Contact fields — SIH v1.13: email / tel inputs and free-text areas
-  // routinely carry personal data (addresses, messages, phone numbers) and
-  // their VALUES are rendered as pixels. The old rule (password + autocomplete
-  // + name-hints only) left them visible on the sanitized screenshot — the
+  // 1b) Contact fields — email / tel inputs and free-text areas routinely
+  // carry personal data (addresses, messages, phone numbers) and their
+  // VALUES are rendered as pixels. A password/autocomplete/name-hints rule
+  // alone leaves them visible on the sanitized screenshot — the
   // real-browser redaction matrix measured exactly that leak.
   root.querySelectorAll('input[type="email"], input[type="tel"], textarea').forEach(el =>
     push(el, 'sensitive_input', 0.85, { hint: 'contact/free-text field' })
   );
 
   // 2) Inputs with sensitive autocomplete tokens
-  // v1.15.4: the HTML *name* family added — autofill's own classification of
+  // the HTML *name* family added — autofill's own classification of
   // a field as person-name is the strongest possible signal that its VALUE is
   // personal data.
   const SENSITIVE_AUTOCOMPLETE = new Set([
@@ -316,7 +314,7 @@ export function detectSensitiveDomElements(root = document, opts = {}) {
   });
 
   // 3) Inputs whose name/id/placeholder strongly hint at PII
-  // SIH v1.15.2: Indian government/financial ID fields added (pan/voter/
+  // Indian government/financial ID fields added (pan/voter/
   // passport/dl/gst/ifsc/upi/vpa/ration/bank account …). The field-reported
   // gov-form leak was exactly this: <input name="pan"> held a PARTIAL PAN —
   // the strict text pattern couldn't match it and the DOM hint list only
@@ -324,7 +322,7 @@ export function detectSensitiveDomElements(root = document, opts = {}) {
   // Aadhaar box next to it was correctly black-barred. New tokens use word
   // boundaries where a bare substring would over-match (pan→"companion").
   const PII_HINT_RE = /(password|passwd|pwd|secret|api[-_]?key|access[-_]?token|cvv|cvc|csc|ssn|aadhaar|aadhar|uidai|pan[-_]?number|credit[-_]?card|cc[-_]?number|account[-_]?number|otp|pin|token|private[-_]?key|\bpan(?:card|[-_ ]?(?:no|number|id))?\b|\bvoter[-_ ]?(?:id|no|number|card)?\b|\belection[-_ ]?card\b|epic[-_ ]?(?:no|number|id)|\bpassport(?:[-_ ]?(?:no|number))?\b|driving[-_ ]?licen[cs]e|\bdl[-_ ]?(?:no|number)\b|\bgst(?:in)?[-_ ]?(?:no|number|in)?\b|\bifsc\b|\bupi[-_ ]?(?:id|vpa|no|number)?\b|\bvpa\b|ration[-_ ]?card|debit[-_ ]?card|\bbank[-_ ]?account\b|\bacct[-_ ]?(?:no|number)\b)/i;
-  // v1.15.4 — PERSON-NAME field family (mirrors pageContextScan). A bare
+  // PERSON-NAME field family (mirrors pageContextScan). A bare
   // <input> labelled "Full name" carries zero attribute signal; the LABEL is
   // the page's own declaration that the value is personal data.
   const NAME_FIELD_RE = /(full[-_ ]?name|your[-_ ]?name|first[-_ ]?name|last[-_ ]?name|given[-_ ]?name|family[-_ ]?name|middle[-_ ]?name|sur[-_ ]?name|customer[-_ ]?name|client[-_ ]?name|card[-_ ]?name|name[-_ ]?on[-_ ]?card|card[-_ ]?holder|account[-_ ]?holder|father['’]?s?[-_ ]?name|mother['’]?s?[-_ ]?name|spouse[-_ ]?name|nominee[-_ ]?name|guardian[-_ ]?name|patient[-_ ]?name|student[-_ ]?name|employee[-_ ]?name|candidate[-_ ]?name|child[-_ ]?name|billing[-_ ]?name|shipping[-_ ]?name|contact[-_ ]?name|person[-_ ]?name|user[-_ ]?name|\bname\b)/i;
@@ -350,7 +348,7 @@ export function detectSensitiveDomElements(root = document, opts = {}) {
   });
 
   // 4) Elements marked aria-hidden="true" with content (often used to hide PII from AT)
-  // — left out by default; opt in via opts.includeAriaHidden.
+  // left out by default; opt in via opts.includeAriaHidden.
 
   return out;
 }
@@ -388,7 +386,7 @@ function labelOf(el) {
   );
 }
 
-// ── Text-level PII scan (regex + optional Transformers.js NER) ────────────────
+// Text-level PII scan (regex + optional Transformers.js NER)
 /**
  * SYNC regex pass — the deterministic core of the text scanner (patterns +
  * validators + contextual risk + OTP pass). Shared by the async full scan and
@@ -459,7 +457,7 @@ function runRegexPass(truncated) {
       // Context-confirmed address findings outrank the overlapping phone
       // detector in dedupe (a ZIP+4 is otherwise claimed as a "phone").
       if (p.type === 'address' && /keyword/.test(context)) finding.confidence = 0.88;
-      // SIH v1.15.2: same arbitration for the context-gated Indian IDs —
+      // same arbitration for the context-gated Indian IDs —
       // with the label present the risk score IS the confidence, so a
       // labelled driving licence / passport wins the span from the greedy
       // phone detector (which otherwise swallows the digit tail of
@@ -476,7 +474,7 @@ function runRegexPass(truncated) {
 
   // 1b) OTP pass — context-driven (an OTP is meaningless without its label):
   // a 4-8 digit code within 30 chars of an OTP / verification-code keyword.
-  // v1.13: candidates go through the SAME dedupe arbitration as every other
+  // candidates go through the SAME dedupe arbitration as every other
   // finding — the old early-skip let a weaker overlapping detection (a bare
   // 8-digit "phone") win the span and silently drop the OTP.
   {
@@ -566,7 +564,7 @@ export async function detectPiiInText(text, opts = {}) {
   return dedupe(findings);
 }
 
-// ── Checksum / plausibility VALIDATORS (SIH Phase 7) ─────────────────────
+// Checksum / plausibility VALIDATORS (SIH Phase 7)
 // Pure functions, exported for the benchmark suite. A detector match is only
 // believed when its validator passes (or contextual risk overrides — see the
 // CONTEXT scoring section below).
@@ -674,7 +672,7 @@ export function dobPlausible(raw, now = new Date()) {
   return dt.getFullYear() === year && dt.getMonth() === month - 1 && dt.getDate() === day;
 }
 
-// ── CONTEXTUAL RISK SCORING (SIH Phase 8) ────────────────────────────────
+// CONTEXTUAL RISK SCORING (SIH Phase 8)
 // NOT every 10-digit number is a phone. NOT every date is a DOB. The final
 // redaction decision combines:
 //     risk = detectorConfidence × validationFactor + contextBoost
@@ -694,7 +692,7 @@ const CONTEXT_KEYWORDS = {
   aadhaar: {
     boost: /(\baadhaar\b|\baadhar\b|\buidai\b|\bvid\b|\bvirtual\s*id\b|आधार)/i,
   },
-  // SIH v1.15.2 — context keys for the Indian ID expansion. Types priced
+  // — context keys for the Indian ID expansion. Types priced
   // below threshold (partial pan, passport, driving_license) ONLY redact
   // when their label is this close; the checksum-able ones (voter_id, ifsc,
   // gstin, upi, bank_account) get a boost but don't strictly need it.
@@ -740,7 +738,7 @@ const CONTEXT_KEYWORDS = {
     // "1.2.3.4" in a version/chapter context is not an address
     suppress: /(\bversion\b|\bchapter\b|\bsection\b|\bbuild\b|\brelease\b|\bv\d)/i,
   },
-  // SIH v1.13: postal codes only count as address PII when the surrounding
+  // postal codes only count as address PII when the surrounding
   // text speaks of an address (street types, postal keywords, Indian terms).
   address: {
     boost: /(\bpin\s?code\b|\bzip\b|\bpostal\b|\baddress\b|\baddr\b|\bstreet\b|\bst\.\b|\brd\.?\b|\broad\b|\bavenue\b|\bave\b|\bapt\b|\bapartment\b|\bsuite\b|\bste\b|\bblvd\b|\bnagar\b|\bmarg\b|\bcolony\b|\bsector\b|\bhouse\b|\bflat\b|\bvillage\b|\bdistrict\b|\bstate\b)/i,
@@ -755,7 +753,7 @@ const RISK_THRESHOLD = {
   pan: 0.85, iban: 0.80, api_key: 0.85, url_cred: 0.90, ip: 0.70,
   dob: 0.62, otp: 0.80, person: 0.70, org: 0.75, address: 0.70,
   password: 0.85,
-  // SIH v1.15.2 — Indian ID expansion. voter_id/ifsc/gstin/upi/bank_account
+  // — Indian ID expansion. voter_id/ifsc/gstin/upi/bank_account
   // are structurally specific enough to clear their threshold bare;
   // passport/driving_license stay context-gated (base below threshold).
   voter_id: 0.70, passport: 0.70, driving_license: 0.70, ifsc: 0.70,
@@ -895,7 +893,7 @@ export function maskForType(type, raw) {
     case 'dob':         return '••/••/••••';
     case 'password':    return '••••••••';    // secrets: nothing survives
     case 'address':     return /[a-z]/i.test(raw) ? maskValue(raw, 1) : '••••••';
-    // SIH v1.15.2 — Indian IDs: length-preserving full mask (nothing but
+    // — Indian IDs: length-preserving full mask (nothing but
     // length survives), EXCEPT ifsc (routing code, bank identity visible
     // like the IBAN mask) and upi (handle visible, user masked like email).
     case 'voter_id':
@@ -917,7 +915,7 @@ function dedupe(findings) {
   // matches on overlap (a Luhn-valid card overlapping a 12-digit run is a
   // card, not an aadhaar).
   const eff = (f) => (Number(f.confidence) || 0) + (f.validated ? 0.5 : 0);
-  // v1.16.1 EXPLICIT CARD-OVER-AADHAAR ARBITRATION: the hyphen-aware aadhaar
+  // EXPLICIT CARD-OVER-AADHAAR ARBITRATION: the hyphen-aware aadhaar
   // patterns now match fragments INSIDE hyphen-formatted credit cards (a
   // Luhn-valid 16-digit run contains a Verhoeff-valid 12-digit prefix ~10%
   // of the time — the bench caught pos-072 "Card no: 5425-3349-1327-2364"
@@ -950,7 +948,7 @@ function dedupe(findings) {
   return out.sort((a, b) => a.start - b.start);
 }
 
-// ── Public: produce a sanitized text snapshot (PII masked in place) ────────────
+// Public: produce a sanitized text snapshot (PII masked in place)
 export function sanitizeText(text, findings) {
   if (!findings.length) return text;
   const sorted = [...findings].sort((a, b) => b.start - a.start);

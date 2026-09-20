@@ -1,6 +1,5 @@
 import { detectPiiInTextSync, sanitizeText as piiSanitizeText } from './pii-detector.js';
 import { stripSmugglers } from './prompt-defense.js';
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/privacy-firewall.js
 // SIH PS 26171 — THE CENTRAL PRIVACY FIREWALL.
 //
@@ -31,7 +30,6 @@ import { stripSmugglers } from './prompt-defense.js';
 //     identifiers (region_01, region_02, …).
 //   • This module is PURE (no chrome.* APIs, no DOM) so the benchmark suite
 //     can run it under plain Node.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Thrown when the network gate refuses a payload. NEVER carries raw data. */
 export class PrivacyBlockedError extends Error {
@@ -44,7 +42,7 @@ export class PrivacyBlockedError extends Error {
   }
 }
 
-// ── Redaction action mapping (single source of truth for the manifest) ───────
+// Redaction action mapping (single source of truth for the manifest)
 const BLACKOUT_TYPES = new Set([
   'password', 'credit_card', 'aadhaar', 'pan', 'ssn', 'iban',
   'api_key', 'url_cred', 'otp', 'secret', 'sensitive_input', 'object',
@@ -96,10 +94,10 @@ export function buildSafeManifest(regions = []) {
 export function sanitizeScreenContext(pipelineResult, meta = {}) {
   // Final-boundary sweep: even if an upstream detector missed something, the
   // envelope's text is re-masked here before it can ever be validated.
-  // v1.14: ALSO strip invisible/bidi/control smugglers at the wire boundary —
+  // ALSO strip invisible/bidi/control smugglers at the wire boundary —
   // zero-width and bidi-override characters must never cross the network
   // inside text that a remote fence will wrap (adversarial browser benchmark).
-  // v1.16.1 ORDER FIX: STRIP FIRST, then sweep. The previous order ran the
+  // ORDER FIX: STRIP FIRST, then sweep. The previous order ran the
   // secret sweep BEFORE the smuggler strip, so a secret split by zero-width
   // characters ("pass\u200Bword: hunter2") was invisible to the sweep and only
   // re-joined afterwards — it shipped clean-past-the-gate. Stripping first
@@ -120,12 +118,12 @@ export function sanitizeScreenContext(pipelineResult, meta = {}) {
     redactionOk: !pipelineResult?.stats?.redactionFailed || pipelineResult?.stats?.safeFallback === 'blank',
     manifestSafe: true, // buildSafeManifest strips raw identifiers by construction
     textSanitized: typeof pipelineResult?.sanitizedDomText === 'string',
-    // v1.13 OCR FAILURE POLICY (fail-closed): when the user enabled the
+    // OCR FAILURE POLICY (fail-closed): when the user enabled the
     // visual-PII OCR pass and the engine was unavailable, the frame carries
     // NO visual-PII coverage. Silence would be a privacy gap — verification
     // REFUSES, and the network gate blocks the transmission.
     visualPiiCoverageOk: !pipelineResult?.stats?.ocrFailed,
-    // v1.16.1 FACE FAILURE POLICY (fail-closed): same rule as OCR above.
+    // FACE FAILURE POLICY (fail-closed): same rule as OCR above.
     // blurFaces is ON by default; if the face stage ERRORED, the frame has
     // zero verified face coverage and the gate refuses to transmit. (A clean
     // "scanned, nothing found" run still passes — only a stage ERROR fails.)
@@ -167,7 +165,7 @@ export function sanitizeScreenContext(pipelineResult, meta = {}) {
   };
 }
 
-// ── High-signal secret patterns used as the LAST-LINE text sweep ─────────────
+// High-signal secret patterns used as the LAST-LINE text sweep
 // These have very few false positives; if any appears in text that is about to
 // leave the browser, the gate blocks the request. (Defence in depth — the PII
 // pipeline should have caught them earlier.)
@@ -182,7 +180,7 @@ const SECRET_TEXT_SWEEP = [
   // quoted string) so prose such as "Password: required" never trips the gate.
   // The separator accepts "password = x", "password: x" AND the natural
   // language form "password Hunt3r2Str0ng".
-  // v1.15.8 — the digit/letter lookaheads are BOUNDED TO THE VALUE RUN. The
+  // the digit/letter lookaheads are BOUNDED TO THE VALUE RUN. The
   // old (?=.*\d) anchored at the value but scanned to END OF STRING, so in
   // any multi-sentence text (one line to a regex) "password required … Room
   // 42" tripped — the same field class that black-boxed "token formats" /
@@ -294,9 +292,9 @@ export function secretSweepPatterns() {
   return SECRET_TEXT_SWEEP;
 }
 
-// ── v1.15.7 REDACT-AND-VERIFY last-line sweep ────────────────────────────────
-// Field report (v1.15.6): a "Summarize this page" privacy run BLOCKED at the
-// gate because the outbound text carried a secret-shaped fragment. Blocking
+// REDACT-AND-VERIFY last-line sweep
+// A "Summarize this page" privacy run can BLOCK at the
+// gate when the outbound text carries a secret-shaped fragment. Blocking
 // there loses the WHOLE task on any page that merely displays a key-shaped
 // string (API docs, config viewers, chats about keys). The privacy-correct
 // behavior is the one the rest of the pipeline already applies to faces and
@@ -361,7 +359,7 @@ export function firewallStatusForInspector(envelope, payloadBytes = 0) {
 
 export const FIREWALL_VERSION = '1.0.0';
 
-// ── internals ────────────────────────────────────────────────────────────────
+// internals
 function normalizeBounds(b) {
   const n = (v) => Math.max(0, Math.round(Number(v) || 0));
   return { x: n(b?.x), y: n(b?.y), w: n(b?.w), h: n(b?.h) };

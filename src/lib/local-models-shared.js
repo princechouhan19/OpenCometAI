@@ -1,13 +1,11 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/local-models-shared.js
 // Shared plumbing for the on-device model system. Safe to import from BOTH
 // the service worker and the offscreen document — it only touches
 // chrome.storage + chrome.runtime messaging (no DOM, no dynamic import).
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const STATUS_KEY = 'opencometLocalModels';
 
-// ── Curated catalog ────────────────────────────────────────────────────────────
+// Curated catalog
 // Agent-grade on-device models only. Toy models (<1B, no tool calling) were
 // removed — a browser agent needs instruction following, native tool calling
 // and (ideally) vision. Lineup follows the Gemma-4-in-the-browser reference
@@ -97,7 +95,7 @@ export const LOCAL_MODEL_CATALOG = [
   },
 ];
 
-// ── Internal embeddings model (RAG + semantic history) ────────────────────────
+// Internal embeddings model (RAG + semantic history)
 // Not part of the user-facing agent catalog: downloaded on demand the first
 // time ask_website / find_history needs semantic ranking. Same engine plumbing
 // (Cache API + progress broadcasts) as the agent models.
@@ -118,7 +116,7 @@ export function getLocalModelDef(id) {
     || (id === EMBEDDINGS_MODEL.id ? EMBEDDINGS_MODEL : null);
 }
 
-// ── Status persistence (chrome.storage.local — shared by SW + offscreen) ──────
+// Status persistence (chrome.storage.local — shared by SW + offscreen)
 // ⚠ Offscreen documents expose a RESTRICTED chrome object (runtime messaging
 // only — no chrome.storage in Chromium builds). The engine therefore relays
 // status reads/writes to the service worker, which owns persistence.
@@ -165,12 +163,12 @@ export async function writeStatus(modelId, patch = {}) {
   return all[modelId];
 }
 
-// ── Broadcasts (offscreen → SW + sidepanel) ────────────────────────────────────
+// Broadcasts (offscreen → SW + sidepanel)
 export function broadcast(payload) {
   try { chrome.runtime.sendMessage(payload)?.catch?.(() => {}); } catch {}
 }
 
-// ── Logging: console + forwarded to every extension context ───────────────────
+// Logging: console + forwarded to every extension context
 // The sidepanel prints LOCAL_MODEL_LOG lines, so download / inference logs are
 // visible in the sidepanel DevTools console as well as the offscreen console.
 export function mlLog(...args) {

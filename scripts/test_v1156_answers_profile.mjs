@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_v1156_answers_profile.mjs — v1.15.6 regression (real extension).
 //
 // Covers the user's field report ("FAILED AT FINAL RESPONSE TASK WAS OF
@@ -15,7 +14,6 @@
 //   T3 PROFILE UI ROUND-TRIP — custom rows render saved values, add/remove
 //      works, Save persists to chrome.storage, reload re-renders.
 //   T4 About page version chip tracks the manifest (v1.15.6).
-// ─────────────────────────────────────────────────────────────────────────────
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -280,7 +278,7 @@ async function main() {
   const ver = await panel.textContent('#aboutVersion');
   const manifest = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
   check('version chip tracks manifest', (ver || '').trim() === `v${manifest.version}`, `${ver} vs v${manifest.version}`);
-  // v1.15.7: dynamic — the About test owns the changelog structure checks;
+  // dynamic — the About test owns the changelog structure checks;
   // here we only assert the newest entry matches the on-disk manifest version.
   const manifestV1156 = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
   check('changelog newest entry tracks the manifest version', (await panel.textContent('.about-cl-item.newest .about-cl-ver')).trim() === `v${manifestV1156.version}`);

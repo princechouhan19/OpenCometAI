@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_v1170_firefox.mjs — v1.17.0 VERIFICATION HARNESS
 // Verifies, without a browser:
 //   1. Firefox manifest transform (firefoxifyManifest) on the REAL manifest
@@ -9,7 +8,6 @@
 //   5. stateVersion gating semantics (isCompatibleState + future-drop filter)
 //   6. Firefox in-page ML transport markers (iframe + postMessage bridge)
 // Exit code 0 = all pass.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -25,7 +23,7 @@ function check(name, cond, extra = '') {
   else { failed++; console.log(`  FAIL ${name}${extra ? ` — ${extra}` : ''}`); }
 }
 
-// ── 1. Manifest transform ──────────────────────────────────────────────────────
+// 1. Manifest transform
 console.log('\n1) Firefox manifest transform:');
 const chromeManifest = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
 const ff = firefoxifyManifest(chromeManifest);
@@ -40,7 +38,7 @@ check('side_panel removed', ff.side_panel === undefined);
 check('content scripts kept', Array.isArray(ff.content_scripts) && ff.content_scripts.length === 1);
 check('host_permissions kept', ff.host_permissions?.includes('<all_urls>'));
 
-// ── 2. Full build + drift guards ───────────────────────────────────────────────
+// 2. Full build + drift guards
 console.log('\n2) Full Firefox build (dist/firefox):');
 let buildOk = true, buildOut = '';
 try {
@@ -70,7 +68,7 @@ try {
   }
 }
 
-// ── 3. wire-guard line protection ──────────────────────────────────────────────
+// 3. wire-guard line protection
 console.log('\n3) wire-guard.js sensitive URL-parameter line protection:');
 check('?token= leak detected', sensitiveUrlParamLeak('https://x.example/cb?token=abc123def456'));
 check('#access_token= leak detected (OAuth implicit)', sensitiveUrlParamLeak('https://x.example#access_token=eyJhbGciOi'));
@@ -80,14 +78,14 @@ check('scrub replaces token value, keeps key', scrubSensitiveUrlParams('https://
 check('scrub handles fragment token', scrubSensitiveUrlParams('https://x.example#access_token=secret99').includes('[REDACTED:url_param]'));
 check('scrub is idempotent', scrubSensitiveUrlParams(scrubSensitiveUrlParams('https://x.example?sid=abcdefgh')) === scrubSensitiveUrlParams('https://x.example?sid=abcdefgh'));
 
-// ── 4. storage URL sanitization ────────────────────────────────────────────────
+// 4. storage URL sanitization
 console.log('\n4) storage.js URL cleanup before persist:');
 check('query token scrubbed', sanitizeUrlForStorage('https://app.example/settings?token=supersecret1') === 'https://app.example/settings?token=[REDACTED:url_param]');
 check('basic-auth userinfo stripped', sanitizeUrlForStorage('https://alice:hunter2@example.com/page') === 'https://example.com/page');
 check('clean URL untouched', sanitizeUrlForStorage('https://example.com/a/b?x=1') === 'https://example.com/a/b?x=1');
 check('non-string input safe', sanitizeUrlForStorage(undefined) === '');
 
-// ── 5. stateVersion gating ─────────────────────────────────────────────────────
+// 5. stateVersion gating
 console.log('\n5) stateVersion obsolete-state gating:');
 check('STATE_VERSION is 2', STATE_VERSION === 2);
 check('unstamped (legacy) state is compatible', isCompatibleState({ provider: 'openrouter' }));
@@ -101,7 +99,7 @@ const filtered = [futureEntry, legacyEntry, { stateVersion: STATE_VERSION, task:
   .filter(e => !(e && typeof e === 'object' && typeof e.stateVersion === 'number' && e.stateVersion > STATE_VERSION));
 check('read-side filter drops only future entries', filtered.length === 2 && filtered[0] === legacyEntry);
 
-// ── 6. in-page ML transport markers ────────────────────────────────────────────
+// 6. in-page ML transport markers
 console.log('\n6) Firefox in-page ML runtime:');
 const oc = readFileSync(join(ROOT, 'src', 'lib', 'offscreen-client.js'), 'utf8');
 check('client creates hidden ML iframe', oc.includes('opencomet-ml-frame'));
@@ -116,7 +114,7 @@ check('sw removes ML iframe on idle teardown', sw.includes("getElementById('open
 const fb = readFileSync(join(ROOT, 'src', 'background', 'firefox-bg.js'), 'utf8');
 check('firefox-bg boots shared module graph', fb.includes("import(chrome.runtime.getURL('src/background/sw.js'))"));
 
-// ── helpers ────────────────────────────────────────────────────────────────────
+// helpers
 function writeTmp(path, content) { writeFileSync(path, content); }
 
 console.log(`\n${passed} passed, ${failed} failed`);

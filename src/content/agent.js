@@ -1,8 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════
 // Open Comet — Content Script
 // Injects live overlay HUD into pages while agent is working
 // UI matches Claude.ai aesthetic: warm cream/charcoal, minimal, clean
-// ═══════════════════════════════════════════════════════════════════
 
 (function () {
   'use strict';
@@ -20,11 +18,11 @@
       <rect x="2" y="2" width="10" height="10" rx="1.5" />
     </svg>`;
 
-  // ── Create overlay ──────────────────────────────────────────────
+  // Create overlay
   function createOverlay() {
     if (overlayEl || !document.documentElement) return;
 
-    // ── Styles ──────────────────────────────────────────────────
+    // Styles
     const style = document.createElement('style');
     style.id = 'open-comet-overlay-styles';
     style.textContent = `
@@ -228,7 +226,7 @@
     isActive = true;
   }
 
-  // ── Remove overlay ───────────────────────────────────────────────
+  // Remove overlay
   function removeOverlay() {
     if (!overlayEl) return;
     overlayEl.classList.add('open-comet-hiding');
@@ -243,14 +241,14 @@
     }, 300);
   }
 
-  // ── Update status text + step badge ─────────────────────────────
+  // Update status text + step badge
   function updateStatus(text, step) {
     if (!overlayEl) createOverlay();
     if (statusEl) statusEl.textContent = text;
     if (badgeEl && step !== undefined) badgeEl.textContent = `step ${step}`;
   }
 
-  // ── Tab title indicator ─────────────────────────────────────────
+  // Tab title indicator
   function setAgentTitle(active) {
     if (active) {
       if (!document.title.startsWith('◉ ')) {
@@ -261,7 +259,7 @@
     }
   }
 
-  // ── Background message listener ──────────────────────────────────
+  // Background message listener
   chrome.runtime.onMessage.addListener((msg) => {
 
     if (msg.type === 'STEP_UPDATE') {
@@ -272,7 +270,7 @@
       const cleanText = (s.text || '').replace(/^[^\s]+\s/, '');
       updateStatus(cleanText, msg.stepCount || msg.allSteps?.length || 0);
 
-      // ── SIH: Show on-page redaction visualization ──
+      // Show on-page redaction visualization
       if (s.payload && s.payload.phase === 'sanitized' && s.payload.stats) {
         showRedactionViz(s.payload.stats, s.payload.previewDataUrl);
       }
@@ -303,7 +301,7 @@
     }
   });
 
-  // ── SIH: On-page redaction visualization overlay ─────────────────
+  // On-page redaction visualization overlay
   // Shows a small floating card in the bottom-right corner that summarises
   // what the local vision pipeline redacted on the most recent capture.
   let redactionVizEl = null;
@@ -335,7 +333,7 @@
       'animation:nc-pop-in 0.3s cubic-bezier(0.16,1,0.3,1)',
     ].join(';');
 
-    // v1.16.1: escape interpolated values — the redaction card is built from
+    // escape interpolated values — the redaction card is built from
     // pipeline stats/labels; unescaped innerHTML interpolation is a hardening
     // gap even when the data is extension-internal.
     const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -371,14 +369,12 @@
 
 })();
 
-// ══════════════════════════════════════════════════════════════════════════════
 // PAGE RAG — structured content parts + element registry + highlight.
 // Ported from the gemma4-browser-extension content layer:
 // (extractWebsiteParts.ts + elementRegistry.ts + highlightParagraph.ts)
 //   • h1-h6 start a numbered section, every heading/paragraph gets a stable
 //     "section-paragraph" id ("2-1") that ask_website returns to the agent.
 //   • The registry lets highlight_element scroll to + flash the exact node.
-// ══════════════════════════════════════════════════════════════════════════════
 (() => {
   if (window.__openCometPageRag) return;   // guard against double injection
   window.__openCometPageRag = true;

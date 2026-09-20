@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/skill-library.js
 // Folder-based skill library (BrowserOS-style) — loads skills/<id>/SKILL.md
 // files bundled with the extension and parses them into the same skill shape
@@ -17,7 +16,6 @@
 // The parsed object is compatible with lib/skills.js consumers:
 //   { id, name, description, category, icon, prompt, allowedHosts,
 //     preferredSites, doneChecklist, keywords, tools, builtIn, source }
-// ─────────────────────────────────────────────────────────────────────────────
 
 const LIB_INDEX_URL = 'skills/index.json';
 const CACHE_TTL_MS = 60 * 1000; // brief cache; SW lifetime covers a session
@@ -130,7 +128,7 @@ export function parseSkillMarkdown(raw, fallbackId = '') {
   };
 }
 
-// ── Frontmatter parsing ──────────────────────────────────────────────────────
+// Frontmatter parsing
 
 function parseFrontmatter(text) {
   const meta = {};

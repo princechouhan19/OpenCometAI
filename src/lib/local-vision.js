@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/local-vision.js
 // Transformers.js wrapper for on-device vision + NER models.
 //
@@ -21,7 +20,6 @@
 // dynamic-imports the VENDORED Transformers.js bundle (CSP-clean, offline)
 // and needs image/canvas APIs. NEVER import this from the service worker.
 // See offscreen/offscreen.js.
-// ─────────────────────────────────────────────────────────────────────────────
 
 const TRANSFORMERS_URL = new URL('../vendor/transformers/transformers.min.js', import.meta.url).href;
 const ORT_BASE_URL = new URL('../vendor/transformers/ort/', import.meta.url).href;
@@ -32,7 +30,7 @@ let _pipelines = {
   imageClassification: null,
   ner: null,
 };
-// SIH Phase 24: creation LOCKS — two concurrent first-calls (e.g. YOLO and
+// creation LOCKS — two concurrent first-calls (e.g. YOLO and
 // ViT both firing on the first capture) previously double-loaded the model.
 let _pipelineLocks = {};
 async function lockedPipeline(key, loader) {
@@ -67,7 +65,7 @@ async function loadTransformers() {
   _transformers = await import(/* webpackIgnore: true */ TRANSFORMERS_URL);
 
   // Configure backends + cache
-  // v1.8: disable the ORT-wasm Cache API preloader FIRST, outside the try —
+  // disable the ORT-wasm Cache API preloader FIRST, outside the try —
   // same rationale as local-llm-engine.js (it previously sat inside the try,
   // so any throw above it left the preloader enabled and the Cache API then
   // rejected the chrome-extension:// wasm URLs).
@@ -99,7 +97,7 @@ function detectBackend() {
   return 'wasm';
 }
 
-// v1.14.1: `navigator.gpu` existing is NOT the same as a WORKING adapter —
+// `navigator.gpu` existing is NOT the same as a WORKING adapter —
 // headless Chromium and some VMs expose navigator.gpu but fail
 // requestAdapter() ("No available adapters"), which made ORT throw
 // "no available backend found" with NO wasm fallback (the pipeline was

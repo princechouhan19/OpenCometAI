@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/privacy-filter.js
 // The heart of the privacy-preserving vision pipeline. Orchestrates:
 //
@@ -19,7 +18,6 @@
 // server-side VLM exactly what kind of redaction was applied to each region
 // so the model can reason about the page (e.g. "there's a password field
 // here, so I should not type a value into it").
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { detectFaces, getFaceDetectorStats, detectFacesTiled, detectFacesInPersonBoxes } from './mediapipe-face.js';
 import { detectObjects, getLocalVisionStats, getNerPipeline, classifyPage } from './local-vision.js';
@@ -87,33 +85,33 @@ export async function runPrivacyPipeline(input, opts = {}) {
   const logs = [];               // pipeline log lines (mirrored to console + stats)
   const log = (line) => { logs.push(line); mlLog(`[Privacy] ${line}`); };
 
-  // ── 1) DOM-based sensitive elements (already pre-collected by content script)
+  // 1) DOM-based sensitive elements (already pre-collected by content script)
   const domSensitive = (input.domSensitive || []).filter(r =>
     cfg.redactDomPii || r.type === 'password'
   );
   phaseMs.domScan = Math.round(performance.now() - tTotal);
   log(`DOM scan: ${domSensitive.length} sensitive element(s) (${(input.domSensitive || []).length} found, redactDomPii=${cfg.redactDomPii})`);
 
-  // ── 2) Face detection via MediaPipe (two-pass: full frame → tiled sweep)
+  // 2) Face detection via MediaPipe (two-pass: full frame → tiled sweep)
   // The tiled sweep exists because BlazeFace short-range misses small faces
   // (webcam overlays, thumbnail avatars) on large DPR-2 screenshots — the
   // user-visible bug was "Faces detected: 0" while a face was clearly on
   // screen. Face boxes are in IMAGE pixels (no dpr scaling needed).
   let faceDetections = [];
   let faceDebug = null;
-  // v1.16.1 FAIL-CLOSED FACE POLICY — mirrors the v1.13 OCR policy below.
-  // Previously a face-detection failure was caught, logged and the pipeline
-  // CONTINUED — which meant a frame whose faces were never detected could
-  // ship with zero face coverage and still pass every firewall check (the
-  // gate verifies process, not content). The worst case was raw pixels on
-  // the wire. Now a failed face stage FAILS verification, exactly like a
-  // failed OCR stage: functionality is lost, pixels are never leaked.
+  // FAIL-CLOSED FACE POLICY — mirrors the OCR policy below.
+  // A face-detection failure must not be swallowed: a frame whose faces
+  // were never detected could ship with zero face coverage and still pass
+  // every firewall check (the gate verifies process, not content) — the
+  // worst case is raw pixels on the wire. A failed face stage therefore
+  // FAILS verification, exactly like a failed OCR stage: functionality is
+  // lost, pixels are never leaked.
   let faceDetectFailed = false;
   let faceDetectFailedReason = '';
   if (cfg.blurFaces) {
     const t0 = performance.now();
     try {
-      // v1.14.1: unchanged-screen memo keys are now the EXACT capture string
+      // unchanged-screen memo keys are now the EXACT capture string
       // (byte-identical data-URL equality — zero hash-collision risk) for both
       // faces and YOLO. The previously used sampled content hash carried a
       // small (≤4096-sample) collision surface; for a privacy-relevant cache
@@ -156,7 +154,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
     log('Faces: skipped (blurFaces=false)');
   }
 
-  // ── 3) YOLO object detection (opt-in — adds latency)
+  // 3) YOLO object detection (opt-in — adds latency)
   // The data-URL is passed straight to the pipeline — Transformers.js RawImage
   // decodes it natively inside the offscreen document.
   // PRIVACY FILTER: only PERSON-class boxes are redacted. Generic objects
@@ -164,7 +162,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
   // broken/misaligned redaction (user-reported: gameplay areas covered by
   // black squares while the actual face stayed visible).
   //
-  // v1.14.1 — UNCHANGED-SCREEN YOLO MEMO (the dominant sanitize cost):
+  // UNCHANGED-SCREEN YOLO MEMO (the dominant sanitize cost):
   // objectDetect is the #1 sanitize phase on real hardware (P50 6766 ms of the
   // 8014 ms total — OpenCometBench/results/browser-benchmark-1788724999257.json).
   // The memo reuses the RAW detection set ONLY when the capture is
@@ -219,7 +217,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
     phaseMs.objectDetect = Math.round(performance.now() - t0);
   }
 
-  // ── 3b) Person-guided face sweep (last-resort recall boost) ────────────────
+  // 3b) Person-guided face sweep (last-resort recall boost)
   // If MediaPipe found NO faces but YOLO DID find person(s), crop each person
   // box, upscale it, and re-run face detection inside just that region. This
   // catches tiny faces — e.g. a ~65px circular avatar on the demo page, where
@@ -250,7 +248,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
     }
   }
 
-  // ── 3b′) DOM-guided face sweep (v1.15.3 — small-profile-photo recall) ──────
+  // 3b′) DOM-guided face sweep (— small-profile-photo recall)
   // USER-REPORTED (field): small profile photos (~48–72 CSS px) repeatedly end
   // with "Faces detected: 0" and the face stays VISIBLE in the sanitized
   // capture, while every text/DOM PII family redacts correctly. The pixel
@@ -314,16 +312,16 @@ export async function runPrivacyPipeline(input, opts = {}) {
     }
   }
 
-  // ── 3b″) AVATAR GUARD (v1.15.4 — deterministic small-profile-photo cover) ──
-  // THIRD field report of the same leak ("WHEN PROFILE IMAGE IS SMALL ITS
-  // UNABLE TO HIDE THAT", Master Perception Test page, Faces detected: 0).
-  // Root causes the model-confirmed sweep cannot fully close:
-  //   • avatars painted as CSS background-image (v1.15.3 collector gap — now
-  //     collected as bg-avatar-hint candidates, but still model-gated), and
+  // 3b″) AVATAR GUARD (— deterministic small-profile-photo cover)
+  // Closes the recurring small-profile-photo leak: a profile photo is
+  // clearly on screen yet the report says "Faces detected: 0". Root causes
+  // the model-confirmed sweep cannot fully close:
+  //   • avatars painted as CSS background-image (collected as
+  //     bg-avatar-hint candidates, but still model-gated), and
   //   • portraits the detector genuinely refuses to confirm at any scale —
   //     head-only crops, heavy compression, faces < ~35px even after ×4
   //     upscale.
-  // Policy change, privacy-first: an image the page ITSELF labels as an
+  // Privacy-first policy: an image the page ITSELF labels as an
   // avatar/profile photo (avatar-hint / bg-avatar-hint) that no confirmed
   // face covers is redacted on its element rect EVEN WITHOUT model
   // confirmation. Asymmetry: a wrongly blurred 64px logo-hinted img costs a
@@ -380,9 +378,9 @@ export async function runPrivacyPipeline(input, opts = {}) {
     }
   }
 
-  // ── 3c) ViT page classification (SIH Phase 5 — ADAPTIVE, gated upstream).
+  // 3c) ViT page classification (SIH Phase 5 — ADAPTIVE, gated upstream).
   // The gate (page-classifier.shouldRunVisionClassifier) already decided this
-  // BEFORE capture: thin/uncertain DOM, visually-heavy pages, or user request.
+  // BEFORE capture: thin/uncertain DOM or visually-heavy pages.
   // The ViT contributes the visual SCENE + confidence to the structured
   // visual context that steers the agent — it does NOT run on every step.
   let vitLabels = null;
@@ -401,15 +399,15 @@ export async function runPrivacyPipeline(input, opts = {}) {
     log(`ViT: skipped (adaptive gate: ${input.vitReason || 'dom-sufficient or disabled'})`);
   }
 
-  // ── 3d) STRUCTURED VISUAL CONTEXT — fuse DOM/URL signals + ViT scene.
+  // 3d) STRUCTURED VISUAL CONTEXT — fuse DOM/URL signals + ViT scene.
   // This is the SIH "visual context" artifact: pageType + visualElements +
   // confidence + scene, attached to the payload AND the agent prompt.
-  // v1.14: the pixel-level detectors that ran ABOVE (faces / YOLO persons /
+  // the pixel-level detectors that ran ABOVE (faces / YOLO persons /
   // OCR regions) are passed in as explicit source attribution, so the visual
   // context honestly reports which perception sources contributed.
   let visualContext = null;
   try {
-    // v1.14.1 FIX: this block previously read `ocrRegions.length`, but
+    // FIX: this block previously read `ocrRegions.length`, but
     // `ocrRegions` is declared LATER (the OCR pass runs in step 3e, after the
     // fusion). That is a temporal-dead-zone ReferenceError which this catch
     // swallowed — so `visualContext` came out null on EVERY capture and the
@@ -437,7 +435,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
     mlWarn('[Privacy] Visual-context fusion failed:', err?.message || err);
   }
 
-  // ── 3e) OCR visual-PII scan (SIH Phase 9 — OPT-IN) ───────────────────
+  // 3e) OCR visual-PII scan (SIH Phase 9 — OPT-IN)
   // Pixels the DOM cannot see: text baked into images, canvas, PDF viewers.
   // OCR runs locally (lazy engine); ONLY the resulting redaction regions are
   // used — raw OCR text never leaves this function.
@@ -445,7 +443,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
   let ocrFailed = false;          // v1.13 fail-closed flag (OCR requested but unavailable)
   let ocrFailedReason = '';
   let ocrMemoHit = false;         // v1.16.0 telemetry: unchanged-screen OCR memo reuse
-  // v1.15.4 TARGETED CROP ROIs: canvases (pixel-text containers) + photo
+  // TARGETED CROP ROIs: canvases (pixel-text containers) + photo
   // candidates, in IMAGE space, capped. The full-page OCR pass drops small
   // text on busy pages (field report: 1 of 6+ pixel-PII instances redacted);
   // a ×2-upscaled per-ROI re-read is deterministic where segmentation fails.
@@ -462,7 +460,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
   if (cfg.ocrPii) {
     const t0 = performance.now();
     try {
-      // v1.16.0 OCR MEMO — same safety pattern as the YOLO memo (v1.14.1):
+      // OCR MEMO — same safety pattern as the YOLO memo:
       //   • key = the EXACT capture data-URL string + the serialized ROI list
       //     (the OCR result depends on BOTH — a different crop set is a
       //     different scan); string equality means a hit proves byte-identical
@@ -485,7 +483,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
       }
       ocrRegions = ocr.regions || [];
       if (ocr.failed) {
-        // v1.13 OCR FAILURE POLICY — the user explicitly enabled visual-PII
+        // OCR FAILURE POLICY — the user explicitly enabled visual-PII
         // protection, so an unavailable engine must NOT silently create a
         // privacy gap. The pipeline still finishes (faces/DOM/redaction),
         // but stats.ocrFailed makes sanitizeScreenContext() REFUSE
@@ -514,7 +512,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
     phaseMs.ocr = Math.round(performance.now() - t0);
   }
 
-  // v1.14: OCR runs AFTER the visual-context fusion, so its region count is
+  // OCR runs AFTER the visual-context fusion, so its region count is
   // enriched into the source attribution here (keeps the contract honest).
   if (visualContext?.sources?.visualDetector) {
     visualContext.sources.visualDetector.ocrRegions = ocrRegions.length;
@@ -522,7 +520,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
       visualContext.sources.visualDetector.used || ocrRegions.length > 0;
   }
 
-  // ── 4) Text-level PII scan (regex + optional NER)
+  // 4) Text-level PII scan (regex + optional NER)
   let textFindings = [];
   let knownValues = [];   // v1.16.1: raw matched values for the wire-guard scan
   let sanitizedDomText = input.domText || '';
@@ -541,7 +539,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
     phaseMs.textScan = Math.round(performance.now() - t0);
   }
 
-  // ── 5) Build the unified region list for canvas redaction
+  // 5) Build the unified region list for canvas redaction
   // COORDINATE SPACES (important!):
   //   • Face + YOLO boxes are ALREADY in image pixels (detected on the
   //     physical-resolution capture) — they must NOT be scaled again.
@@ -554,7 +552,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
   // "LOGIN FORM" heading instead of on the avatar.)
   const regions = [
     ...faceDetections,
-    // v1.15.4 DRAW-ORDER FIX: OCR regions are painted FIRST so a DOM box can
+    // DRAW-ORDER FIX: OCR regions are painted FIRST so a DOM box can
     // overpaint them. The previous order (OCR last) let a pixelated OCR hit
     // re-draw UNREDACTED source pixels over an already-black-boxed input —
     // the mosaic fringes visible on top of the Aadhaar/Date/Expiry black bars
@@ -570,7 +568,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
   // instead they are masked inside the sanitizedDomText returned to the server.
   // We DO include them in the manifest so the server knows what types were masked.
 
-  // ── 6) Pixel-level redaction
+  // 6) Pixel-level redaction
   let redactionResult = null;
   let redactionFailedFlag = false;
   const tRedact = performance.now();
@@ -592,7 +590,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
     console.error('[Privacy] Redaction failed:', err);
     mlWarn('[Privacy] Redaction failed:', err?.message || err);
     // Fail-closed: do NOT send the un-redacted image. Return a blank instead.
-    // SIH: the failure is REPORTED in stats so the privacy firewall can show
+    // the failure is REPORTED in stats so the privacy firewall can show
     // the degraded status in the inspector (and so the benchmark can detect it).
     // The blank 1×1 frame carries zero user pixels — structurally unsensitive.
     redactionResult = { dataUrl: blankImage(), width: 0, height: 0, redactedCount: 0, byType: {}, scaledDown: false, outWidth: 0, outHeight: 0 };
@@ -600,7 +598,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
   }
   phaseMs.redact = Math.round(performance.now() - tRedact);
 
-  // ── 7) Build the manifest for the server
+  // 7) Build the manifest for the server
   const manifest = regions.map(r => ({
     type: r.type,
     bounds: r.bounds,
@@ -614,7 +612,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
   // Also include text-level PII summary (no raw values)
   const textPiiSummary = summariseTextPii(textFindings);
 
-  // v1.16.1 WIRE-GUARD FEED: the RAW matched values the text detector just
+  // WIRE-GUARD FEED: the RAW matched values the text detector just
   // redacted stay in-memory only (never serialized into the envelope) and are
   // handed to the caller so decideViaServer() can run the byte-level
   // exact-match leakage scan (wire-guard.js) over the outbound payload.
@@ -643,9 +641,9 @@ export async function runPrivacyPipeline(input, opts = {}) {
         vision: getLocalVisionStats(),
       },
       faceDebug,
-      // v1.15.3 DOM-guided face sweep telemetry (candidates/scanned/hits/ms)
+      // DOM-guided face sweep telemetry (candidates/scanned/hits/ms)
       domSweep,
-      // v1.15.4 avatar-guard telemetry (deterministic heuristic cover)
+      // avatar-guard telemetry (deterministic heuristic cover)
       avatarGuard,
       image: { width: redactionResult.width, height: redactionResult.height, outWidth: redactionResult.outWidth, outHeight: redactionResult.outHeight, scaledDown: Boolean(redactionResult.scaledDown) },
       counts: {
@@ -655,18 +653,18 @@ export async function runPrivacyPipeline(input, opts = {}) {
         textPii: textFindings.length,
         ocrPii: ocrRegions.length,
       },
-      // v1.14.1 memo telemetry (honest reporting of the reuse path):
+      // memo telemetry (honest reporting of the reuse path):
       yoloMemoHit,
       ocrMemoHit,
       faceMemoHit: Boolean(faceDebug?.memoHit),
-      // v1.13 fail-closed OCR policy — see the OCR block above.
+      // fail-closed OCR policy — see the OCR block above.
       ocrFailed,
       ocrFailedReason,
-      // v1.16.1 fail-closed face policy — see the face-detect block above.
+      // fail-closed face policy — see the face-detect block above.
       faceDetectFailed,
       faceDetectFailedReason,
     },
-    // v1.16.1: internal-only (SW ↔ offscreen channel). Consumed by the
+    // internal-only (SW ↔ offscreen channel). Consumed by the
     // wire-guard byte-level scan in decideViaServer; NEVER serialized into
     // the firewall envelope or any network payload.
     knownValues,
@@ -674,7 +672,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
 }
 
 function summariseTextPii(findings) {
-  // SIH: COUNTS ONLY. The previous shape shipped masked values + char offsets
+  // COUNTS ONLY. The previous shape shipped masked values + char offsets
   // to the server — a leak surface that nothing on the server side consumed.
   // Counts are all the VLM prompt needs ("N emails, 1 card number were masked").
   const byType = {};
@@ -721,7 +719,7 @@ function blankImage() {
 }
 
 /**
- * v1.14.1 — unchanged-screen YOLO memo (see the step-3 block for the privacy
+ * — unchanged-screen YOLO memo (see the step-3 block for the privacy
  * analysis). Keyed by the EXACT capture data-URL string: JS string equality
  * means a memo hit proves byte-identical pixels, so the reuse of the previous
  * detection set for those identical pixels is as good as re-running the
@@ -757,7 +755,7 @@ function yoloMemoSet(key, val) {
 }
 
 /**
- * v1.16.0 — unchanged-screen OCR memo. Same pattern and same privacy analysis
+ * — unchanged-screen OCR memo. Same pattern and same privacy analysis
  * as the YOLO memo above; the key additionally folds in the serialized ROI
  * list because scanImageForPiiRegions() results depend on the crop set too.
  * Region boxes only, 2-entry LRU, in-memory in the offscreen document,

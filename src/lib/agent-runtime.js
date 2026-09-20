@@ -96,7 +96,7 @@ export function compactPageContext(pageInfo = {}, settings = {}, options = {}) {
     disabled: Boolean(item?.disabled),
     bounds: minimal ? null : item?.bounds || null,
     selector: item?.selector || '',
-    // v1.19.0: disambiguation receipts for repeated tags — the model can
+    // disambiguation receipts for repeated tags — the model can
     // target "Buy Now #2" (ref) and the loop can prove WHICH control fired.
     dup: String(item?.dup || ''),
     pos: String(item?.pos || ''),

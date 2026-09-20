@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/skill-matcher.js
 // Automatically detects and activates skills that are relevant to the user's
 // task and current URL — without requiring manual skill selection.
@@ -10,11 +9,10 @@
 //
 // Only activates a skill if its confidence score exceeds AUTO_THRESHOLD.
 // Never duplicates a skill already explicitly activated by the user.
-// ─────────────────────────────────────────────────────────────────────────────
 
 const AUTO_THRESHOLD = 0.38; // minimum score to auto-activate
 
-// ── Per-skill keyword boosters for built-in skills ────────────────────────────
+// Per-skill keyword boosters for built-in skills
 const SKILL_KEYWORDS = {
   // Fallback map for skills without frontmatter keywords (user-created).
   // Library skills carry their own keywords in skills/<id>/SKILL.md.
@@ -68,7 +66,7 @@ export function detectSkillsForTask(task, pageUrl, allSkills, activeIds = []) {
   return candidates.slice(0, 2).map(c => c.skill);
 }
 
-// ── Scoring ────────────────────────────────────────────────────────────────────
+// Scoring
 
 function scoreSkill(skill, taskNorm, taskTokens, host) {
   let score = 0;
@@ -104,7 +102,7 @@ function scoreSkill(skill, taskNorm, taskTokens, host) {
   return Math.min(1, score);
 }
 
-// ── Text utilities ─────────────────────────────────────────────────────────────
+// Text utilities
 
 function normalizeText(value) {
   return String(value || '')

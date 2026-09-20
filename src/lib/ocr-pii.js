@@ -1,6 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/ocr-pii.js
-// SIH Phase 9 — VISUAL (NON-DOM) PII via OCR.  v1.13: VENDORED + FAIL-CLOSED.
+// VISUAL (NON-DOM) PII via OCR — vendored, fail-closed.
 //
 // The DOM cannot see pixels: PII baked into images, <canvas>, PDF viewers and
 // video frames is invisible to every DOM scanner. This module adds an
@@ -16,12 +15,12 @@
 //   • Raw OCR output is discarded after redaction; if redaction fails the
 //     whole frame fails closed (blank), exactly like the rest of the pipeline.
 //
-// v1.13 VENDORING: the engine (tesseract.js main module, worker, wasm core,
+// VENDORING: the engine (tesseract.js main module, worker, wasm core,
 // eng.traineddata.gz) ships INSIDE the extension under src/vendor/tesseract/
 // and is resolved RELATIVE TO THIS MODULE — no CDN fetch on first use, so the
 // offline/privacy story no longer depends on jsDelivr being reachable.
 //
-// v1.13 OCR FAILURE POLICY (fail-closed):
+// OCR FAILURE POLICY (fail-closed):
 //   OCR disabled            → pipeline runs without visual-PII coverage (the
 //                             documented DOM+face-only mode).
 //   OCR enabled + available → regions are redacted as below.
@@ -36,7 +35,6 @@
 //
 // Runs in the OFFSCREEN document (or any plain browser context — the vendored
 // paths also work over http, which is what the browser benchmark uses).
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { detectPiiInText, phonePlausible } from './pii-detector.js';
 import { mlLog, mlWarn } from './local-models-shared.js';
@@ -52,7 +50,7 @@ const LANG_PATH = VENDOR('lang/');
 let _engine = null;
 let _engineLoad = null;
 
-// v1.14 MEASURED VERTICAL EXPANSION (OpenCometBench/probe-ocr-iou.mjs).
+// MEASURED VERTICAL EXPANSION (OpenCometBench/probe-ocr-iou.mjs).
 // Tesseract word bboxes measure GLYPH INK (cap/x-height), systematically
 // NARROWER than the true painted text line: on the pii-visual benchmark the
 // ink boxes were 54–73% of the real line-box height while width (0.95–0.97)
@@ -81,7 +79,7 @@ async function getOcrEngine(onProgress) {
       // worker.min.js in a Blob whose only statement is importScripts(<URL>).
       // Chrome BLOCKS importScripts() of chrome-extension:// URLs inside blob
       // workers ("Failed to execute 'importScripts' on 'WorkerGlobalScope'")
-      // — while the SAME blob path works fine over http://, which is why the
+      // while the SAME blob path works fine over http://, which is why the
       // browser benchmark passed but the real extension failed. With
       // workerBlobURL:false tesseract creates the worker DIRECTLY from the
       // extension URL (allowed: CSP worker-src 'self'), and the resulting
@@ -115,7 +113,7 @@ async function getOcrEngine(onProgress) {
  *             fail closed.  skipped = additive pass disabled/no-op.
  */
 /**
- * v1.14 LOW-CONFIDENCE LINE RESCUE (measured: a real canvas-painted email is
+ * LOW-CONFIDENCE LINE RESCUE (measured: a real canvas-painted email is
  * read CORRECTLY but at confidence 25 — Tesseract is unsure on thin small
  * type — so the ≥60 word filter silently dropped a perfectly-readable PII
  * line; the adversarial benchmark caught the value shipping in pixels).
@@ -158,7 +156,7 @@ async function rescueLowConfidenceLines(worker, imageDataUrl, lowWords, detect) 
       const { data } = await worker.recognize(crop);
       const cropText = String(data?.text || '');
       if (!cropText.trim()) continue;
-      // v1.14: detect on the crop text AS-IS and on the WHITESPACE-FUSED
+      // detect on the crop text AS-IS and on the WHITESPACE-FUSED
       // variant — the measured crop still contains the spurious glyph-gap
       // space ("priya.mehta@example. com"), and the PII regex cannot cross
       // it. A rescue crop is a single visual line, so full fusion is safe.
@@ -185,7 +183,7 @@ async function rescueLowConfidenceLines(worker, imageDataUrl, lowWords, detect) 
 }
 
 /** Crop a region of a data-URL image and upscale it (rescue pass helper).
- *  v1.15.4: accepts an optional pre-decoded source canvas so the targeted
+ *  accepts an optional pre-decoded source canvas so the targeted
  *  ROI pass decodes the capture ONCE instead of once per ROI. */
 async function cropAndUpscale(imageDataUrl, x, y, w, h, scale, srcCanvas = null) {
   const bmp = srcCanvas || await createImageBitmap(await (await fetch(imageDataUrl)).blob());
@@ -199,7 +197,7 @@ async function cropAndUpscale(imageDataUrl, x, y, w, h, scale, srcCanvas = null)
   return { canvas: c, scale: c.width / w };
 }
 
-// ── v1.15.4 STRUCTURAL BATTERY (crop-text scan) ──────────────────────────────
+// STRUCTURAL BATTERY (crop-text scan)
 // Mirrors pageContextScan's DOM text battery: PII rendered as PIXELS must get
 // the same structural coverage the DOM text path enjoys — WITHOUT loosening
 // the shared detectPiiInText semantics (the 41-test corpus locks its
@@ -241,7 +239,7 @@ function runStructuralBattery(text) {
 }
 
 /**
- * v1.15.4 TARGETED ROI CROP PASS — the field fix for pixel-only PII.
+ * TARGETED ROI CROP PASS — the field fix for pixel-only PII.
  * The full-page OCR pass reads small canvas text UNRELIABLY on busy pages
  * (field report: only the phone of a 3-value canvas line was redacted; two
  * whole pixel-only contact cards shipped readable). The DOM knows exactly
@@ -395,7 +393,7 @@ export async function scanImageForPiiRegions(imageDataUrl, opts = {}) {
     const minConf = opts.minConfidence ?? 60;
     const words = (data?.words || []).filter(w =>
       Number(w.confidence ?? 0) >= minConf && w.text?.trim());
-    // v1.14 RESCUE CANDIDATES: correctly-read lines at low confidence. The
+    // RESCUE CANDIDATES: correctly-read lines at low confidence. The
     // hard floor (12) excludes engine noise only — measured canvas text sits
     // at conf ~25 and DROPS BELOW it run-to-run, so the floor must be low;
     // rescued lines still need a real PII finding to become a region.
@@ -410,7 +408,7 @@ export async function scanImageForPiiRegions(imageDataUrl, opts = {}) {
     // Reconstruct the full text WITH word-order offsets so findings can be
     // mapped back onto word boxes.
     //
-    // v1.14 LINE-FUSED SECOND VARIANT (measured, OpenCometBench/e2e/run-adversarial.mjs
+    // LINE-FUSED SECOND VARIANT (measured, OpenCometBench/e2e/run-adversarial.mjs
     // canvas-email case): Tesseract SPLITS tight values at glyph spacing —
     // "priya.mehta@example." + "com" (a 7px gap, indistinguishable from the
     // page's real 5–6px word spaces, so gap heuristics cannot separate them).
@@ -484,7 +482,7 @@ export async function scanImageForPiiRegions(imageDataUrl, opts = {}) {
         const x1 = Math.max(...hits.map(h => h.bbox?.x1 ?? -Infinity));
         const y1 = Math.max(...hits.map(h => h.bbox?.y1 ?? -Infinity));
         if (!Number.isFinite(x0) || x1 <= x0 || y1 <= y0) continue;
-        // v1.14: expand vertically around the ink-box centre (see REGION_VEXPAND).
+        // expand vertically around the ink-box centre (see REGION_VEXPAND).
         const h = y1 - y0;
         const cy = (y0 + y1) / 2;
         const eh = h * REGION_VEXPAND;
@@ -505,7 +503,7 @@ export async function scanImageForPiiRegions(imageDataUrl, opts = {}) {
     };
     const regionsA = mapFindings(findingsA, spans);
     const regionsB = mapFindings(findingsB, spansB);
-    // v1.14: low-confidence line rescue (crop + upscale + re-recognize) —
+    // low-confidence line rescue (crop + upscale + re-recognize) —
     // measured conf-25 canvas email shipped readable without this pass.
     const rescued = lowWords.length
       ? await rescueLowConfidenceLines(worker, imageDataUrl, lowWords,
@@ -523,7 +521,7 @@ export async function scanImageForPiiRegions(imageDataUrl, opts = {}) {
       if (!dup) deduped.push(r);
     }
     const regions = deduped;
-    // v1.15.4 TARGETED ROI CROP PASS — deterministic re-read of the DOM's
+    // TARGETED ROI CROP PASS — deterministic re-read of the DOM's
     // canvas/img rects (see ocrRoiRegions). Runs on the SAME warmed worker;
     // ≤12 bounded crops; findings merge into the dedupe chain above.
     let roiAdded = 0;
@@ -550,7 +548,7 @@ export async function scanImageForPiiRegions(imageDataUrl, opts = {}) {
     return { regions: deduped, textChars: fullText.length, ms: Math.round(performance.now() - t0), roiRegions: roiAdded, roisScanned };
   } catch (err) {
     const reason = String(err?.message || err);
-    // v1.13 fail-closed policy: retry ONCE with a FRESH engine (the first
+    // fail-closed policy: retry ONCE with a FRESH engine (the first
     // failure may be a wedged worker). If the retry also fails, the caller
     // must NOT transmit this frame — a privacy gap must never be silent.
     if (!opts._retried) {

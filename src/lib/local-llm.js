@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/local-llm.js
 // On-device model CLIENT for the service worker side.
 //
@@ -13,7 +12,6 @@
 //   • listLocalModels / hasWebGPU / getLocalDevice
 //   • downloadLocalModel / deleteLocalModel
 //   • generateLocal / callLocalAI / callLocalAIRaw
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { parseJSON } from './utils.js';
 import {
@@ -30,7 +28,7 @@ import { ensureOffscreen, sendToOffscreen } from './offscreen-client.js';
 
 export { LOCAL_MODEL_CATALOG, getLocalModelDef };
 
-// ── Backend detection (best-effort on the SW side; the offscreen document is
+// Backend detection (best-effort on the SW side; the offscreen document is
 //    the source of truth and its answer overrides this fallback) ──────────────
 export function hasWebGPU() {
   try { return typeof navigator !== 'undefined' && 'gpu' in navigator && Boolean(navigator.gpu); }
@@ -41,7 +39,7 @@ export function getLocalDevice() {
   return hasWebGPU() ? 'webgpu' : 'wasm';
 }
 
-// ── Listing ────────────────────────────────────────────────────────────────────
+// Listing
 // An interrupted download (browser closed / crashed / SW killed mid-fetch)
 // leaves a persisted status:"downloading" behind — with nothing actually
 // running, the catalog used to render a frozen "Downloading… 0%" forever.
@@ -101,7 +99,7 @@ export function resolveLocalModel(settings = {}) {
       || LOCAL_MODEL_CATALOG[0];
 }
 
-// ── Downloads (RPC → offscreen engine) ─────────────────────────────────────────
+// Downloads (RPC → offscreen engine)
 export async function downloadLocalModel(id) {
   const def = getLocalModelDef(id);
   if (!def) return { ok: false, error: `Unknown local model: ${id}` };
@@ -132,7 +130,7 @@ export async function deleteLocalModel(id) {
   }
 }
 
-// ── Generation (RPC → offscreen engine) ────────────────────────────────────────
+// Generation (RPC → offscreen engine)
 export async function generateLocal(params) {
   await ensureOffscreen();
   // No timeout: the offscreen engine broadcasts LOCAL_MODEL_HEARTBEAT while a
@@ -169,7 +167,7 @@ export async function embedTextsLocal(texts) {
   return resp.vectors || [];
 }
 
-// ── providers.js adapters ──────────────────────────────────────────────────────
+// providers.js adapters
 /**
  * mirrors the JSON-returning callAI contract.
  * On-device-specific options (all optional):

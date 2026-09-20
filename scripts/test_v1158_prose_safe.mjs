@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_v1158_prose_safe.mjs — v1.15.8 regression (unit + real extension).
 //
 // Field report (v1.15.7 on chat.z.ai): "hiding unwanted safe text". The
@@ -39,7 +38,6 @@
 //          completes, OCR canvas pass yields ZERO api_key/password regions
 //          (no black boxes), and the safe phrases reach the mock backend
 //          unmasked.
-// ─────────────────────────────────────────────────────────────────────────────
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -65,7 +63,7 @@ const overlaps = (f, text, phrase) => {
   return f.start < i + phrase.length && f.end > i;
 };
 
-// ── The field page, transcribed (OCR variant A = space-joined, ONE line) ────
+// The field page, transcribed (OCR variant A = space-joined, ONE line)
 const PAGE_BLOB = [
   'The external content obfuscation layer (environment redactor) has removed three literal token formats (AWS/GitHub/Slack) from files written to disk',
   'production files are unaffected and functioning correctly. I will work around this issue in tests and fixtures: building these literals in unit tests via runtime string concatenation and rewriting the fixture using the four surviving secret families:',
@@ -111,7 +109,7 @@ async function partA() {
   check('P4 sweep/mask "AKIA" chip mention is untouched (4 chars alone is not a key)',
     PAGE_BLOB.includes('AKIA is present') && m.text.includes('AKIA is present'));
 
-  // ── TRUE-POSITIVE CONTROLS — every real assignment must STILL fire ────────
+  // TRUE-POSITIVE CONTROLS — every real assignment must STILL fire
   const tp = (text) => detectPiiInTextSync(text, { maxChars: 16000 });
   check('TP1 "password: hunter2" detected', tp('password: hunter2').some(f => f.type === 'password'));
   check('TP2 "Password: \'Str0ngPass!x\'" (quoted) detected',

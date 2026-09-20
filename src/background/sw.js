@@ -1,8 +1,6 @@
-// -----------------------------------------------------------------------------
 // src/background/sw.js
 // Service-worker entry point.  Orchestrates the agent loop; delegates
 // DOM actions, AI calls, storage, and state to focused modules.
-// -----------------------------------------------------------------------------
 
 import { callAI, callAIRaw, getProviderCapabilities, isProviderConfigured }   from '../lib/providers.js';
 import { isSihMode, sihRawScreenshotDecision } from '../lib/sih-mode.js';
@@ -18,9 +16,9 @@ import { sleep, getHostFromUrl, normalizeHost, parseJSON } from '../lib/utils.js
 import { MSG, STATUS, STEP_TYPE, PROTECTED_ACTION_LABELS, MODEL_PRICING } from '../lib/constants.js';
 import { buildSearchUrl, openResearchTab, scrapeSearchResults, scrapeReadablePage, closeTabs } from '../lib/browser-research.js';
 import { downloadExportFile } from '../lib/export.js';
-// v1.18.0 TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
+// TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
 // user's own text to authorize them; fault-shutdown + 3-hit honest exit.
-// v1.19.0: + DAEMON COUNTER (visible per-run + lifetime gate accounting).
+// + DAEMON COUNTER (visible per-run + lifetime gate accounting).
 import { authorizeAction, GUARDIAN_HIT_LIMIT, createGuardianCounter, tallyGuardian, guardianCounterSummary, mergeGuardianLifetime } from '../lib/guardian-daemon.js';
 import { buildHistoryCompactionPrompt, buildNavigatorRequest, buildPlannerRequest, shouldRetryCompactAction } from '../lib/agent-messages.js';
 import {
@@ -37,7 +35,7 @@ import { createEmptyAgentState } from './state.js';
 import { executeAction, describeAction, getMonitors, saveMonitors, fetchPageText, isMailHostTab } from './actions.js';
 import { toChatTemplateTools } from '../lib/tool-schemas.js';
 import { runPrivacyAgent } from './privacy-loop.js';
-// v1.15 TAB-GROUP SANDBOX: single source of truth for the task boundary
+// TAB-GROUP SANDBOX: single source of truth for the task boundary
 // (shared with actions.js so grouping + enforcement can never drift apart).
 import { ensureTaskGroup } from '../lib/tab-sandbox.js';
 import { configurePrivacy, getPrivacySettings, captureAndSanitize, getLastPrivacyRun, getCumulativePrivacyStats } from '../lib/privacy-agent.js';
@@ -48,7 +46,7 @@ import { getAllSkills } from '../lib/skills.js';
 import { loadLibrarySkills } from '../lib/skill-library.js';
 import { createLogger, installGlobalErrorTraps } from '../core/logger.js';
 
-// -- Diagnostics loggers -------------------------------------------------------
+// Diagnostics loggers
 // Every context logs with a [Open Comet:<ns>] tag. warn/error lines also reach
 // the sidepanel console through the DIAG_LOG relay, so ONE DevTools window
 // shows downloads, API errors, model-request errors, limits and busy states.
@@ -59,9 +57,9 @@ const logLimits = createLogger('Limits',  { relayType: 'DIAG_LOG', relayLevel: '
 const logBusy   = createLogger('Busy',    { relayType: 'DIAG_LOG', relayLevel: 'warn' });
 const logML     = createLogger('LocalML', { relayType: 'DIAG_LOG', relayLevel: 'warn' });
 
-// -- Global agent state --------------------------------------------------------
+// Global agent state
 let agentState = createEmptyAgentState();
-// v1.16.1 START TOCTOU GUARD: `running` was checked BEFORE several awaits and
+// START TOCTOU GUARD: `running` was checked BEFORE several awaits and
 // only set AFTER them, so two rapid START_AGENT messages (double-click) could
 // both pass the check and run two concurrent agent loops over one state.
 // This synchronous flag closes the window between the check and the state
@@ -83,10 +81,10 @@ function trackUsage(usage) {
   recordTokenUsage(model, promptTokens, completionTokens, totalTokens, cost).catch(() => {});
 }
 
-// -- Lifecycle -----------------------------------------------------------------
+// Lifecycle
 chrome.runtime.onInstalled.addListener(async () => {
   await initStorage();
-  // v1.17.0: Firefox has no chrome.sidePanel — the toolbar button falls back
+  // Firefox has no chrome.sidePanel — the toolbar button falls back
   // to opening the panel as a regular tab (see the onClicked listener below).
   chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: true });
 });
@@ -96,7 +94,7 @@ chrome.action.onClicked.addListener(tab => {
     chrome.sidePanel.open({ tabId: tab.id });
     return;
   }
-  // v1.17.0 FIREFOX: the sidebar opens as a tab — same sidepanel.html, same
+  // FIREFOX: the sidebar opens as a tab — same sidepanel.html, same
   // module UI, no sidePanel API required.
   try {
     chrome.tabs.create({
@@ -108,7 +106,7 @@ chrome.action.onClicked.addListener(tab => {
   }
 });
 
-// -- Tab event tracking --------------------------------------------------------
+// Tab event tracking
 chrome.tabs.onCreated.addListener(async tab => {
   if (!agentState.running || !Number.isInteger(tab.openerTabId)) return;
   if (!agentState.taskTabIds.includes(tab.openerTabId)) return;
@@ -127,7 +125,7 @@ chrome.tabs.onRemoved.addListener(tabId => {
   }
 });
 
-// -- Message router ------------------------------------------------------------
+// Message router
 chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   // Messages addressed to the offscreen ML document are handled there —
   // never route them here (they would double-execute).
@@ -141,7 +139,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
         () => {}
       );
     } else if (typeof document !== 'undefined') {
-      // v1.17.0 FIREFOX in-page mode: teardown = removing the hidden iframe.
+      // FIREFOX in-page mode: teardown = removing the hidden iframe.
       document.getElementById('opencomet-ml-frame')?.remove();
       console.log('[Open Comet] In-page ML runtime closed (idle).');
     }
@@ -183,13 +181,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     'LOCAL_STATUS_WRITE':    () => (async () => {
       try {
         const KEY = 'opencometLocalModels';
-        // v1.16.1: the get→merge→set cycle is now serialized with the shared
+        // the get→merge→set cycle is now serialized with the shared
         // storage-write mutex — concurrent per-file progress patches during a
         // multi-file model download used to race and drop updates.
         const statuses = await serializeStorageWrite(async () => {
           const d = await chrome.storage.local.get(KEY);
           const all = d?.[KEY] || {};
-          // v1.17.0: each per-model status blob is stamped with stateVersion
+          // each per-model status blob is stamped with stateVersion
           // (obsolete-state gating) — see storage.js STATE_VERSION.
           all[msg.modelId] = { stateVersion: STATE_VERSION, ...(all[msg.modelId] || {}), ...(msg.patch || {}) };
           await chrome.storage.local.set({ [KEY]: all });
@@ -225,11 +223,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   }
 });
 
-// ── Page monitors (skills/monitor-page) ───────────────────────────────────
+// Page monitors (skills/monitor-page)
 // chrome.alarms fires in the SW even after it was killed. Each alarm re-fetches
 // the monitored URL, diffs against the stored snapshot, and notifies on change.
 chrome.alarms?.onAlarm.addListener(alarm => {
-  // v1.16.1 RUN-KEEPALIVE BACKSTOP: if the SW was killed despite the 20s
+  // RUN-KEEPALIVE BACKSTOP: if the SW was killed despite the 20s
   // interval (the interval dies WITH the worker it protects), this alarm
   // wakes it. agentState is fresh after a wake — the boot reconciliation at
   // the bottom of this file finalizes the interrupted run; here we only
@@ -260,7 +258,7 @@ chrome.alarms?.onAlarm.addListener(alarm => {
           title: 'Open Comet — page monitor',
           message: `${label}\n${monitor.url}`,
         });
-        // v1.16.1: the parallel MONITOR_ALERT broadcast was removed — it had no
+        // the parallel MONITOR_ALERT broadcast was removed — it had no
         // listener anywhere (the chrome.notifications toast below is the actual
         // delivery); dead traffic on every monitor hit.
       }
@@ -278,7 +276,7 @@ chrome.alarms?.onAlarm.addListener(alarm => {
 // before the first prompt is built.
 loadLibrarySkills().catch(() => {});
 
-// ── On-device model listing ──────────────────────────────────────────────
+// On-device model listing
 // Statuses come from chrome.storage; the compute backend is reported by the
 // offscreen ML runtime when available (it is the context that actually runs
 // WebGPU/WASM, so it is the source of truth).
@@ -293,7 +291,7 @@ async function handleLocalModelList(respond) {
   respond({ ok: true, models, device });
 }
 
-// ── On-device (Transformers.js) model downloads ──────────────────────────
+// On-device (Transformers.js) model downloads
 // The download itself streams progress to the UI via LOCAL_MODEL_PROGRESS
 // broadcasts; we answer the caller immediately so the sidepanel never blocks.
 let _localDownloadBusy = false;
@@ -337,7 +335,6 @@ async function handleGetOllamaModels(msg, respond) {
 
 
 // START
-// -----------------------------------------------------------------------------
 /**
  * Handles the start of an agent task.
  * @param {Object} msg - The message object containing task details.
@@ -427,7 +424,7 @@ async function handleStartInner(msg, respond) {
   startRunKeepalive();   // MV3: hold the SW alive for the whole run (see helper)
   writeActiveRunSnapshot({ sessionId: agentState.sessionId, task: agentState.task, mode: agentState.mode });   // v1.16.1 crash-recovery snapshot
 
-  // -- Feature: Skill Auto-Detection ----------------------------------------
+  // Feature: Skill Auto-Detection
   // Automatically activate relevant skills based on task text + current URL,
   // without requiring manual user selection. Runs before the plan phase.
   try {
@@ -476,9 +473,7 @@ async function handleStartInner(msg, respond) {
   await planPhase();
 }
 
-// -----------------------------------------------------------------------------
 // PLAN PHASE
-// -----------------------------------------------------------------------------
 /**
  * Analyzes the task and builds an execution plan using AI.
  */
@@ -539,7 +534,7 @@ function normalizePlan(plan) {
   };
 }
 
-// -- Planner-chosen skill activation -----------------------------------------
+// Planner-chosen skill activation
 // The planner lists matching SKILL LIBRARY ids in plan.skills; the loop then
 // executes with those expert instructions injected as ACTIVE SKILLS.
 async function activatePlannedSkills(plan) {
@@ -606,7 +601,7 @@ function updatePlanProgressFromResult(result = {}) {
 
 function injectRuntimeNudges() {
   const nudges = [];
-  // v1.18.0: a guardian block leaves a ONE-SHOT strategy override — it
+  // a guardian block leaves a ONE-SHOT strategy override — it
   // OVERRIDES speculative replans for the next decision (the model is told
   // not to retry the blocked target or a re-labeled equivalent).
   if (agentState.taskMemory.pendingGuardianHint) {
@@ -630,12 +625,8 @@ function injectRuntimeNudges() {
   }
 }
 
-// -----------------------------------------------------------------------------
 // PLAN APPROVAL
-// -----------------------------------------------------------------------------
-// ── v1.15.1 ASK-BEFORE-ACTING (user request: the composer's "Ask before
-// acting" mode was dead for privacy runs — handlePrivacyStart ignored
-// msg.mode entirely). When the task is started in 'ask' mode, the privacy
+// ASK-BEFORE-ACTING: when the task is started in 'ask' mode, the privacy
 // loop calls requestActionApproval() BEFORE every browser action; the
 // sidepanel shows an approval card (Allow once / Skip / Stop) and the loop
 // waits on a promise resolved by handleResolveApproval.
@@ -680,7 +671,7 @@ async function handleResolveApproval(msg, respond) {
   agentState.pendingApproval = null;
   agentState.paused          = false;
 
-  // v1.15.1 ASK-BEFORE-ACTING: per-action approval from the privacy loop.
+  // ASK-BEFORE-ACTING: per-action approval from the privacy loop.
   // approve → run it · skip → drop this action, ask the model again ·
   // stop/cancel → abort the run (the loop's abort check turns it into the
   // normal stopped path: onError → AGENT_ERROR + honest history).
@@ -732,20 +723,18 @@ function handleUserNote(note, respond) {
   respond({ ok: true });
 }
 
-// -----------------------------------------------------------------------------
 // EXECUTION LOOP
-// -----------------------------------------------------------------------------
 async function executionPhase() {
   pushStep(STEP_TYPE.EXECUTING, '?? Starting execution…');
   broadcastStatus(STATUS.EXECUTING);
 
-  // v1.18.0: authorization evidence is pinned to what the user typed when the
+  // authorization evidence is pinned to what the user typed when the
   // task started — a mid-run mutation of agentState.task cannot authorize a
   // purchase/deletion after the fact. (Mid-run USER NOTES stay live — the
   // user may authorize explicitly while the task runs.)
   agentState.guardianTaskSnapshot = String(agentState.task || '');
   agentState.guardianHits = 0;
-  // v1.19.0 DAEMON COUNTER: per-run accounting of every gate decision —
+  // DAEMON COUNTER: per-run accounting of every gate decision —
   // flushed to the lifetime accumulator exactly once when the run ends.
   agentState.guardianCounter = createGuardianCounter();
 
@@ -774,7 +763,7 @@ async function executionPhase() {
 
       if (agentState.stopRequested) break;
 
-      // -- Feature: History Compaction ----------------------------------------
+      // Feature: History Compaction
       // Every 8 steps, compress the step history into a rolling work summary.
       // This prevents early context from being dropped in long sessions (25+ steps)
       // while keeping the prompt from growing unbounded.
@@ -789,7 +778,7 @@ async function executionPhase() {
 
       if (agentState.stopRequested) break;
 
-      // -- Feature: Live Skill Checklist Tracking ----------------------------
+      // Feature: Live Skill Checklist Tracking
       // Scan the agent's reasoning string for [DONE: <item>] markers.
       // When found, emit a CHECKLIST_UPDATE step so the sidepanel can render
       // live checklist progress without waiting for the task to finish.
@@ -803,7 +792,7 @@ async function executionPhase() {
         return;
       }
 
-      // ── v1.18.0 TASK AUTHORIZATION DAEMON (primary action) ────────────
+      // TASK AUTHORIZATION DAEMON (primary action)
       // Purchase/delete clicks need authorization from the user's OWN text —
       // negated tasks ("do not purchase anything") are blocked too. Inputs
       // are INJECTION-PROOF BY CONSTRUCTION: only the run-start task
@@ -884,7 +873,7 @@ async function executionPhase() {
       agentState.consecutiveFailures = 0;
       applyOutcome(action, meta);
 
-      // -- Native tool results become explicit observations -----------------
+      // Native tool results become explicit observations
       // The model can only trust what it sees — surface executor outputs for
       // the skill-library native tools (bookmarks, saves, monitors, skills).
       const nativeMeta = {
@@ -901,10 +890,10 @@ async function executionPhase() {
       const observation = nativeMeta[action.type]?.(meta);
       if (observation) pushStep(STEP_TYPE.MUTED, `▸ ${observation}`);
 
-      // -- Auto-done: detect send/submit completion -------------------------
+      // Auto-done: detect send/submit completion
       // If the agent just clicked a "Send" button, check whether the compose
       // window closed — if so, the email was sent and we're done.
-      // v1.16.1 TWO FIXES:
+      // TWO FIXES:
       //   (a) the whole probe is HOST-GATED behind isMailHostTab — previously
       //       clicking "Send feedback" on ANY page whose body text happened
       //       to contain the word "sent" ended the task with a false
@@ -957,10 +946,8 @@ async function executionPhase() {
   broadcastStatus(STATUS.IDLE);
 }
 
-// -----------------------------------------------------------------------------
 // FINISH HELPERS
-// -----------------------------------------------------------------------------
-// ── v1.19.0 DAEMON COUNTER helpers ──────────────────────────────────────────
+// DAEMON COUNTER helpers
 // Per-run accounting of every authorizeAction verdict; flushed ONCE to the
 // lifetime accumulator (storage.local 'opencometGuardianLifetime') when the
 // run terminates. Flush resets the per-run counter — a run can never be
@@ -1016,7 +1003,7 @@ async function finishMaxSteps() {
   await flushGuardianLifetime();
 }
 
-// v1.18.0 3-HIT HONEST EXIT / DAEMON FAULT SHUTDOWN: the task ends with an
+// 3-HIT HONEST EXIT / DAEMON FAULT SHUTDOWN: the task ends with an
 // honest DONE answer + history entry — never with an unauthorized
 // purchase/deletion executed.
 async function finishGuardianExit(userMessage) {
@@ -1049,9 +1036,7 @@ function fatalError(err) {
   appendHistory({ id: agentState.sessionId, task: agentState.task, status: 'error', result: err.message, steps: agentState.steps.length, tokens: agentState.taskUsage?.totalTokens || 0, cost: agentState.taskUsage?.cost || 0, time: Date.now() });
 }
 
-// -----------------------------------------------------------------------------
 // SCREENSHOT + PAGE INFO
-// -----------------------------------------------------------------------------
 async function captureContext(tabId) {
   const activeId  = await syncTab() || tabId;
   const tab       = await chrome.tabs.get(activeId).catch(() => null);
@@ -1067,7 +1052,7 @@ async function captureContext(tabId) {
 }
 
 async function takeScreenshot(tabId, pageInfo = {}) {
-  // v1.17.0: Firefox has no chrome.debugger — go straight to the
+  // Firefox has no chrome.debugger — go straight to the
   // captureVisibleTab fallback instead of dying on the attach call.
   if (!chrome.debugger) return await fallbackScreenshot(tabId);
   let attached = false;
@@ -1108,7 +1093,7 @@ async function detectEmailSent(tabId) {
     target: { tabId },
     func: () => {
       const bodyText = String(document.body?.innerText || '').toLowerCase();
-      // v1.16.1: the bare \bsent\b alternative removed — it matched ANY page
+      // the bare \bsent\b alternative removed — it matched ANY page
       // containing the word "sent" (order confirmations, blog posts,
       // "Sent from my iPhone" signatures) and faked task success.
       const toastSent = /\bmessage sent\b|\bmail sent\b/.test(bodyText);
@@ -1288,7 +1273,7 @@ async function getPageInfo(tabId) {
           seen.add(key);
           const uid = el.getAttribute(UID) || `nx-${items.length + 1}`;
           el.setAttribute(UID, uid);
-          // v1.19.0 DISAMBIGUATION: nearest form/section context label — the
+          // DISAMBIGUATION: nearest form/section context label — the
           // "nearform" half of the receipt ("Buy Now #2" inside which card?).
           let nearHint = '';
           try {
@@ -1335,7 +1320,7 @@ async function getPageInfo(tabId) {
           if (items.length >= 80) break;
         }
 
-        // ── v1.19.0 DISAMBIGUATION PASS (repeated tags → exact controls) ────
+        // DISAMBIGUATION PASS (repeated tags → exact controls)
         // Items sharing (tag, visible label) with ≥1 sibling each carry:
         //   dup "2 of 4" · pos "top-left" · nearform <context> · ref "Buy Now #2"
         // domClick parses ref as an ordinal and clicks the EXACT control;
@@ -1402,9 +1387,7 @@ async function getPageInfo(tabId) {
   } catch { return {}; }
 }
 
-// -----------------------------------------------------------------------------
 // APPROVAL HELPERS
-// -----------------------------------------------------------------------------
 async function checkApproval(action, pageInfo) {
   if (['navigate', 'new_tab'].includes(action.type)) {
     const host = getHostFromUrl(action.url);
@@ -1437,12 +1420,10 @@ async function pauseForApproval(approval) {
   broadcastMessage({ type: MSG.APPROVAL_REQUIRED, approval: agentState.pendingApproval, steps: agentState.steps });
 }
 
-// -----------------------------------------------------------------------------
 // LOOP DETECTION
-// -----------------------------------------------------------------------------
 function updateLoopSignals(pageInfo, screenshot) {
   const pageSig  = getLoopPageSignature(pageInfo);
-  // v1.16.1: the old screenshot signature was the FIRST 160 chars of the
+  // the old screenshot signature was the FIRST 160 chars of the
   // data-URL — mostly the constant JPEG/PNG header, a near-useless loop
   // signal. Now samples head/middle/tail + length, so identical frames still
   // match but different frames almost never do.
@@ -1575,12 +1556,10 @@ function recordSnapshot(pageInfo) {
   agentState.taskMemory.pageSnapshots = [...agentState.taskMemory.pageSnapshots, { url: pageInfo.url, title: pageInfo.title, host, scrollPercent: pageInfo.scrollState?.percent || 0 }].slice(-8);
 }
 
-// -----------------------------------------------------------------------------
 // Feature: History Compaction
 // Runs every 8 iterations to compress completed step history into a rolling
 // work summary. This keeps the action prompt from growing unbounded while
 // preserving the semantic gist of what the agent has already done.
-// -----------------------------------------------------------------------------
 async function compactWorkHistory() {
   const allCompletedSteps = agentState.steps
     .filter(s => ['action', 'done', 'error', 'muted', 'thinking'].includes(s.type))
@@ -1611,11 +1590,9 @@ async function compactWorkHistory() {
   }
 }
 
-// -----------------------------------------------------------------------------
 // Feature: Live Skill Checklist Tracking
 // Scans the agent's reasoning text for [DONE: <item>] markers and broadcasts
 // CHECKLIST_UPDATE steps so the UI can tick off progress in real-time.
-// -----------------------------------------------------------------------------
 function parseChecklistCompletions(reasoning) {
   if (!reasoning) return;
 
@@ -1647,7 +1624,6 @@ function parseChecklistCompletions(reasoning) {
   }
 }
 
-// -----------------------------------------------------------------------------
 function clampInt(value, fallback, min, max) {
   const num = Number.parseInt(value, 10);
   if (!Number.isFinite(num)) return fallback;
@@ -1713,7 +1689,7 @@ function buildBrowserResearchSynthesisPrompt(task, subQueries, analyzedSources) 
 }
 
 function buildSummarizePrompt(task, page, profileData = {}) {
-  // v1.15.6: customInfo is an ARRAY of {key,value} — format it explicitly so
+  // customInfo is an ARRAY of {key,value} — format it explicitly so
   // the generic Object.entries below never renders "[object Object]".
   const custom = Array.isArray(profileData?.customInfo)
     ? profileData.customInfo
@@ -1943,7 +1919,6 @@ async function handleAutoScrape(msg, respond) {
 }
 
 // TAB HELPERS
-// -----------------------------------------------------------------------------
 async function syncTab() {
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
@@ -1987,7 +1962,7 @@ async function waitForLoad(tabId) {
   });
 }
 
-// v1.15 TAB-GROUP SANDBOX: the real logic lives in lib/tab-sandbox.js (shared
+// TAB-GROUP SANDBOX: the real logic lives in lib/tab-sandbox.js (shared
 // with actions.js); this wrapper keeps the historical call sites stable.
 async function groupTaskTabs(tabIds) {
   const groupId = await ensureTaskGroup(agentState, tabIds);
@@ -1995,9 +1970,7 @@ async function groupTaskTabs(tabIds) {
   return groupId;
 }
 
-// -----------------------------------------------------------------------------
 // STOP / RESET
-// -----------------------------------------------------------------------------
 async function handleStop(respond) {
   const wasPaused  = agentState.paused;     // capture BEFORE clearing (v1.16.1)
   const wasRunning = agentState.running;
@@ -2007,7 +1980,7 @@ async function handleStop(respond) {
   agentState.pendingApproval= null;
   stopRunKeepalive();   // user ended the run — release the heartbeat
   clearActiveRunSnapshot();   // v1.16.1: crash-recovery snapshot no longer needed
-  // v1.15.1 ASK-BEFORE-ACTING: a run paused on the per-action approval card
+  // ASK-BEFORE-ACTING: a run paused on the per-action approval card
   // must be released too, or the loop would wait forever on a dead gate.
   resolveAllActionApprovals('stop');
   // SIH fix: privacy runs were UNSTOPPABLE — the loop's only abort check is
@@ -2015,7 +1988,7 @@ async function handleStop(respond) {
   // Stop button (and Reset) actually interrupts a privacy run.
   try { agentState._privacyAbort?.abort?.(); } catch { /* already aborted */ }
   flushGuardianLifetime();   // v1.19.0: user stop flushes the daemon counter (all-zero = no-op)
-  // v1.16.1 ZOMBIE-UI FIX: when the standard loop had ALREADY returned at the
+  // ZOMBIE-UI FIX: when the standard loop had ALREADY returned at the
   // approval gate (agentState.paused), nothing was alive to broadcast
   // AGENT_STOPPED — the sidepanel stayed setRunning(true) forever. A paused
   // run has no live loop, so Stop must finalize it here. (A LIVE privacy run
@@ -2060,9 +2033,7 @@ async function handleReset(respond) {
   if (respond) respond({ ok: true });
 }
 
-// -----------------------------------------------------------------------------
 // MESSAGING
-// -----------------------------------------------------------------------------
 function pushStep(type, text, extra = {}) {
   if (type === STEP_TYPE.SCREENSHOT && !extra.imageDataUrl) return;
   const now = Date.now();
@@ -2087,7 +2058,7 @@ function broadcastStatus(status) {
 }
 
 function broadcast(type) {
-  // v1.15.1 CRITICAL FIX (user-reported: "Task already completed but in Sidebar
+  // CRITICAL FIX (user-reported: "Task already completed but in Sidebar
   // UI still shows stop button"): privacy-flow callers pass a FULL message
   // object — broadcast({ type: MSG.AGENT_DONE, summary }) — while this helper's
   // name suggests a bare type string. The object was double-wrapped into
@@ -2111,9 +2082,7 @@ function broadcastToTabs(msg) {
   for (const id of ids) chrome.tabs.sendMessage(id, msg).catch(() => {});
 }
 
-// -----------------------------------------------------------------------------
 // MISC HELPERS
-// -----------------------------------------------------------------------------
 function imageAttachments() {
   return (agentState.attachments || []).filter(a => a.kind === 'image' && a.imageBase64).map(a => ({ name: a.name, mimeType: a.mimeType || 'image/jpeg', imageBase64: a.imageBase64 }));
 }
@@ -2605,13 +2574,11 @@ async function groupLooseTabs(tabIds, title = 'Open Comet Research') {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // PRIVACY-MODE HANDLERS
 // Routes that delegate to the privacy-aware agent loop (privacy-loop.js).
 // Triggered when the user enables "Privacy Mode" in the side panel.
-// ─────────────────────────────────────────────────────────────────────────────
 
-// ── Browser-internal page bootstrap ────────────────────────────────────────
+// Browser-internal page bootstrap
 // Users press Start from chrome://newtab ALL the time (it IS the default
 // landing page). Blocking with an error made the product feel broken
 // (user: "WTF we always user is not able to start task with new tab?").
@@ -2623,7 +2590,7 @@ let pendingBootstrapNote = null;
 function inferStartUrlFromTask(task) {
   const t = String(task || '').toLowerCase();
   const SITES = [
-    // v1.9: "yt music" / "youtube music" must land on YouTube Music itself —
+    // "yt music" / "youtube music" must land on YouTube Music itself —
     // the generic youtube rule used to open www.youtube.com and the VLM then
     // burned 1-2 full turns (30-90 s each) navigating to music.youtube.com.
     [/yt\s*music|youtube\s*music|music\.youtube/, 'https://music.youtube.com'],
@@ -2705,7 +2672,7 @@ async function handlePrivacyStartInner(msg, respond) {
   let activeTab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0] || null;
   if (!activeTab) { respond({ ok: false, error: 'No active tab' }); return; }
 
-  // v1.16.0 COLD-START ELIMINATION: warm the on-device vision models in the
+  // COLD-START ELIMINATION: warm the on-device vision models in the
   // background while the session's first DOM steps run. The first capture then
   // pays INFERENCE cost only — not the one-time model download + compile
   // (cold-cache ViT load measured 37.9 s on the reference hardware; that load
@@ -2760,13 +2727,13 @@ async function handlePrivacyStartInner(msg, respond) {
     startTitle: activeTab.title,
   });
 
-  // v1.15.1 ASK-BEFORE-ACTING: the composer mode now REACHES privacy runs
+  // ASK-BEFORE-ACTING: the composer mode now REACHES privacy runs
   // (the panel's send interceptor already forwards msg.mode). 'ask' gates
   // every browser action behind an approval card; 'auto' runs immediately.
   agentState.askBeforeActing = String(msg.mode || '') === 'ask';
   resolveAllActionApprovals('stop');   // hygiene: no stale waiter may survive into this run
 
-  // v1.15 TAB-GROUP SANDBOX: privacy runs never created a tab group — the
+  // TAB-GROUP SANDBOX: privacy runs never created a tab group — the
   // standard agent did, the flagship privacy mode did not. Put the task tab
   // in the sandbox group up front so the boundary exists from step 1 (the
   // loop's capture + actions are additionally enforced against taskTabIds).
@@ -2790,7 +2757,7 @@ async function handlePrivacyStartInner(msg, respond) {
   const controller = new AbortController();
   agentState._privacyAbort = controller;
 
-  // v1.15.1: this step was broadcast double-wrapped (see broadcast() fix) so
+  // this step was broadcast double-wrapped (see broadcast() fix) so
   // it never rendered; pushStep puts it in the chat AND the hydratable state
   // like every other step.
   pushStep(STEP_TYPE.THINKING, 'Privacy mode active — sanitizing before every network call');
@@ -2799,17 +2766,17 @@ async function handlePrivacyStartInner(msg, respond) {
     task: msg.task,
     tabId: activeTab.id,
     settings,
-    // v1.15 TAB-GROUP SANDBOX: the loop needs the LIVE state object so
+    // TAB-GROUP SANDBOX: the loop needs the LIVE state object so
     // executeAction can enforce (and record) task-tab membership. Before this,
     // the privacy loop passed a throwaway `{ settings }` — switch_tab/new_tab/
     // list_tabs/organize_tabs ran blind to the sandbox.
     state: agentState,
     signal: controller.signal,
-    // v1.15.1 ASK-BEFORE-ACTING: per-action approval gate (no-op in 'auto').
+    // ASK-BEFORE-ACTING: per-action approval gate (no-op in 'auto').
     askBeforeActing: agentState.askBeforeActing,
     approvalGate: agentState.askBeforeActing ? requestActionApproval : null,
     onStep: (type, text, payload = {}) => {
-      // v1.8: pushStep alone is responsible for broadcasting — the previous
+      // pushStep alone is responsible for broadcasting — the previous
       // second raw broadcast below re-sent every step in a DIFFERENT shape
       // (payload nested instead of spread, no index), causing duplicate chat
       // rows and a shape mismatch for the stats interceptor.
@@ -2821,10 +2788,10 @@ async function handlePrivacyStartInner(msg, respond) {
       setBadge('', '#7c6af7');
       stopRunKeepalive();
       pushStep(STEP_TYPE.DONE, `Privacy agent finished in ${summary.steps} steps`, { summary });
-      // v1.15.6: information/summary tasks deliver their ANSWER here — the
+      // information/summary tasks deliver their ANSWER here — the
       // sidepanel's result card renders msg.answer verbatim (markdown ok).
       broadcast({ type: MSG.AGENT_DONE, summary, answer: String(summary?.finalAnswer || '').trim() });
-      // v1.8: privacy runs were NEVER written to History (only standard-agent
+      // privacy runs were NEVER written to History (only standard-agent
       // and deep-research runs were) — the History tab therefore showed no
       // chat after privacy-mode tasks. Record done/error/stopped like the
       // standard loop does.
@@ -2879,15 +2846,15 @@ async function handlePrivacyCapture(msg, respond) {
   }
 }
 
-// ── Global error traps: uncaught errors / unhandled rejections never vanish ───
+// Global error traps: uncaught errors / unhandled rejections never vanish
 installGlobalErrorTraps(logSW, 'SW');
 
-// ── v1.8 build banner ─────────────────────────────────────────────────────────
+// build banner
 // Every time this service worker (re)starts it announces its exact build so a
 // stale unpacked copy can never be mistaken for the freshly loaded one.
 console.log(`[OpenComet] v${(chrome.runtime && typeof chrome.runtime.getManifest === 'function') ? chrome.runtime.getManifest().version : 'dev'} · service worker loaded`);
 
-// ── Run keepalive (MV3 service-worker lifetime) ──────────────────────────────
+// Run keepalive (MV3 service-worker lifetime)
 // An MV3 service worker idles out after ~30s without events. Step broadcasts
 // keep it alive BETWEEN phases, but a single long VLM turn (30–180s, zero
 // extension-API traffic) can hit the idle timeout mid-run — the worker shows
@@ -2895,7 +2862,7 @@ console.log(`[OpenComet] v${(chrome.runtime && typeof chrome.runtime.getManifest
 // via chrome.runtime.getPlatformInfo() resets the idle timer; the interval is
 // cleared the moment the run finishes/stops/errors.
 //
-// v1.16.1 CRASH RECOVERY (three stacked mechanisms):
+// CRASH RECOVERY (three stacked mechanisms):
 //   1. the 20s interval (primary, as before);
 //   2. a 30s chrome.alarms backstop — the interval cannot survive the SW kill
 //      it is meant to prevent; an alarm wakes the worker even after a crash;
@@ -2920,7 +2887,7 @@ function stopRunKeepalive() {
   clearActiveRunSnapshot();   // every terminal path funnels through here
 }
 
-// ── v1.16.1 ACTIVE-RUN SNAPSHOT (chrome.storage.session) ─────────────────
+// ACTIVE-RUN SNAPSHOT (chrome.storage.session)
 // Written when a run starts, cleared on EVERY terminal path (finish/stop/
 // reset/error — all call stopRunKeepalive). If the SW ever boots and the
 // snapshot is still present, the previous worker died mid-run.
@@ -2938,7 +2905,7 @@ function clearActiveRunSnapshot() {
   } catch { /* noop */ }
 }
 
-// ── v1.16.1 BOOT RECONCILIATION (crash mid-run → honest finalization) ────
+// BOOT RECONCILIATION (crash mid-run → honest finalization)
 // Top-level, runs on every SW start. The snapshot can only still be present
 // when the worker died mid-run (every live finalization clears it first):
 // the run's async loop is necessarily dead, so we record an honest history

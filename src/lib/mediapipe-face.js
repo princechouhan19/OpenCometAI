@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/mediapipe-face.js
 // MediaPipe FaceDetector wrapper — runs on-device (WASM + optional GPU)
 // to detect human faces in a screenshot. The returned bounding boxes are
@@ -13,14 +12,13 @@
 // IMPORTANT: this module must run inside the offscreen document (not the
 // service worker) — it dynamic-imports the vendored tasks-vision module and
 // needs DOM/canvas. See offscreen/offscreen.js.
-// ─────────────────────────────────────────────────────────────────────────────
 
 let _vision = null;
 let _faceDetector = null;
 let _initPromise = null;
 let _stats = { initMs: 0, calls: 0, totalMs: 0, lastMs: 0, tiledCalls: 0, tiledHits: 0, verifyDropped: 0 };
 
-// ── Native console-noise filter ─────────────────────────────────────────────
+// Native console-noise filter
 // MediaPipe's WASM graph init prints benign glog lines straight to the console
 // through console.warn, e.g. "W… gl_context.cc:1060] OpenGL error checking is
 // disabled". That message is purely informational (GL error checking is
@@ -51,9 +49,9 @@ async function withMutedNativeNoise(run) {
   }
 }
 
-// v1.8 — PERMANENT ultra-narrow native-noise filter.
+// PERMANENT ultra-narrow native-noise filter.
 // The scoped window above only covers FaceDetector creation, but field logs
-// (v1.7.2) showed the glog line can still escape when MediaPipe binds its GL
+// showed the glog line can still escape when MediaPipe binds its GL
 // context lazily — the wasm glue emits it asynchronously AFTER the window has
 // been restored (user saw it 4× across a session). Installing a permanent
 // filter costs nothing and is side-effect free because it drops ONLY lines
@@ -158,7 +156,7 @@ export async function detectFaces(image, minConfidence = 0.5) {
   return detections;
 }
 
-// ── Tiled detection ──────────────────────────────────────────────────────────
+// Tiled detection
 // WHY: BlazeFace SHORT RANGE is tuned for selfie-distance faces. On a full
 // 2560×1440 (DPR-2) screenshot a webcam-overlay face can be ~60 px tall —
 // far below what the model reliably fires on, so full-frame passes returned
@@ -216,7 +214,7 @@ function nmsMerge(dets, overlapThresh = 0.35) {
   return kept;
 }
 
-// ── Verification rescan (anti-hallucination) ─────────────────────────────────
+// Verification rescan (anti-hallucination)
 // BlazeFace SHORT-RANGE hallucinates "faces" on page TEXTURES when run
 // full-frame — on the demo page it fired 0.41–0.51 on the login form's grid of
 // rounded inputs (user-visible as a face blur + black eye bar drawn over an
@@ -303,7 +301,7 @@ async function verifyFaceCandidates(bmp, detections) {
  *   expand     - grow tile boxes by this factor                (default 1.15)
  * @returns {Promise<{detections: Array, debug: object}>}
  */
-// ── v1.14 ADAPTIVE FACE DETECTION ───────────────────────────────────────
+// ADAPTIVE FACE DETECTION
 // Three measured optimizations, none of which lower the redaction bar:
 //   1. DOWNSCALED FULL-FRAME PASS — MediaPipe resizes every input to 128×128
 //      internally, so feeding the full 2560×1600 (DPR-2) capture only burns
@@ -379,12 +377,12 @@ export async function detectFacesTiled(image, opts = {}) {
   const bmp = await ensureBitmap(image);
   const W = bmp.width, H = bmp.height;
 
-  // ── Pass 1: full frame (fast path) — candidates are VERIFIED immediately
+  // Pass 1: full frame (fast path) — candidates are VERIFIED immediately
   // (see FACE_VERIFY_CONF above): BlazeFace hallucinates 0.4–0.5 "faces" on
   // page textures, and letting unverified hits suppress the tile sweeps is
   // exactly what left the demo page's real avatar unredacted while a phantom
   // blur + eye bar landed on the login form.
-  // v1.14: the pass runs on a downscaled copy (MediaPipe resizes to 128×128
+  // the pass runs on a downscaled copy (MediaPipe resizes to 128×128
   // internally — full-resolution input only wastes preprocessing); boxes are
   // mapped back to full-image coordinates before verification.
   let detectBmp = bmp;
@@ -431,7 +429,7 @@ export async function detectFacesTiled(image, opts = {}) {
   };
   await verifyStage('full-frame');
 
-  // ── Tile sweep helper — shared by stage 2 (512px) and stage 3 (256px).
+  // Tile sweep helper — shared by stage 2 (512px) and stage 3 (256px).
   // A smaller tile makes a face occupy a larger fraction of the detector's
   // 128×128 internal input — exactly what rescues small faces (avatars,
   // webcam overlays) that the coarser passes can't fire on.
@@ -490,7 +488,7 @@ export async function detectFacesTiled(image, opts = {}) {
     merged = nmsMerge(merged, 0.35);
   };
 
-  // ── Pass 2: 512px tiled sweep — only when NO VERIFIED face exists yet and
+  // Pass 2: 512px tiled sweep — only when NO VERIFIED face exists yet and
   // the image is larger than one tile (small faces are exactly the failure
   // mode). Gated on VERIFIED results: unverified full-frame hits must never
   // suppress the sweeps that would find the real, smaller face.
@@ -499,11 +497,11 @@ export async function detectFacesTiled(image, opts = {}) {
     await verifyStage('tiles-512');
   }
 
-  // ── Pass 3: 256px FINE sweep — only when BOTH earlier stages still have no
+  // Pass 3: 256px FINE sweep — only when BOTH earlier stages still have no
   // VERIFIED face. Demo-page bug: a ~65px circular avatar (the side panel
   // shrinks the viewport) is only ~16% of a 512px tile — below BlazeFace's
   // firing threshold; inside a 256px tile it's ~32% and the detector fires.
-  // v1.14: the tile CAP is risk-adaptive (48 high-risk / 16 normal) — see the
+  // the tile CAP is risk-adaptive (48 high-risk / 16 normal) — see the
   // header note. Recall backstop on normal pages: the YOLO person-guided
   // sweep still runs when a person is detected.
   if (merged.length === 0 && (W > cfg.fineTileSize * 0.9 || H > cfg.fineTileSize * 0.9)) {
@@ -532,7 +530,7 @@ export async function detectFacesTiled(image, opts = {}) {
   return out;
 }
 
-// ── Person-guided face sweep ────────────────────────────────────────────────
+// Person-guided face sweep
 // Last-resort recall boost: YOLO found person(s) but MediaPipe found no
 // faces (tiny avatars, heavily downscaled layouts). Crop each person box,
 // upscale it so the crop's smallest edge ≈ MIN_CROP_EDGE, and re-run the

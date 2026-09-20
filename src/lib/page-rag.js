@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/page-rag.js
 // Retrieval-Augmented Generation over the CURRENT page — ported from the
 // gemma4-browser-extension reference (askWebsite.ts + extractWebsiteParts.ts):
@@ -9,7 +8,6 @@
 // Falls back to keyword scoring when the embeddings model is unavailable so
 // the tool never hard-fails on low-end devices.
 // Runs in the SERVICE WORKER (uses chrome.tabs; vectors come from offscreen).
-// ─────────────────────────────────────────────────────────────────────────────
 
 const partsCache = new Map();   // key `${tabId}:${url}` → { parts, at }
 const CACHE_TTL = 4 * 60 * 1000;

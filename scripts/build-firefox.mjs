@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/build-firefox.mjs — v1.17.0 FIREFOX BUILD
 //
 //   node scripts/build-firefox.mjs [--out dist/firefox]
@@ -16,7 +15,6 @@
 //
 // The build FAILS (non-zero exit) if the Firefox feature-detect guards drift
 // out of the source tree — that keeps "one source tree" honest over time.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { cpSync, existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, statSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';

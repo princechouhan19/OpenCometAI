@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_v1151_panel.mjs — v1.15.1 regression suite (real browser).
 //
 // Covers the user-reported fixes:
@@ -15,7 +14,6 @@
 //      (verified no-op) instead of misleading NO CHANGE.
 //   5. VLM request/response console logging ([VLM-REQ]/[VLM-RAW]/[VLM-RES]).
 //   6. Model pill ellipsis (long model names) + top-right sun/gear icon gone.
-// ─────────────────────────────────────────────────────────────────────────────
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -40,7 +38,7 @@ function serve() {
   });
 }
 
-// ── OpenAI-compatible mock that SCRIPTS decisions per task and CAPTURES the
+// OpenAI-compatible mock that SCRIPTS decisions per task and CAPTURES the
 //    exact prompts it receives (so the test can assert user-note injection). ──
 const captured = { prompts: [], bodies: [] };
 function promptTextOf(bodyStr) {

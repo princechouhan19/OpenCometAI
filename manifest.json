@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "OpenComet SIH — Privacy Vision Agent",
-  "version": "1.19.0",
+  "name": "OpenComet SIH \u2014 Privacy Vision Agent",
+  "version": "1.29.0",
   "description": "Privacy-first browser agent with a 12-skill library, native browser tools, Gemma 4 on-device intelligence (WebGPU + native tool calling), page RAG, PII redaction and a vendored on-device OCR privacy pass.",
   "permissions": [
     "activeTab",

@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/utils.js
 // Pure utility helpers shared across all layers.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Resolve after `ms` milliseconds. */
 export function sleep(ms) {

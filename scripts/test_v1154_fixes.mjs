@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/test_v1154_fixes.mjs
-// v1.15.4 — regression for the SECOND field report round ("Master Perception
+// regression for the SECOND field report round ("Master Perception
 // Test" page, Total 18068 ms / Faces 0 / PII leaks). Four fixes, each proven
 // on REAL browser pixels + the REAL vendored models:
 //
@@ -159,7 +159,7 @@ async function runPipeline(url, opts, extraInput = {}) {
   }, { scan, imageDataUrl, opts, extraInput });
 }
 
-// ── T6 (collector contract, cheapest first) ────────────────────────────────
+// T6 (collector contract, cheapest first)
 console.log('T6: collector contract (bg avatars, canvas ROIs, caps)');
 {
   await page.goto('http://127.0.0.1:8899/page.html', { waitUntil: 'networkidle' });
@@ -175,7 +175,7 @@ console.log('T6: collector contract (bg avatars, canvas ROIs, caps)');
   check('search input NOT flagged (placeholder "Search public information...")', !searchField);
 }
 
-// ── T1 (name field redaction, both scanners) ───────────────────────────────
+// T1 (name field redaction, both scanners)
 console.log('T1: name-field redaction (label-aware)');
 {
   const r1 = await runPipeline('page.html', { blurFaces: false, ocrPii: false, redactTextPii: true, runYolo: false });
@@ -191,7 +191,7 @@ console.log('T1: name-field redaction (label-aware)');
   check('detectSensitiveDomElements (module path) flags it too', parity >= 1, `hits=${parity}`);
 }
 
-// ── T2 (avatar guard — the field condition) ────────────────────────────────
+// T2 (avatar guard — the field condition)
 console.log('T2: avatar guard (model-unconfirmable page-declared avatar)');
 {
   // gradient avatar: cascade thresholds forced to 1.1 (user's "Faces: 0"
@@ -215,7 +215,7 @@ console.log('T2: avatar guard (model-unconfirmable page-declared avatar)');
   check('exactly ONE face redaction (no double box)', rp.faces === 1, `faces=${rp.faces}`);
 }
 
-// ── T3 (icon negative control preserved) ───────────────────────────────────
+// T3 (icon negative control preserved)
 console.log('T3: un-hinted icon never redacted');
 {
   const ri = await runPipeline('icon.html',
@@ -225,7 +225,7 @@ console.log('T3: un-hinted icon never redacted');
   check('NO face redaction on the icon page', ri.faces === 0, `faces=${ri.faces}`);
 }
 
-// ── T4 (pixel-only PII via OCR ROI battery) ────────────────────────────────
+// T4 (pixel-only PII via OCR ROI battery)
 console.log('T4: canvas pixel-only PII (targeted OCR crop + battery)');
 {
   const r4 = await runPipeline('page.html',
@@ -270,7 +270,7 @@ console.log('T4: canvas pixel-only PII (targeted OCR crop + battery)');
   writeFileSync(ROOT + '/OpenCometBench/results/test-v1154-canvas-ocr.png', Buffer.from(r4.sanitized.split(',')[1], 'base64'));
 }
 
-// ── T5 (text walker budget) ────────────────────────────────────────────────
+// T5 (text walker budget)
 console.log('T5: text-PII walker budget (PII beyond the old 140 cap)');
 {
   await page.goto('http://127.0.0.1:8899/budget.html', { waitUntil: 'networkidle' });
@@ -279,7 +279,7 @@ console.log('T5: text-PII walker budget (PII beyond the old 140 cap)');
   check('email at node ~200+ produced a DOM text_pii region (budget 400)', !!emailRegion, JSON.stringify(emailRegion || null));
 }
 
-// ── T6b (cap contract) ─────────────────────────────────────────────────────
+// T6b (cap contract)
 {
   await page.setContent(`<body>${Array.from({ length: 40 }, (_, i) => `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" style="width:30px;height:30px" alt="pic${i}">`).join('')}</body>`);
   const scan = await page.evaluate(() => window.__sihPageContextScan());
