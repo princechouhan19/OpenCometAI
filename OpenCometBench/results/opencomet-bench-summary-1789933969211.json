@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "type": "opencomet-bench-summary",
+    "generatedAt": "2026-09-20T19:52:49.211Z",
+    "tiers": [
+      "unit"
+    ],
+    "note": "Orchestrator republish — every verdict and report path comes verbatim from the per-tier harness output; nothing is recomputed or asserted here."
+  },
+  "results": [
+    {
+      "tier": "unit",
+      "status": "PASS",
+      "report": "/home/z/my-project/workspace/OpenCometAI/OpenCometAI-SIH/OpenCometBench/results/unit-1789933969211.json",
+      "suites": 6,
+      "durationMs": 119
+    }
+  ],
+  "allRanTiersPassed": true
+}
