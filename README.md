@@ -9,7 +9,7 @@
 *Smart India Hackathon PS #26171 — On-device Visual Perception for Light-weight Browser Agents*
 *Organisation: Indian Space Research Organisation (ISRO), Department of Space*
 
-![version](https://img.shields.io/badge/version-1.16.0-FF6B35?style=for-the-badge&labelColor=0B1220)
+![version](https://img.shields.io/badge/version-1.29.0-FF6B35?style=for-the-badge&labelColor=0B1220)
 ![SIH](https://img.shields.io/badge/SIH-PS%20%2326171%20%C2%B7%20ISRO-0B1220?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-3FB950?style=for-the-badge&labelColor=0B1220)
 ![privacy](https://img.shields.io/badge/privacy-fail%E2%80%93closed-D93F3F?style=for-the-badge&labelColor=0B1220)
@@ -49,19 +49,53 @@ are equally first-class.
   <img src="docs/assets/architecture-diagram.jpg" alt="OpenComet-SIH Architecture Diagram" width="900"/>
 </p>
 
+**Interactive architecture diagram** (Mermaid — rendered natively on GitHub):
+
+```mermaid
+flowchart LR
+  subgraph browser["Browser (client) — everything local"]
+    UI["Side panel UI<br/>task input · approvals · history"]
+    SW["Service worker — sw.js<br/>run loop · tab-group sandbox · guardian"]
+    CS["Content scripts<br/>agent.js · dom-detector.js"]
+    ML["Offscreen ML runtime<br/>MediaPipe · YOLO · ViT · OCR · PII regex"]
+    PROV["providers.js<br/>provider ladder · streaming guards · credit-fit"]
+    ACT["actions.js<br/>click · type · scroll · navigate"]
+  end
+  subgraph brain["AI backend — pick one"]
+    LOCAL["Gemma 4 on-device<br/>Chrome nano / WebGPU"]
+    GATEWAY["OpenAI-compatible gateway<br/>OpenRouter · Ollama · custom"]
+  end
+  UI -->|"START / PRIVACY_START"| SW
+  SW -->|"inject + query"| CS
+  CS -->|"page state + tagged elements"| SW
+  SW -->|"RPC: sanitize frame"| ML
+  ML -->|"redacted frame · regions · manifest"| SW
+  SW -->|"decision request"| PROV
+  PROV --> LOCAL
+  PROV --> GATEWAY
+  GATEWAY -->|"JSON action plan"| SW
+  LOCAL -->|"JSON action plan"| SW
+  SW --> ACT
+  ACT -->|"verified click / type / scroll"| CS
 ```
-   ┌──────────────── BROWSER (client) ────────────────┐         ┌──── SERVER ────┐
-   │                                                   │         │                │
-   │  tab capture  →  MediaPipe face detect (WebGPU)   │         │  Express +     │
-   │              →  Transformers.js YOLO/ViT (opt)    │         │  VLM adapter   │
-   │              →  DOM PII scan (regex + NER opt)    │  HTTPS  │  (OpenAI /     │
-   │              →  Canvas redact (blur/black/pix)    │ ──────▶ │   Claude /     │
-   │                                                   │         │   Gemini /     │
-   │  sanitised image + manifest + redacted text only  │         │   Ollama)      │
-   │                                                   │ ◀────── │                │
-   │  execute returned action (click / type / scroll)  │         │  JSON action   │
-   │                                                   │         │  plan          │
-   └───────────────────────────────────────────────────┘         └────────────────┘
+
+**How a task runs** — every pass through the loop is sanitized, authorized and
+verified:
+
+```mermaid
+flowchart TD
+  START["Task submitted"] --> GUARD["Task authorization daemon<br/>task-guardian.js"]
+  GUARD -->|"authorized"| SANDBOX["Tab-group sandbox<br/>agent acts only inside the group"]
+  GUARD -->|"not authorized"| BLOCK["Honest stop + reason shown"]
+  SANDBOX --> CAPTURE["Capture tab frame"]
+  CAPTURE --> SAN["On-device sanitize<br/>faces · PII · DOM scan"]
+  SAN -->|"pipeline error — fail-closed"| BLANK["Blank 1×1 frame + visible error"]
+  SAN -->|"clean"| DECIDE["VLM decision turn<br/>sanitised frame + redaction manifest"]
+  DECIDE --> APPROVE["Approval gate<br/>approval mode gates every action"]
+  APPROVE --> EXEC["Execute action<br/>click · type · scroll · navigate"]
+  EXEC --> VERIFY["Verify result<br/>page fingerprint + disambiguation receipt"]
+  VERIFY -->|"more steps"| CAPTURE
+  VERIFY -->|"done · max steps · stopped"| DONE["History + honest summary"]
 ```
 
 ---
@@ -122,6 +156,27 @@ the VLM knows *what it cannot see and why*. DOM text is tokenised
   <img src="docs/assets/privacy-pipeline-diagram.jpg" alt="OpenComet-SIH Privacy Pipeline Diagram" width="900"/>
 </p>
 
+**Interactive privacy-pipeline diagram** — what happens between a raw frame and
+the network:
+
+```mermaid
+flowchart LR
+  CAP["Tab capture"] --> DOM["DOM PII scan<br/>credential fields · uploads"]
+  CAP --> FACE["Face detect<br/>tiled sweep + DOM-guided rescue"]
+  CAP --> VIS["Visual context<br/>ViT labels + YOLO"]
+  DOM --> RED["Canvas redaction<br/>black · pixelate · blur"]
+  FACE --> RED
+  RED --> TXT["Text PII tokenize<br/>REDACTED tokens + checksums"]
+  VIS --> CTX["Page-type context<br/>fused into the prompt"]
+  TXT --> WG["Wire-guard byte scan<br/>known-value + secret-shape sweep"]
+  WG --> OUT["Sanitised frame + manifest + redacted text"]
+  CTX --> OUT
+  OUT -->|"only this leaves the browser"| VLM["VLM"]
+```
+
+Per-stage diagrams (PII taxonomy, face-recall cascade, coordinate spaces) live
+in [`docs/architecture/PRIVACY_VISION.md`](docs/architecture/PRIVACY_VISION.md).
+
 ## Measured results (OpenCometBench)
 
 ```bash
@@ -139,7 +194,7 @@ node OpenCometBench/e2e/run-e2e-real.mjs --warmup # real-VLM tier, steady-state 
 | Sanitize P50 **warm** (unchanged screen) | **1216 ms** (memo hit; OCR memo collapses the OCR leg; n=7) | browser report |
 | Changed frame (memo miss, full re-detect) | 12885 ms (YOLO 7841 + OCR 3402) — by design, scene-change-attack verified | browser report |
 | Real-VLM step (OpenRouter free model) | VLM 4679 ms · action 777 ms · **0 privacy blocks** · verified 1/1 (single-step reference run) | `e2e-real` report |
-| Cold first step (one-time model load) | ViT load 37873 ms — v1.16.0 adds a session warm-up (`--warmup`); a committed warm-up results artifact is still pending | `e2e-real` + warm-up probe |
+| Cold first step (one-time model load) | ViT load 37873 ms — a session warm-up (`--warmup`) collapses subsequent turns; a committed warm-up results artifact is still pending | `e2e-real` + warm-up probe |
 
 **Honesty rule:** cold-start, warm-unchanged-screen and changed-frame numbers are
 different conditions and are never merged. OCR geometric coverage is honestly
@@ -158,20 +213,33 @@ drag it onto `OpenCometBench/dashboard.html`. Full methodology:
 | Client resource use (20%) | INT8 models, WebGPU-first/WASM fallback, lazy-load, ~50–150 MB RAM, heap Δ0 in browser run |
 | E2E latency (15%) | Memoized re-hits, session warm-up, speed profiles, shot-reuse on unchanged screens |
 
-## What changed in v1.16.0
+## What's new in v1.29.0
 
-Latest release — **local-perception cost round**: session vision warm-up
-(`VISION_WARMUP`), unchanged-screen **OCR memo** (mirrors the detector memos),
-`run-e2e-real.mjs --warmup` steady-state flag, and a measured negative result on
-YOLO input downscaling. One-paragraph summaries of every round since v1.14 live in
-**[`docs/changelog/`](docs/changelog/INDEX.md)** — one file per version.
+- **Upgraded dom-detector** — interactive-element detection with visual tagging:
+  every clickable control is boxed on-screen with a numeric badge, and the
+  element list carries the same number as its identity — one identity per
+  control across screenshot, prompt and click. Cursor-first interactivity,
+  shadow DOM + same-origin iframes, top-element guard, registry/xpath
+  relocation. How it works:
+  [`docs/guides/DOM_DETECTOR.md`](docs/guides/DOM_DETECTOR.md).
+- **Streaming failure ladder** — 45 s idle watchdog, 150 s attempt / 300 s total
+  caps, budget ×2 → thinking-off → non-stream fallback, plus a **402
+  credit-fit refit** that rescales `max_tokens` to what the gateway balance can
+  afford instead of killing the run.
+- **Diagnostics guide rebuilt** — line anatomy, `VLM-REQ / VLM-RAW / VLM-RES`
+  groups, failure kinds with interactive diagrams, export how-to.
+
+Earlier rounds — Firefox support from one source tree (v1.17.0), the
+Task Authorization Daemon (v1.18.0), disambiguation of repeated controls
+(v1.19.0) — are summarised in
+**[`docs/changelog/`](docs/changelog/INDEX.md)**, one file per version.
 
 ## Documentation
 
 | Folder | Contents |
 |---|---|
-| [`docs/changelog/`](docs/changelog/INDEX.md) | Release notes v1.14 → v1.16.0, one file per version |
-| [`docs/guides/`](docs/guides/GETTING_STARTED.md) | Getting started, features, demo script, developer guide, FAQ, Gemma 4, diagnostics |
+| [`docs/changelog/`](docs/changelog/INDEX.md) | Release notes v1.14 → v1.29.0, one file per version |
+| [`docs/guides/`](docs/guides/GETTING_STARTED.md) | Getting started, features, demo script, developer guide, FAQ, Gemma 4, diagnostics, DOM detector |
 | [`docs/sih/`](docs/sih/SIH_READINESS.md) | SIH readiness per version, claim-by-claim novelty, gap analysis, distribution |
 | [`docs/architecture/`](docs/architecture/PRIVACY_VISION.md) | Privacy architecture deep-dive + file-by-file guide |
 | [`docs/research/`](docs/research/vlm-speed-research.md) | Measured VLM latency research behind the speed profiles |

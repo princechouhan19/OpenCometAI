@@ -160,7 +160,25 @@ Thinking models can return `200 OK` with **no visible text**: the model
 spends minutes on invisible reasoning, hits the token cap or holds the SSE
 stream open without emitting anything (observed at 290 s on
 `qwen3-vl-235b-a22b-thinking`). The OpenAI-compatible provider now guards
-every attempt:
+every attempt.
+
+One decision turn, end to end — every arrow is a log line you can grep:
+
+```mermaid
+sequenceDiagram
+  participant SW as sw.js — privacy loop
+  participant P as providers.js
+  participant GW as Gateway — OpenRouter / custom / Ollama
+  SW->>P: decideViaServer → callAI
+  Note over P: VLM-REQ · prompt chars · image count
+  P->>GW: attempt s1r0j1 — stream + json + reasoning
+  GW-->>P: 200 SSE
+  Note over P: TTFT logged on first token<br/>idle watchdog 45 s · attempt cap 150 s
+  GW-->>P: content + usage
+  Note over P: VLM-RAW · model text before JSON parsing
+  P->>P: parseJSON
+  P-->>SW: VLM-RES · JSON action
+```
 
 | Guard | Behavior |
 |---|---|
@@ -193,6 +211,28 @@ Only `400`/`422` (unknown parameter) walk down the rungs; auth, rate-limit
 and network errors surface immediately. If your model name contains
 `-thinking`, the escalation log suggests the `-instruct` variant — in
 practice it answers in a few seconds per turn.
+
+The whole ladder as a diagram — including the 402 credit-fit refit:
+
+```mermaid
+flowchart TD
+  START["VLM-REQ · attempt s1r0j1<br/>stream + json + reasoning"] --> RES{"Result"}
+  RES -->|"text received"| OK["VLM-RAW → parseJSON → VLM-RES"]
+  RES -->|"empty or stalled<br/>idle > 45 s · attempt > 150 s"| E1["×2 token budget<br/>s1r0j1·x2"]
+  E1 --> E2["thinking off<br/>s1r0j1·x2-nothink"]
+  E2 --> E3["next rung · json dropped<br/>s1r0j0"]
+  E3 --> E4["non-streaming fallback<br/>s0r0j0"]
+  E4 --> DEAD["gave up after 300 s total"]
+  E1 --> RES
+  E2 --> RES
+  E3 --> RES
+  E4 --> RES
+  RES -->|"402 · can only afford N"| FIT["credit-fit refit<br/>max_tokens = 85% of N<br/>retry the SAME rung"]
+  FIT --> RES
+  RES -->|"400 / 422"| RUNG["drop a rung<br/>(unknown parameter)"]
+  RUNG --> E3
+  RES -->|"401 / 429 / 5xx / network"| THROW["throw — failure kind logged"]
+```
 
 ---
 
