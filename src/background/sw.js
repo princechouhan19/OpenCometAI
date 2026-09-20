@@ -1059,7 +1059,9 @@ async function takeScreenshot(tabId, pageInfo = {}) {
   let overlayReady = false;
   try {
     await chrome.tabs.update(tabId, { active: true });
-    overlayReady = await injectScreenshotOverlay(tabId, pageInfo);
+    // the DOM detector paints its own tagged boxes during the scan — the
+    // legacy bounds overlay is only used when that did not happen
+    overlayReady = pageInfo.domBoxesPainted ? false : await injectScreenshotOverlay(tabId, pageInfo);
     if (overlayReady) await sleep(80);
     await chrome.debugger.attach({ tabId }, '1.3');
     attached = true;
@@ -1187,6 +1189,9 @@ async function removeScreenshotOverlay(tabId) {
     target: { tabId },
     func: () => {
       document.getElementById('__opencomet_capture_overlay')?.remove();
+      // DOM-detector boxes (painted at scan time) are removed with the same
+      // teardown path so post-screenshot cleanup covers both painters
+      document.getElementById('oc-dom-highlight-container')?.remove();
     },
   }).catch(() => {});
 }
@@ -1199,12 +1204,48 @@ function dbg(tabId, method, params = {}) {
   );
 }
 
+// DOM DETECTOR — full-page interactive-element scan with visual tagging.
+// Runs the content-script engine (src/content/dom-detector.js): cursor-aware
+// interactivity, shadow DOM, same-origin iframes, elementFromPoint checks.
+// Boxes painted during the scan are captured by the next screenshot.
+async function runDomDetector(tabId, options) {
+  const scanCall = args =>
+    chrome.scripting.executeScript({
+      target: { tabId },
+      func: opts => (typeof window.__openCometDomDetect === 'function' ? window.__openCometDomDetect(opts) : null),
+      args: [args],
+    });
+
+  let results;
+  try {
+    results = await scanCall(options);
+  } catch {
+    return null; // page not injectable (chrome://, discard) — caller falls back
+  }
+  if (!results?.[0]?.result) {
+    // engine not on the page yet (pre-registration load) — inject and retry
+    try {
+      await chrome.scripting.executeScript({ target: { tabId }, files: ['src/content/dom-detector.js'] });
+      results = await scanCall(options);
+    } catch {
+      return null;
+    }
+  }
+  return results?.[0]?.result || null;
+}
+
 async function getPageInfo(tabId) {
   try {
+    const detector = await runDomDetector(tabId, { paint: true, maxElements: 150 });
+    const detectedItems = detector?.items || [];
+    // detector output wins when it found anything; the inline scan below
+    // stays as the fallback path and always supplies text/heading data.
+    const skipElementScan = Boolean(detector) && detectedItems.length > 0;
+
     const results = await chrome.scripting.executeScript({
       target: { tabId },
-      args:   [tabId],
-      func: (currentTabId) => {
+      args:   [tabId, skipElementScan],
+      func: (currentTabId, elementScanSkipped) => {
         const UID  = 'data-opencomet-agent-uid';
         const norm = v => String(v || '').replace(/\s+/g, ' ').trim();
         const vis  = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'; };
@@ -1243,10 +1284,13 @@ async function getPageInfo(tabId) {
           }
           return parts.join(' > ').substring(0, 180);
         };
+        let items = [];
+        // when the DOM detector already produced the element inventory, the
+        // legacy tag-scan is skipped and only text/structure data is gathered
+        if (!elementScanSkipped) {
         const interSel = 'a[href],button,[role="button"],[role="searchbox"],input,textarea,select,[role="textbox"],[contenteditable],summary';
         const rawEls   = [...document.querySelectorAll(interSel)].filter(vis);
         const seen     = new Set();
-        const items    = [];
         for (const el of rawEls) {
           const text    = norm(el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || el.title).substring(0, 120);
           const ph      = norm(el.placeholder || el.getAttribute('aria-label')).substring(0, 120);
@@ -1351,6 +1395,8 @@ async function getPageInfo(tabId) {
           }
           for (const it of items) { delete it.__dupKey; delete it.nearHint; }
         } catch { /* disambiguation is additive — never break the scan */ }
+        } // end legacy element scan
+
         const scroller = document.scrollingElement || document.documentElement;
         const top = window.scrollY, height = document.body?.scrollHeight || 0, ch = window.innerHeight;
         const mainCandidate = document.querySelector('main, article, [role="main"], #main, .main') || document.body;
@@ -1383,7 +1429,16 @@ async function getPageInfo(tabId) {
         };
       },
     });
-    return results?.[0]?.result || {};
+    const base = results?.[0]?.result || {};
+    if (skipElementScan && detectedItems.length) {
+      base.interactiveElements = detectedItems;
+      base.inputs = detectedItems.filter(i => i.editable).slice(0, 20).map(i => ({ uid: i.uid, type: i.type || i.tag, name: i.placeholder || i.text || i.name || i.uid, selector: i.selector }));
+      base.links = detectedItems.filter(i => i.href).slice(0, 25).map(i => ({ uid: i.uid, text: i.text || i.uid, href: i.href, selector: i.selector }));
+      base.clickables = detectedItems.filter(i => ['link', 'button'].includes(i.role)).slice(0, 50);
+      base.domBoxesPainted = Boolean(detector.painted);
+      if (detector.viewport) base.viewport = detector.viewport;
+    }
+    return base;
   } catch { return {}; }
 }
 

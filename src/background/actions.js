@@ -831,6 +831,10 @@ function getInteractiveContext(action, agentState) {
     href: matched.href || '',
     placeholder: matched.placeholder || '',
     domPath: matched.domPath || '',
+    // detector-provided xpath — the most precise relocation key when the
+    // uid attribute lookup misses (SPA re-render, shadow-root content)
+    xpath: matched.xpath || '',
+    tag: matched.tag || '',
     ariaLabel: matched.ariaLabel || '',
     bounds: matched.bounds || null,
     editable: Boolean(matched.editable),
@@ -1423,6 +1427,52 @@ function domClick(sel, context = null) {
     }
   };
 
+  // DETECTOR-ALIGNED RELOCATION
+  // The detector stamps uids across the page INCLUDING same-origin iframes
+  // and shadow roots — a plain top-document querySelector reaches neither.
+  // Lookup order: live registry (handles both), then the uid attribute
+  // across the main document and every accessible iframe document.
+  const eachRoot = callback => {
+    for (const root of [document]) callback(root);
+    for (const frame of document.querySelectorAll('iframe')) {
+      try {
+        if (frame.contentDocument) callback(frame.contentDocument);
+      } catch { /* cross-origin */ }
+    }
+  };
+  const byUid = uidValue => {
+    const want = String(uidValue || '').trim();
+    if (!want) return null;
+    const registry = window.__openCometElRegistry;
+    const registered = registry && typeof registry.get === 'function' ? registry.get(want) : null;
+    if (registered && registered.isConnected) return registered;
+    let hit = null;
+    eachRoot(root => {
+      if (hit) return;
+      try { hit = root.querySelector(`[data-opencomet-agent-uid="${escAttr(want)}"]`) || null; } catch { hit = null; }
+    });
+    return hit;
+  };
+  const byXPath = xp => {
+    const path = String(xp || '').trim();
+    if (!path) return null;
+    const evalIn = doc => {
+      try {
+        const full = path.startsWith('/') || path.startsWith('(') ? path : `/${path}`;
+        const node = doc.evaluate(full, doc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        return node instanceof Element ? node : null;
+      } catch { return null; }
+    };
+    let hit = evalIn(document);
+    if (!hit) {
+      eachRoot(root => {
+        if (hit || root === document) return;
+        hit = evalIn(root);
+      });
+    }
+    return hit;
+  };
+
   const byBounds = bounds => {
     if (!bounds) return null;
     const x = Math.max(1, Math.min(window.innerWidth - 1, Math.round(bounds.x + Math.max(4, bounds.w / 2))));
@@ -1515,7 +1565,8 @@ function domClick(sel, context = null) {
   const uid = String(sel).match(/^uid:(.+)$/);
   if (!element) {
     if (uid) {
-      element = document.querySelector('[data-opencomet-agent-uid="' + escAttr(uid[1]) + '"]');
+      element = byUid(uid[1]);
+      if (!element && context?.xpath) element = byXPath(context.xpath);
       if (element) resolution = 'uid';
     } else if (String(sel).startsWith('text:')) {
       element = byText(String(sel).slice(5));
@@ -1550,7 +1601,12 @@ function domClick(sel, context = null) {
 
   if ((!element || !visible(element)) && context) {
     if (context.uid) {
-      element = document.querySelector('[data-opencomet-agent-uid="' + escAttr(context.uid) + '"]');
+      element = byUid(context.uid);
+      if (element) resolution = resolution || 'uid-ctx';
+    }
+    if ((!element || !visible(element)) && context.xpath) {
+      element = byXPath(context.xpath);
+      if (element) resolution = 'xpath';
     }
     if ((!element || !visible(element)) && context.ref) {
       // the inventory's canonical duplicate name — exact-control fallback
@@ -1735,6 +1791,39 @@ function domType(sel, val, context = null) {
     )
   ].filter(el => isEditable(el) && visible(el));
 
+  // DETECTOR-ALIGNED RELOCATION — mirrors domClick: registry first (reaches
+  // shadow-root content), then the uid attribute across accessible frames.
+  const resolveUid = uidValue => {
+    const want = String(uidValue || '').trim();
+    if (!want) return null;
+    const registry = window.__openCometElRegistry;
+    const registered = registry && typeof registry.get === 'function' ? registry.get(want) : null;
+    if (registered && registered.isConnected) return registered;
+    const roots = [document];
+    for (const frame of document.querySelectorAll('iframe')) {
+      try { if (frame.contentDocument) roots.push(frame.contentDocument); } catch { /* cross-origin */ }
+    }
+    for (const root of roots) {
+      try {
+        const el = root.querySelector(`[data-opencomet-agent-uid="${escAttr(want)}"]`);
+        if (el) return el;
+      } catch { /* invalid selector */ }
+    }
+    return null;
+  };
+  const resolveXPath = xp => {
+    const path = String(xp || '').trim();
+    if (!path) return null;
+    const evalIn = doc => {
+      try {
+        const full = path.startsWith('/') || path.startsWith('(') ? path : `/${path}`;
+        const node = doc.evaluate(full, doc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        return node instanceof Element ? node : null;
+      } catch { return null; }
+    };
+    return evalIn(document);
+  };
+
   // Resolve the target element
   let element = null;
   const escAttr = v => String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -1751,7 +1840,7 @@ function domType(sel, val, context = null) {
   const uidM = !element && String(sel).match(/^uid:(.+)$/);
   if (uidM) {
     // Primary: the element with that UID
-    const byUid = document.querySelector('[data-opencomet-agent-uid="' + escAttr(uidM[1]) + '"]');
+    const byUid = resolveUid(uidM[1]) || (context?.xpath ? resolveXPath(context.xpath) : null);
     if (byUid && isEditable(byUid) && visible(byUid)) {
       element = byUid;
     } else if (byUid) {
@@ -1762,6 +1851,9 @@ function domType(sel, val, context = null) {
       );
       if (child && isEditable(child) && visible(child)) element = child;
     }
+  } else if (!element && context?.xpath) {
+    const xpEl = resolveXPath(context.xpath);
+    if (xpEl && isEditable(xpEl) && visible(xpEl)) element = xpEl;
   } else if (!element && String(sel).startsWith('text:')) {
     const txt = norm(String(sel).slice(5));
     element = editables.find(el =>
@@ -2126,7 +2218,23 @@ function domScroll(dir, px) {
 
 function domScrollToUid(uid) {
   const escAttr = v => String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  const el = document.querySelector('[data-opencomet-agent-uid="' + escAttr(uid) + '"]');
+  // registry first (shadow-root content), then the uid attribute across
+  // accessible frames — same relocation order as domClick/domType
+  const registry = window.__openCometElRegistry;
+  let el = registry && typeof registry.get === 'function' ? registry.get(String(uid || '').trim()) : null;
+  if (el && !el.isConnected) el = null;
+  if (!el) {
+    const roots = [document];
+    for (const frame of document.querySelectorAll('iframe')) {
+      try { if (frame.contentDocument) roots.push(frame.contentDocument); } catch { /* cross-origin */ }
+    }
+    for (const root of roots) {
+      try {
+        el = root.querySelector('[data-opencomet-agent-uid="' + escAttr(uid) + '"]');
+        if (el) break;
+      } catch { /* invalid uid */ }
+    }
+  }
   if (!el) return { ok: false, reason: 'uid not found: ' + uid };
   el.scrollIntoView({ block: 'center', inline: 'center' });
   return { ok: true };
