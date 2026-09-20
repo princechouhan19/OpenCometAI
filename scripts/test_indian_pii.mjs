@@ -1,11 +1,9 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_indian_pii.mjs — SIH v1.15.2 Indian ID expansion unit test.
 // Validates the field-reported gov-form leak fix + every new ID family:
 //   partial PAN (context-gated), Voter ID/EPIC, passport (context-gated),
 //   driving licence (context-gated), IFSC, UPI VPA, GSTIN, bank account,
 //   CVV assignment, Aadhaar VID (16-digit Verhoeff).
 // Run: node scripts/test_indian_pii.mjs
-// ─────────────────────────────────────────────────────────────────────────────
 import {
   detectPiiInTextSync, verhoeffValid, luhnValid, maskForType,
 } from '../src/lib/pii-detector.js';

@@ -1,15 +1,13 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/background/actions.js
 // DOM action executors — each action type runs inside the target tab.
 // Native browser tools (bookmarks, saves, monitors, skills) run in the SW.
 // Imported and called by the agent loop in sw.js.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { sleep } from '../lib/utils.js';
 import { getAllSkills } from '../lib/skills.js';
 import { searchPageParts, highlightPart } from '../lib/page-rag.js';
 import { findInHistory } from '../lib/vector-history.js';
-// v1.15 TAB-GROUP SANDBOX: shared boundary logic (same module the SW uses).
+// TAB-GROUP SANDBOX: shared boundary logic (same module the SW uses).
 import { ensureTaskGroup, filterToSandbox } from '../lib/tab-sandbox.js';
 
 /**
@@ -19,9 +17,9 @@ import { ensureTaskGroup, filterToSandbox } from '../lib/tab-sandbox.js';
 export async function executeAction(tabId, action, agentState) {
   switch (action.type) {
 
-    // ── Navigate ───────────────────────────────────────────────────────────
+    // Navigate
     case 'navigate': {
-      // SIH Phase 16: URL allow-list — the VLM must not steer the browser onto
+      // URL allow-list — the VLM must not steer the browser onto
       // browser-internal or non-web schemes (chrome://, file://, javascript:,
       // data:). Only http(s) passes.
       const navUrl = String(action.url || '').trim();
@@ -33,44 +31,42 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, url: tab.url, tabId: tab.id };
     }
 
-    // ── Click ──────────────────────────────────────────────────────────────
+    // Click
     case 'click': {
       const clickContext = {
         ...(getInteractiveContext(action, agentState) || {}),
         x: Number.isFinite(Number(action.x)) ? Number(action.x) : null,
         y: Number.isFinite(Number(action.y)) ? Number(action.y) : null,
       };
-      // ── Action verification ────────────────────────────────────────────
+      // Action verification
       // Synthetic clicks on modern SPA players (YouTube etc.) are sometimes
       // silently ignored — the old code reported "success" because the DOM
       // call didn't throw, and the VLM declared the task done while nothing
       // had happened. We now fingerprint the page BEFORE and AFTER and feed
       // the honest diff back to the model + console.
       const before = await inject(tabId, domPageFingerprint);
-      // v1.11: collapsed field-group aware click resolution (Gmail opens the
+      // collapsed field-group aware click resolution (Gmail opens the
       // compose dialog with the recipients row collapsed — the "To" input is
       // only created after the visible "Recipients" chip is clicked).
       const result = await executeClickWithExpansion(tabId, action.selector || action.text || '', clickContext);
       if (!result?.ok) throw new Error(clickFailMessage(result));
       await sleep(750);   // let SPA state settle (playback toggles, navigations)
       let after = await inject(tabId, domPageFingerprint);
-      // SIH: ignore media TIME drift for non-media actions — 750ms of video
+      // ignore media TIME drift for non-media actions — 750ms of video
       // playback always drifted >0.35s and faked "PAGE CHANGED" for dead clicks.
       let verification = diffFingerprints(before, after, { ignoreMediaTime: true });
-      // v1.15 NAVIGATION LENS: when the click NAVIGATED, the post-action
+      // NAVIGATION LENS: when the click NAVIGATED, the post-action
       // injection legitimately fails (the document is mid-teardown) and
-      // diffFingerprints reports "fingerprint unavailable → no change".
-      // Before v1.15 that verdict was then masked to "VERIFIED" on EVERY site
-      // by the mail-probe composeClosed=true bug (the user's YouTube field
-      // log caught it: "mail send flow advanced" on a Music-nav click). The
-      // tab itself is the honest signal source: if the tab's URL/title moved
-      // vs the pre-click fingerprint, the click DID navigate. Strictly scoped
-      // to `!after` — it can never inflate a readable-page verdict.
+      // diffFingerprints reports "fingerprint unavailable → no change" —
+      // a verdict that must not be read as "nothing happened". The tab
+      // itself is the honest signal source: if the tab's URL/title moved
+      // vs the pre-click fingerprint, the click DID navigate. Strictly
+      // scoped to `!after` — it can never inflate a readable-page verdict.
       if (!after && before) {
         const nav = await tabNavigationSignal(tabId, before);
         if (nav) verification = nav;
       }
-      // v1.11 trusted-input fallback: a synthetic (isTrusted=false) click that
+      // trusted-input fallback: a synthetic (isTrusted=false) click that
       // verifies as ineffective is re-dispatched as REAL browser input via the
       // DevTools protocol (chrome.debugger). Hardened widgets (Gmail Send,
       // player controls) ignore synthetic events but must honor real ones.
@@ -92,14 +88,13 @@ export async function executeAction(tabId, action, agentState) {
           console.log(`[Open Comet] Trusted-click fallback unavailable: ${trusted.reason}`);
         }
       }
-      // SIH: mail/compose success signals — clicking Send closes the compose
+      // mail/compose success signals — clicking Send closes the compose
       // window and raises a "Message sent" toast, which the structural
       // fingerprint can miss while the dialog is mid-teardown. Probe the
       // explicit success markers before declaring "no visible change".
-      // v1.15 HOST GATE: the probe only makes sense on mail hosts. Field log
-      // (v1.14.3, YouTube): with no compose dialog ever present,
-      // composeClosed=true fired and the history claimed "mail send flow
-      // advanced" for a Music-nav click — confusing honesty for the VLM.
+      // HOST GATE: the probe only makes sense on mail hosts. On other pages
+      // composeClosed=true fires with no compose dialog ever present and
+      // the history would claim a mail send that never happened.
       if (!verification.changed && await isMailHostTab(tabId)) {
         try {
           const mail = await inject(tabId, verifyMailSendOutcome);
@@ -125,7 +120,7 @@ export async function executeAction(tabId, action, agentState) {
       return result;
     }
 
-    // ── Media control (direct <video>/<audio> drive) ───────────────────────
+    // Media control (direct <video>/<audio> drive)
     // Reliable fallback for player UI clicks that pages ignore: this drives
     // the media element itself, exactly like OS-level media keys do.
     case 'media':
@@ -144,7 +139,7 @@ export async function executeAction(tabId, action, agentState) {
 
       const afterMedia = await inject(tabId, domMediaState);
 
-      // SIH: REAL verification — compare playback STATE (paused/muted), never a
+      // REAL verification — compare playback STATE (paused/muted), never a
 
       // null baseline (the old code always reported success) and never currentTime
 
@@ -154,7 +149,7 @@ export async function executeAction(tabId, action, agentState) {
 
       const mediaChanged = sig(beforeMedia) !== sig(afterMedia);
 
-      // v1.15.1 HONEST NO-OP (field log: "media play" on an ALREADY playing
+      // HONEST NO-OP (field log: "media play" on an ALREADY playing
       // video → "verified=NO CHANGE" → the VLM burned a full extra turn
       // re-playing and only recovered by luck). A no-op that leaves the media
       // in the REQUESTED state is a VERIFIED success, not a verification
@@ -192,13 +187,13 @@ export async function executeAction(tabId, action, agentState) {
       return result;
     }
 
-    // ── Type / Fill ────────────────────────────────────────────────────────
+    // Type / Fill
     case 'type':
     case 'fill': {
       const fieldContext = getInteractiveContext(action, agentState);
       const buildArgs = () => [action.selector, action.text ?? action.value ?? '', fieldContext];
       let result = await inject(tabId, domType, ...buildArgs());
-      // v1.11: the requested field may not exist yet — Gmail compose opens
+      // the requested field may not exist yet — Gmail compose opens
       // with the recipients row COLLAPSED ("Recipients" chip; the To <input>
       // is created only after the chip is clicked). domType reports
       // needExpand + tokens; we click the group toggle, wait for the row to
@@ -220,7 +215,7 @@ export async function executeAction(tabId, action, agentState) {
       if (!result?.ok) {
         throw new Error((result?.reason || `Type failed: ${action.selector}`) + (result?.inventory ? ` — on page: ${result.inventory}` : ''));
       }
-      // SIH Phase 16: propagate read-back verification — a typed value that
+      // propagate read-back verification — a typed value that
       // didn't stick is a STALL for the loop governor (same as an ineffective
       // click), not a silent success.
       if (result.verified === false) {
@@ -232,16 +227,16 @@ export async function executeAction(tabId, action, agentState) {
       return result;
     }
 
-    // ── Key press ──────────────────────────────────────────────────────────
+    // Key press
     case 'press_key':
     case 'key': {
       const before = await inject(tabId, domPageFingerprint);
       await inject(tabId, domKey, action.key || 'Return');
       await sleep(600);
       const after = await inject(tabId, domPageFingerprint);
-      // SIH: same ignoreMediaTime rule as clicks (a playing video faked change).
+      // same ignoreMediaTime rule as clicks (a playing video faked change).
       let verification = diffFingerprints(before, after, { ignoreMediaTime: true });
-      // v1.15: same navigation lens as clicks (Ctrl+Enter sends → navigate).
+      // same navigation lens as clicks (Ctrl+Enter sends → navigate).
       if (!after && before) {
         const nav = await tabNavigationSignal(tabId, before);
         if (nav) verification = nav;
@@ -250,9 +245,9 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, key: action.key, changed: verification.changed, verification };
     }
 
-    // ── Submit form ────────────────────────────────────────────────────────
+    // Submit form
     case 'submit': {
-      // SIH v1.14: submit previously returned domSubmit's ok with NO effect
+      // submit previously returned domSubmit's ok with NO effect
       // verification — an SPA in-place submission (no navigation) read as an
       // unverified fire-and-forget. Verify with the same fingerprint diff the
       // click path uses (content signatures catch in-place success messages).
@@ -268,7 +263,7 @@ export async function executeAction(tabId, action, agentState) {
       return result;
     }
 
-    // ── Scroll ─────────────────────────────────────────────────────────────
+    // Scroll
     case 'scroll': {
       const result = await inject(tabId, domScroll, action.direction || 'down', action.amount || 600);
       if (!result?.ok) throw new Error('Scroll failed');
@@ -281,7 +276,7 @@ export async function executeAction(tabId, action, agentState) {
       return result;
     }
 
-    // ── Scroll to UID ──────────────────────────────────────────────────────
+    // Scroll to UID
     case 'scroll_to_uid': {
       const uid = String(action.uid || action.selector || '').replace(/^uid:/, '');
       const result = await inject(tabId, domScrollToUid, uid);
@@ -289,19 +284,19 @@ export async function executeAction(tabId, action, agentState) {
       return result;
     }
 
-    // ── Scroll to text ─────────────────────────────────────────────────────
+    // Scroll to text
     case 'scroll_to_text': {
       const result = await inject(tabId, domScrollToText, action.text || action.selector || '');
       if (!result?.ok) throw new Error(result?.reason || 'scroll_to_text failed');
       return result;
     }
 
-    // ── Wait ───────────────────────────────────────────────────────────────
+    // Wait
     case 'wait':
       await sleep(action.ms || 2000);
       return { ok: true, waitedMs: action.ms || 2000 };
 
-    // ── Extract (passive — next loop reads the result) ─────────────────────
+    // Extract (passive — next loop reads the result)
     case 'extract':
       await inject(tabId, (sel) => {
         return [...document.querySelectorAll(sel || 'body')]
@@ -310,9 +305,9 @@ export async function executeAction(tabId, action, agentState) {
       }, action.selector || 'body');
       return { ok: true };
 
-    // ── New tab ────────────────────────────────────────────────────────
+    // New tab
     case 'new_tab': {
-      // v1.16.1 SANDBOX FIX: new_tab created tabs with the model-provided URL
+      // SANDBOX FIX: new_tab created tabs with the model-provided URL
       // UNCHECKED, while navigate enforces http(s)-only — a prompt-injected
       // model could open chrome://settings, file:// or the Web Store from a
       // "sandboxed" run. Same allow-list as navigate now applies.
@@ -323,7 +318,7 @@ export async function executeAction(tabId, action, agentState) {
       const tab = await chrome.tabs.create({ url: newTabUrl || 'about:blank', active: true });
       agentState.agentTabId = tab.id;
       agentState.taskTabIds = [...new Set([...(agentState.taskTabIds || []), tab.id])];
-      // v1.15 TAB-GROUP SANDBOX: task tabs open INSIDE the task group — the
+      // TAB-GROUP SANDBOX: task tabs open INSIDE the task group — the
       // visible sandbox boundary. Previously the new tab landed at the end of
       // the window, outside the group (and with legacy throwaway state this
       // action even crashed on spreading `undefined`).
@@ -332,7 +327,7 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, tabId: tab.id, url: tab.url, sandbox: 'task-group' };
     }
 
-    // ── Switch tab ─────────────────────────────────────────────────────────
+    // Switch tab
     case 'switch_tab': {
       const targetId = resolveTabId(action, agentState);
       if (!targetId) throw new Error('No task tab matched switch_tab target');
@@ -343,12 +338,12 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, tabId: targetId, url: tab.url };
     }
 
-    // ── Close tab ────────────────────────────────────────────────────────
+    // Close tab
     case 'close_tab': {
       const closeId = resolveTabId(action, agentState) || tabId;
       if (Number.isInteger(closeId) && Array.isArray(agentState.taskTabIds) && agentState.taskTabIds.length
           && !agentState.taskTabIds.includes(closeId)) {
-        // v1.15 TAB-GROUP SANDBOX: resolveTabId is already sandbox-bounded;
+        // TAB-GROUP SANDBOX: resolveTabId is already sandbox-bounded;
         // this guard keeps the `|| tabId` fallback from ever escaping it.
         throw new Error('close_tab refused — target tab is outside the task sandbox');
       }
@@ -362,7 +357,7 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, tabId: closeId };
     }
 
-    // ── Search ─────────────────────────────────────────────────────────────
+    // Search
     case 'search': {
       const result = await inject(tabId, domSearch, action.query || '', getSearchContext(agentState));
       if (!result?.ok) throw new Error(result?.reason || 'Search action failed');
@@ -373,7 +368,7 @@ export async function executeAction(tabId, action, agentState) {
     // These run purely in the service worker via chrome.* APIs — no DOM
     // injection needed. They power the skills in /skills/*.md.
 
-    // ── Bookmark current/other page ──────────────────────────────────────────
+    // Bookmark current/other page
     case 'bookmark_add': {
       const url   = String(action.url || agentState.lastPageInfo?.url || '').trim();
       const title = String(action.title || agentState.lastPageInfo?.title || url || 'Untitled').trim();
@@ -385,7 +380,7 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, bookmark: { title: created.title, url: created.url }, folder: folder.title };
     }
 
-    // ── Search bookmarks ─────────────────────────────────────────────────────
+    // Search bookmarks
     case 'bookmark_search': {
       const query = String(action.query || '').trim();
       const found = query ? await chrome.bookmarks.search(query) : await chrome.bookmarks.search({});
@@ -396,9 +391,9 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, count: results.length, results };
     }
 
-    // ── Save current page as MHTML archive ──────────────────────────────────
+    // Save current page as MHTML archive
     case 'save_page': {
-      // v1.17.0: chrome.pageCapture is Chromium-only — fail with an honest,
+      // chrome.pageCapture is Chromium-only — fail with an honest,
       // actionable message on Firefox instead of a TypeError.
       if (!chrome.pageCapture?.captureMHTML) {
         throw new Error('save_page needs Chromium (chrome.pageCapture is unavailable on this browser). Use screenshot_save instead.');
@@ -411,9 +406,9 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, filename, downloadId };
     }
 
-    // ── Save visible screenshot ─────────────────────────────────────────────
+    // Save visible screenshot
     case 'screenshot_save': {
-      // v1.15 TAB-GROUP SANDBOX: captureVisibleTab photographs the ACTIVE tab
+      // TAB-GROUP SANDBOX: captureVisibleTab photographs the ACTIVE tab
       // of the window — if the visible tab is not a task tab, re-focus the
       // sandbox first so the agent never screenshots (and saves) a foreign
       // page. Legacy contexts without taskTabIds keep the old behavior.
@@ -440,12 +435,12 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, filename, downloadId };
     }
 
-    // ── Organize tabs: group by host / close duplicates ──────────────────────
+    // Organize tabs: group by host / close duplicates
     case 'organize_tabs': {
       const mode = String(action.mode || 'group');
       const tabs = await chrome.tabs.query({ currentWindow: true });
       const agentIds = new Set(agentState.taskTabIds || []);
-      // v1.15 TAB-GROUP SANDBOX: scope EVERY organizing (grouping AND closing)
+      // TAB-GROUP SANDBOX: scope EVERY organizing (grouping AND closing)
       // to the task's own tabs. Previously this action regrouped and even
       // CLOSED the user's other tabs window-wide — the opposite of a sandbox.
       const candidates = filterToSandbox(agentState, tabs).filter(t => /^https?:/i.test(t.url || ''));
@@ -488,7 +483,7 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, closed, groups: groupsMade };
     }
 
-    // ── Reading list ─────────────────────────────────────────────────────────
+    // Reading list
     case 'read_later_add': {
       const url   = String(action.url || agentState.lastPageInfo?.url || '').trim();
       const title = String(action.title || agentState.lastPageInfo?.title || url || 'Untitled').trim();
@@ -511,7 +506,7 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, count: merged.length, items: merged.slice(-20).reverse() };
     }
 
-    // ── Page monitor (alarms + notification on change) ───────────────────────
+    // Page monitor (alarms + notification on change)
     case 'monitor_start': {
       const url        = String(action.url || agentState.lastPageInfo?.url || '').trim();
       const intervalMin = Math.min(240, Math.max(5, Number(action.intervalMin) || 15));
@@ -537,7 +532,7 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, monitor: { url, intervalMin, checkText: checkText || '(any change)' } };
     }
 
-    // ── Activate a library skill mid-task (model-invoked) ────────────────────
+    // Activate a library skill mid-task (model-invoked)
     case 'use_skill': {
       const requested = String(action.id || action.skill || '').trim();
       if (!requested) throw new Error('use_skill needs a skill id from the SKILL LIBRARY');
@@ -557,9 +552,9 @@ export async function executeAction(tabId, action, agentState) {
 
     // ══ Page-RAG + semantic tools (gemma4-browser-extension ports) ═════════
 
-    // ── List open tabs (feed switch_tab/close_tab decisions) ──────────────
+    // List open tabs (feed switch_tab/close_tab decisions)
     case 'list_tabs': {
-      // v1.15 TAB-GROUP SANDBOX: the agent may only see its OWN task tabs.
+      // TAB-GROUP SANDBOX: the agent may only see its OWN task tabs.
       // The old behavior listed EVERY window tab — user tabs (banking, mail,
       // personal sites) leaked their titles+URLs into the VLM prompt, and the
       // model was invited to reason about pages outside the sandbox.
@@ -585,7 +580,7 @@ export async function executeAction(tabId, action, agentState) {
       };
     }
 
-    // ── Semantic search over the CURRENT page (RAG) ───────────────────────
+    // Semantic search over the CURRENT page (RAG)
     case 'ask_website': {
       const query = String(action.query || '').trim();
       if (!query) throw new Error('ask_website needs a query');
@@ -604,7 +599,7 @@ export async function executeAction(tabId, action, agentState) {
       };
     }
 
-    // ── Scroll to + highlight a section by its ask_website ID ─────────────
+    // Scroll to + highlight a section by its ask_website ID
     case 'highlight_element': {
       const id = String(action.id || action.selector || '').trim();
       if (!id) throw new Error('highlight_element needs a section id from ask_website results');
@@ -613,7 +608,7 @@ export async function executeAction(tabId, action, agentState) {
       return { ok: true, id };
     }
 
-    // ── Semantic browsing-history search ──────────────────────────────────
+    // Semantic browsing-history search
     case 'find_history': {
       const query = String(action.query || '').trim();
       if (!query) throw new Error('find_history needs a query');
@@ -628,13 +623,13 @@ export async function executeAction(tabId, action, agentState) {
     }
 
     default:
-      // SIH: unknown action types were silently reported {ok:true} — a fake
+      // unknown action types were silently reported {ok:true} — a fake
       // success that poisoned the loop's honest-history invariant.
       throw new Error(`Unknown action type: "${String(action.type || '').slice(0, 40)}"`);
   }
 }
 
-// ─── Native tool helpers ───────────────────────────────────────────────────────
+// Native tool helpers
 
 async function ensureAgentBookmarkFolder() {
   const tree = await chrome.bookmarks.getTree();
@@ -728,7 +723,7 @@ async function resolveSkill(requested) {
   }
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// Helpers
 
 async function inject(tabId, fn, ...args) {
   try {
@@ -740,7 +735,7 @@ async function inject(tabId, fn, ...args) {
   }
 }
 
-// ── v1.11: collapsed field-group orchestration ──────────────────────────────
+// collapsed field-group orchestration
 // Gmail compose (field log, 25-step failed run): the dialog opens with the
 // recipients row COLLAPSED — the visible chip reads "Recipients" and the
 // "To" <input> simply does not exist until the chip is clicked (user
@@ -768,7 +763,7 @@ function clickFailMessage(result) {
   return result?.inventory ? `${base} — on page: ${result.inventory}` : base;
 }
 
-// v1.11: REAL (trusted) click via the DevTools protocol. Some hardened
+// REAL (trusted) click via the DevTools protocol. Some hardened
 // widgets ignore synthetic events (isTrusted=false) no matter how realistic
 // the event sequence is — Gmail's Send button survived 6 synthetic clicks in
 // the field log. chrome.debugger input events are delivered through the
@@ -780,7 +775,7 @@ async function trustedClick(tabId, rect) {
   const x = Math.round((rect?.x || 0) + w / 2);
   const y = Math.round((rect?.y || 0) + h / 2);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, reason: 'no click coordinates' };
-  // v1.17.0: chrome.debugger is Chromium-only — Firefox degrades to synthetic
+  // chrome.debugger is Chromium-only — Firefox degrades to synthetic
   // clicks with an honest reason instead of a cryptic TypeError.
   if (!chrome.debugger) return { ok: false, reason: 'trusted (debugger) clicks need Chromium — synthetic click attempted on this browser' };
   const target = { tabId };
@@ -839,7 +834,7 @@ function getInteractiveContext(action, agentState) {
     ariaLabel: matched.ariaLabel || '',
     bounds: matched.bounds || null,
     editable: Boolean(matched.editable),
-    // v1.19.0: canonical duplicate name + receipt tags — lets domClick resolve
+    // canonical duplicate name + receipt tags — lets domClick resolve
     // "Buy Now #2" to the EXACT repeated control the inventory showed.
     ref: matched.ref || '',
     dup: matched.dup || '',
@@ -883,14 +878,14 @@ function getSearchContext(agentState) {
   return { candidates: searchCandidates };
 }
 
-// ─── Page functions injected into tabs ──────────────────────────────────────
+// Page functions injected into tabs
 // These run inside the page context — no closures over outer scope.
 
 // Cheap page fingerprint used for action verification. Must stay
 // self-contained (it is serialized into the page).
 //
 
-// ── SIH Phase 16: media STATE probe (before/after for the media action) ─────
+// media STATE probe (before/after for the media action)
 // Returns the paused/muted signature of every <video>/<audio> — deliberately
 // excludes currentTime (drifts while playing → would fake "changed").
 function domMediaState() {
@@ -901,10 +896,10 @@ function domMediaState() {
   ];
 }
 
-// v1.15: mail-send probe host gate. Reads the LIVE tab URL (the state graph
+// mail-send probe host gate. Reads the LIVE tab URL (the state graph
 // may be stale) and only allows the compose/toast probe on actual mail hosts,
 // so unrelated sites never get "mail send flow advanced" verification copy.
-// v1.16.1: EXPORTED — sw.js's auto-done "Email sent successfully" path now
+// EXPORTED — sw.js's auto-done "Email sent successfully" path now
 // gates its detectEmailSent() probe behind this same host check (previously
 // a click on ANY page whose body text contained the word "sent" could end
 // the task with a false "email sent").
@@ -918,7 +913,7 @@ export async function isMailHostTab(tabId) {
   }
 }
 
-// ── SIH: mail/compose send-success probe (runs in the PAGE) ──────────────────
+// mail/compose send-success probe (runs in the PAGE)
 // Gmail Send closes the [role=dialog][aria-label="New Message"] window and
 // raises an aria-live toast ("Message sent" / "Sending…"). The structural
 // fingerprint can miss this during the dialog's teardown animation.
@@ -937,13 +932,13 @@ function verifyMailSendOutcome() {
   return { composeClosed: !composeOpen, sent, toast };
 }
 
-// v1.11: adds DIALOGS + FOCUS + EDITABLE census. The old fingerprint
+// adds DIALOGS + FOCUS + EDITABLE census. The old fingerprint
 // (url/title/scroll/videos) was BLIND to in-dialog state: in the field log
 // the Gmail compose recipients row expanded ("Recipients" → "To Cc Bcc")
 // with zero fingerprint movement, so verified-dead clicks thrashed the VLM
 // for 17 steps; and the Send click that actually worked couldn't be told
 // apart from the ones that didn't (dialog never closed in the fingerprint).
-// SIH v1.14: CONTENT + CONTROL + CANVAS signatures for action verification.
+// CONTENT + CONTROL + CANVAS signatures for action verification.
 // The structural fingerprint (url/title/scroll/dialogs/focus) is BLIND to the
 // most common effect of a successful click: content that appears IN PLACE —
 // a result list unhidden, a success message revealed, a tab's inner content
@@ -954,19 +949,15 @@ function verifyMailSendOutcome() {
 //   controls   — count of toggled states (aria-expanded/pressed, :checked)
 //   canvasSig  — 8×8 downsample hash of the first canvases (canvas apps)
 //
-// v1.15 CRITICAL FIX — PAGE-INJECTED FUNCTIONS MUST BE SELF-CONTAINED.
-// chrome.scripting.executeScript serializes ONLY the `func` it is handed;
-// the four helpers above lived as TOP-LEVEL functions in actions.js, so in
-// the page's isolated world `visibleContentSig` / `controlStates` /
-// `canvasSigs` / `shortHash` simply did not exist → the injected fingerprint
-// threw ReferenceError → inject() resolved null for BEFORE *and* AFTER on
-// EVERY page since v1.14. Click verification then ran on the (host-gated in
-// v1.15) mail-probe crutch — the user's YouTube field log ("mail send
-// signals detected" on a Music-nav click) was this bug talking. The helpers
-// now live INSIDE the fingerprint function, matching the self-containment
-// convention of every other page-injected function (domClick, domType, …).
+// PAGE-INJECTED FUNCTIONS MUST BE SELF-CONTAINED.
+// chrome.scripting.executeScript serializes ONLY the `func` it is handed —
+// top-level helpers do not exist in the page's isolated world, and the
+// injected fingerprint would throw ReferenceError for BEFORE *and* AFTER,
+// silently disabling click verification. Every helper lives INSIDE the
+// fingerprint function, matching the convention of the other page-injected
+// functions (domClick, domType, …).
 function domPageFingerprint() {
-  // ── self-contained helpers (serialized with the function) ─────────────────
+  // self-contained helpers (serialized with the function)
   function shortHash(str) {
     let h1 = 0x811c9dc5, h2 = 0x1000193;
     for (let i = 0; i < str.length; i++) {
@@ -1027,7 +1018,7 @@ function domPageFingerprint() {
     } catch { return ''; }
   }
 
-  // ── structural fingerprint ────────────────────────────────────────────────
+  // structural fingerprint
   const agentOwned = el => {
     try { return !!(el && el.closest && el.closest('#open-comet-agent-overlay,#open-comet-redaction-viz,[id^="open-comet-"]')); }
     catch { return false; }
@@ -1074,7 +1065,7 @@ function domPageFingerprint() {
     dialogs,
     editables: editableCount(document.body),
     focused,
-    // SIH v1.14: content/control/canvas signatures — catch in-place effects
+    // content/control/canvas signatures — catch in-place effects
     // (revealed results, success messages, toggles, canvas redraws) that the
     // structural fields cannot see.
     contentSig: visibleContentSig(),
@@ -1083,7 +1074,7 @@ function domPageFingerprint() {
   };
 }
 
-// v1.15 NAVIGATION LENS — SW-side helper for the `!after` case (the document
+// NAVIGATION LENS — SW-side helper for the `!after` case (the document
 // was mid-navigation, so the in-page fingerprint could not be read). The tab
 // itself is the signal: a URL or title change vs the pre-action fingerprint
 // is a REAL page change. Returns a verification object or null (keep the
@@ -1108,7 +1099,7 @@ async function tabNavigationSignal(tabId, before) {
 
 // Diff two fingerprints (both may be null if injection failed).
 // NOTE: runs in the service worker, NOT in the page.
-// SIH: opts.ignoreMediaTime — non-media actions (click/type/key) must not
+// opts.ignoreMediaTime — non-media actions (click/type/key) must not
 // treat free-running video currentTime drift as "page changed".
 function diffFingerprints(before, after, opts = {}) {
   if (!after) return { changed: false, summary: 'post-action fingerprint unavailable (page busy/navigating?)' };
@@ -1135,7 +1126,7 @@ function diffFingerprints(before, after, opts = {}) {
   }
   if ((before.audios || []).length !== (after.audios || []).length) mediaChanged = true;
 
-  // ── v1.11: in-dialog signals ───────────────────────────────────────────
+  // in-dialog signals
   const dialogChanged = JSON.stringify(before.dialogs || []) !== JSON.stringify(after.dialogs || []);
   const bE = before.editables || 0;
   const aE = after.editables || 0;
@@ -1154,7 +1145,7 @@ function diffFingerprints(before, after, opts = {}) {
   if (dialogChanged) parts.push('dialog state changed');
   if (editablesChanged) parts.push(`fields ${bE}→${aE}`);
   if (focusChanged) parts.push(`focus → ${after.focused.tag}${after.focused.label ? ` "${after.focused.label}"` : ''}`);
-  // SIH v1.14: content / control-state / canvas signatures. A video's own
+  // content / control-state / canvas signatures. A video's own
   // pixels feed NO signature here (contentSig is text-only), and playing
   // media does not change visible text — so ignoreMediaTime semantics hold.
   let contentChanged = false;
@@ -1175,7 +1166,7 @@ function diffFingerprints(before, after, opts = {}) {
 
 // Direct playback control over the page's most visible media element.
 // Works even when player UI clicks are swallowed by the page (YouTube…).
-// v1.9: do NOT drop zero-area <video> elements — YouTube Music keeps its
+// do NOT drop zero-area <video> elements — YouTube Music keeps its
 // player mounted but invisible (0×0) until playback starts, so the old
 // area>0 filter reported "No <video> or <audio> element" while
 // domPageFingerprint saw videos=1 (field log: 3 wasted VLM rounds).
@@ -1218,10 +1209,10 @@ function domMediaControl(command) {
 }
 
 function domClick(sel, context = null) {
-  // ── shared helpers (self-contained — this function is serialized) ──────
+  // shared helpers (self-contained — this function is serialized)
   const escAttr = v => String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const norm    = v => String(v || '').replace(/\s+/g, ' ').trim().toLowerCase();
-  // v1.11: NEVER match the extension's own injected UI. Field-log proof: the
+  // NEVER match the extension's own injected UI. Field-log proof: the
   // overlay's status line echoes the current action description, so the old
   // generic text scan matched IT and the agent clicked ITSELF for 17 steps
   // (matched="click \"the to field in the new message window\"").
@@ -1245,7 +1236,7 @@ function domClick(sel, context = null) {
   const clickableAncestor = el =>
     el?.closest?.('a, button, [role=button], [role=option], [role=menuitem], input[type=button], input[type=submit], label, summary') || el;
 
-  // ── v1.11 field-aware helpers (mirror of lib/field-matching.js) ────────
+  // field-aware helpers (mirror of lib/field-matching.js)
   const FIELD_QUERY_RE = /\b(field|input|box|textbox|textarea|editor|recipients?|subject|search bar|search box|email field|password|message body|compose body|body)\b/i;
   const FIELD_STOP = new Set([
     'the', 'a', 'an', 'and', 'or', 'of', 'in', 'into', 'on', 'at', 'to', 'for',
@@ -1355,7 +1346,7 @@ function domClick(sel, context = null) {
     ...document.querySelectorAll('[role=option], [role=menuitem], [role=listitem], [role=row], [role=gridcell], [role=tab], [role=treeitem], li'),
   ];
 
-  // ── v1.9: SCORED text matching ────────────────────────────────────────
+  // SCORED text matching
   // The old finder took the FIRST partial match in document order, so the
   // needle "play" matched the sidebar button "New playlist"
   // ("new playlist".includes("play") is true) and the click OPENED A DIALOG
@@ -1367,7 +1358,7 @@ function domClick(sel, context = null) {
   //   plain substring       =  35
   // minus a small penalty for LONG labels (shorter labels are more precise),
   // and interactive-pool elements always outrank generic ones at equal score.
-  // v1.11: overlay/agent-owned elements are excluded via visible().
+  // overlay/agent-owned elements are excluded via visible().
   const scoreMatch = (labelText, needle) => {
     if (!labelText || !needle) return -1;
     if (labelText === needle) return 100;
@@ -1398,7 +1389,7 @@ function domClick(sel, context = null) {
     if (poolHit) return poolHit;
     // Generic fallback: scan leaf-ish elements with the SAME scoring so a
     // div named "New playlist" can no longer beat a real button.
-    // v1.11: additionally exclude BODY/HTML and ANY element that CONTAINS
+    // additionally exclude BODY/HTML and ANY element that CONTAINS
     // agent-owned UI — containers whose innerText includes the overlay's
     // action echo used to win the substring match (the field-log "matched=
     // click \"the to field…\"" self-click ran through exactly this hole).
@@ -1445,7 +1436,7 @@ function domClick(sel, context = null) {
     return visible(hit) ? hit : null;
   };
 
-  // ── v1.19.0 ORDINAL / DISAMBIGUATION helpers (mirror of lib/element-disambiguate.js) ──
+  // ORDINAL / DISAMBIGUATION helpers (mirror of lib/element-disambiguate.js)
   // "Buy Now #2" — the ref name the inventory emits for repeated tags — must
   // resolve to the EXACT 2nd equal-labeled control, never a silent first tie.
   const ORDINAL_RE = /^(.*\S)\s*#\s*(\d{1,3})(?:\s*(?:of|\/)\s*(\d{1,3}))?$/;
@@ -1497,7 +1488,7 @@ function domClick(sel, context = null) {
   let resolution = '';
   let rect = null;
 
-  // ── v1.19.0 ORDINAL PRE-RESOLUTION ──────────────────────────────────────────
+  // ORDINAL PRE-RESOLUTION
   // Out-of-range ordinals fail HONESTLY with the group size (the model can
   // recover by picking #1…#N); an empty group falls through to the standard
   // chain on the base text — a selector that merely LOOKS ordinal stays usable.
@@ -1535,7 +1526,7 @@ function domClick(sel, context = null) {
         if (q && visible(q)) { element = q; resolution = 'css'; }
       } catch {}
       if (!element) {
-        // v1.11: VLMs quote the on-screen label — "the blue 'Send' button" —
+        // VLMs quote the on-screen label — "the blue 'Send' button" —
         // try that quoted span as exact text before anything else.
         const quoted = (String(sel).match(/['"“]([^'"“]{1,60})['”]/) || [])[1];
         if (quoted) {
@@ -1562,7 +1553,7 @@ function domClick(sel, context = null) {
       element = document.querySelector('[data-opencomet-agent-uid="' + escAttr(context.uid) + '"]');
     }
     if ((!element || !visible(element)) && context.ref) {
-      // v1.19.0: the inventory's canonical duplicate name — exact-control fallback
+      // the inventory's canonical duplicate name — exact-control fallback
       const ordCtx = parseOrdinal(context.ref);
       if (ordCtx) {
         const g = dupGroup(ordCtx.base);
@@ -1599,7 +1590,7 @@ function domClick(sel, context = null) {
 
   rect = press(target);
 
-  // ── v1.19.0 DISAMBIGUATION RECEIPT — proof of WHICH control fired ───────
+  // DISAMBIGUATION RECEIPT — proof of WHICH control fired
   // For repeated tags the result carries the same receipt the inventory
   // showed: dup "2 of 4" · pos "top-left" · nearform <context> · "Buy Now #2".
   let disambiguation = null;
@@ -1634,7 +1625,7 @@ function domClick(sel, context = null) {
   };
 }
 
-// ── v1.11: click a COLLAPSED FIELD-GROUP toggle so hidden inputs appear ─────
+// click a COLLAPSED FIELD-GROUP toggle so hidden inputs appear
 // Gmail compose: the "Recipients" chip → clicking it creates the To <input>
 // ("To … Cc Bcc" row). Generic vocabulary + query-token overlap; destructive
 // labels are hard-excluded. Self-contained (serialized into the page).
@@ -1701,7 +1692,7 @@ function domExpandToggle(tokens = []) {
   return { ok: true, label: pick.lbl };
 }
 
-// ─── domType: handles <input>, <textarea>, AND contenteditable divs ──────────
+// domType: handles <input>, <textarea>, AND contenteditable divs
 //
 // KEY FIX: Gmail's compose body is a contenteditable div. Setting .value or
 // .textContent on it breaks Gmail's internal React state and the type silently
@@ -1722,7 +1713,7 @@ function domType(sel, val, context = null) {
     }
   };
 
-  // ── Is this element something we can type into? ──────────────────────────
+  // Is this element something we can type into?
   const isEditable = el => {
     if (!el) return false;
     // contenteditable in any form
@@ -1744,11 +1735,11 @@ function domType(sel, val, context = null) {
     )
   ].filter(el => isEditable(el) && visible(el));
 
-  // ── Resolve the target element ────────────────────────────────────────────
+  // Resolve the target element
   let element = null;
   const escAttr = v => String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
-  // v1.11: "focused" — type into whatever currently has focus. Newly opened
+  // "focused" — type into whatever currently has focus. Newly opened
   // dialogs (Gmail compose, share sheets, search overlays) focus their first
   // field, so this is the cheapest reliable path right after opening one.
   if (/^\s*(focused|focus|active ?element|current (field|input))\s*$/i.test(String(sel))) {
@@ -1781,7 +1772,7 @@ function domType(sel, val, context = null) {
     if (element && (!isEditable(element) || !visible(element))) element = null;
   }
 
-  // ── SIH: Gmail PeopleKit / focus-state-agnostic recipient targeting ─────
+  // Gmail PeopleKit / focus-state-agnostic recipient targeting
   // Gmail's recipient <input> swaps its aria-label/placeholder between
   // "Recipients" (inactive) and "To" / "To recipients" (active/focused) —
   // the field log showed 8 selector guesses failing for exactly this reason.
@@ -1812,7 +1803,7 @@ function domType(sel, val, context = null) {
     }
   }
 
-  // ── v1.11 fuzzy field matching ────────────────────────────────────────────
+  // fuzzy field matching
   // Old fallback required EVERY token of the description to appear in the
   // hints of ONE element — "the To field in the New Message compose window"
   // could never match anything. Now: stopword-filtered tokens are SCORED
@@ -1884,7 +1875,7 @@ function domType(sel, val, context = null) {
     }
   }
 
-  // ── v1.11 failure → teach, don't dead-end ────────────────────────────────
+  // failure → teach, don't dead-end
   if (!element) {
     // Inventory: which fields/toggles ARE present (drives the VLM's next try)
     let inventory = '';
@@ -1930,7 +1921,7 @@ function domType(sel, val, context = null) {
   element.scrollIntoView({ block: 'center' });
   element.focus();
 
-  // ── Branch A: contenteditable (Gmail compose, Outlook, Slack, Notion…) ───
+  // Branch A: contenteditable (Gmail compose, Outlook, Slack, Notion…)
   const isContentEditable =
     element.isContentEditable ||
     element.getAttribute?.('contenteditable') === 'true' ||
@@ -2009,13 +2000,13 @@ function domType(sel, val, context = null) {
       }
     } catch (_) {}
 
-    // SIH Phase 16: report field metadata so the loop can mask typed
+    // report field metadata so the loop can mask typed
     // secrets in history before they reach the next prompt.
     return { ok: true, method: 'contenteditable', appended: !isEmpty,
       fieldType: 'contenteditable', fieldSensitive: false, verified: true };
   }
 
-  // ── Branch B: standard <input> / <textarea> ───────────────────────────────
+  // Branch B: standard <input> / <textarea>
   const proto  = element.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
   const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
   if (setter) setter.call(element, val);
@@ -2025,7 +2016,7 @@ function domType(sel, val, context = null) {
   element.dispatchEvent(new Event('input',  { bubbles: true }));
   element.dispatchEvent(new Event('change', { bubbles: true }));
 
-  // ── SIH Phase 16: READ-BACK VERIFICATION — the old code reported ok without
+  // READ-BACK VERIFICATION — the old code reported ok without
   // checking the value landed. React-controlled fields can silently revert;
   // the VLM then built on a field it believed was filled.
   const fieldType = String(element.type || element.tagName || '').toLowerCase();
@@ -2042,7 +2033,7 @@ function domType(sel, val, context = null) {
   return { ok: true, method: 'input', fieldType, fieldSensitive, verified };
 }
 
-// v1.11: modifier-combo support. The old implementation treated
+// modifier-combo support. The old implementation treated
 // "Control+Enter" as a single key name and dispatched a nonsense
 // KeyboardEvent(key="Control+Enter") — so the VLM could never use the
 // universal "Ctrl+Enter sends the compose" escape hatch (Gmail field log:

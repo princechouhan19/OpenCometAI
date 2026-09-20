@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/background/privacy-loop.js
 // Privacy-aware agent loop — alternative to the standard OpenComet loop.
 // Triggered when the user enables "Privacy Mode" in the side panel.
@@ -11,7 +10,6 @@
 //
 // Every screenshot is sanitised BEFORE any network call.  The server only
 // ever sees redacted pixels + redacted text + the redaction manifest.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { captureAndSanitize, decideViaServer, configurePrivacy, getPrivacySettings, resolvePrivacyTab } from '../lib/privacy-agent.js';
 import { getProviderCapabilities } from '../lib/providers.js';
@@ -19,20 +17,20 @@ import { executeAction, describeAction } from './actions.js';
 import { sleep } from '../lib/utils.js';
 import { MSG, STEP_TYPE } from '../lib/constants.js';
 import { planQueueActions, detectPlaybackIntent } from '../lib/agent-context.js';
-// v1.18.0 TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
+// TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
 // user's own text to authorize them; fault-shutdown + 3-hit honest exit.
-// v1.19.0: + DAEMON COUNTER (per-run + lifetime gate accounting).
+// + DAEMON COUNTER (per-run + lifetime gate accounting).
 import { authorizeAction, GUARDIAN_HIT_LIMIT, createGuardianCounter, tallyGuardian, mergeGuardianLifetime } from '../lib/guardian-daemon.js';
 import { strategyHintFor } from '../lib/field-matching.js';
 import { sendToOffscreen } from '../lib/offscreen-client.js';
 import { firewallStatusForInspector } from '../lib/privacy-firewall.js';
 
-// v1.16.1: the loop cap now honors Settings → Max steps. The hardcoded 25
+// the loop cap now honors Settings → Max steps. The hardcoded 25
 // meant the Settings slider silently did not apply to Privacy Mode.
 const DEFAULT_MAX_STEPS = 25;
 const MAX_STEPS_CAP = 100;
 
-// ── SIH v1.14: FOUR-STATE ACTION VERIFICATION ACCOUNTING ─────────────────
+// SIH FOUR-STATE ACTION VERIFICATION ACCOUNTING
 // The old binary "verified / not verified" conflated two very different
 // outcomes: "the verifier RAN and says nothing changed" and "the action
 // failed to dispatch". The SIH brief requires the four states below. A
@@ -46,7 +44,7 @@ const MAX_STEPS_CAP = 100;
 function verifyStateOf(result) {
   if (!result?.ok) return 'ACTION_FAILED';
   if (result?.changed === true) return 'ACTION_VERIFIED';
-  // v1.15.1: a no-op that leaves the media in the REQUESTED state is a
+  // a no-op that leaves the media in the REQUESTED state is a
   // verified outcome, not an inconclusive one (see actions.js alreadyInState).
   if (result?.alreadyInState) return 'ACTION_VERIFIED';
   if (result?.changed === false) return 'VERIFICATION_FAILED';
@@ -65,11 +63,11 @@ function logVerifyState(step, action, result, extra = {}) {
   } catch { /* telemetry must never break the loop */ }
 }
 
-// SIH Phase 22: per-run latency aggregation (measured, never estimated).
+// per-run latency aggregation (measured, never estimated).
 // Emitted in the DONE summary → History + SIH Scorecard ACTUAL column.
 const runTiming = { sanitizeMs: [], vlmMs: [], actionMs: [] };
 
-// v1.16.1: bounded, abortable wait for a mid-run user reply (ask_user).
+// bounded, abortable wait for a mid-run user reply (ask_user).
 // Resolves with the reply text, '__aborted__' when the abort signal fires,
 // or null when the wait window elapsed. Only notes that arrive AFTER the
 // wait started are consumed — earlier notes stay for the next decision turn.
@@ -116,13 +114,13 @@ function latencyProfile(t) {
  */
 export async function runPrivacyAgent(ctx) {
   const { task, settings, onStep, onDone, onError, signal } = ctx;
-  // v1.15.1 ASK-BEFORE-ACTING: when the task started in 'ask' mode the SW
+  // ASK-BEFORE-ACTING: when the task started in 'ask' mode the SW
   // supplies approvalGate — the loop awaits it before EVERY browser action
   // (primary and queued). Verdicts: 'approved' | 'skip' | 'stop'.
   const askBeforeActing = Boolean(ctx.askBeforeActing) && typeof ctx.approvalGate === 'function';
   const approvalGate = askBeforeActing ? ctx.approvalGate : null;
   let tabId = ctx.tabId; // mutable — follows the live tab if the original is closed
-  // v1.15 TAB-GROUP SANDBOX: live agent state (when the SW supplies it) —
+  // TAB-GROUP SANDBOX: live agent state (when the SW supplies it) —
   // gives tab actions real taskTabIds enforcement and the capture step the
   // sandbox member list. Legacy callers that omit it keep the old behavior.
   const stateRef = ctx.state || null;
@@ -130,37 +128,37 @@ export async function runPrivacyAgent(ctx) {
   const history = [];
   let stepCount = 0;
   const runT0 = Date.now();
-  // ── SIH v1.15.2: PER-TASK PRIVACY CENSUS (measured, never estimated) ──
+  // SIH PER-TASK PRIVACY CENSUS (measured, never estimated)
   // Totals across the FRESH frames of THIS run only (memo-reused frames are
   // identical pixels — not re-counted). Emitted in the DONE summary so the
   // SIH Scorecard's live per-task row / History report what THIS task
   // actually redacted, instead of only importing offline benchmark files.
   const runPii = { frames: 0, faces: 0, dom: 0, objects: 0, textPii: 0, ocr: 0, lastInspector: null };
   const caps = getProviderCapabilities(settings);
-  // v1.11 loop governor: consecutive ineffective/failed PRIMARY actions drive
+  // loop governor: consecutive ineffective/failed PRIMARY actions drive
   // an escalating STRATEGY HINT into the next decision prompt. Field log: the
   // Gmail To-field failure looped 17 near-identical selector guesses (~10 min
   // of VLM time) because nothing told the model to change APPROACH.
   let stallCount = 0;
   let hintLevel = 0;
   let pendingHint = '';
-  // v1.16.1: honor the user's max-steps setting (clamped to a sane range).
+  // honor the user's max-steps setting (clamped to a sane range).
   const maxSteps = Math.max(1, Math.min(MAX_STEPS_CAP, Number(settings?.maxSteps) || DEFAULT_MAX_STEPS));
 
-  // ── v1.18.0 TASK AUTHORIZATION DAEMON ────────────────────────────────────
+  // TASK AUTHORIZATION DAEMON
   // Blocked purchase/deletion attempts in THIS run; the 3rd block ends the
   // task honestly. Mirrored into stateRef (agentState) for the SW-side UI.
   let guardianHits = Number(stateRef?.guardianHits) || 0;
-  // v1.19.0 DAEMON COUNTER: same accounting the standard loop keeps — every
+  // DAEMON COUNTER: same accounting the standard loop keeps — every
   // authorizeAction verdict tallies here, flushed to the lifetime store on
   // exit (and by the SW finalize paths for runs that end there).
   if (stateRef && !stateRef.guardianCounter) stateRef.guardianCounter = createGuardianCounter();
 
   // Honest terminal exit for daemon faults and 3-hit exits — terminal step +
-  // history entry + onDone (same finalize idiom as the v1.16.1 zombie fix).
+  // history entry + onDone.
   const finalizeGuardianStop = async (message, step) => {
     history.push({ action: { type: 'guardian_stop' }, result: message, latencyMs: 0, step, blockedByGuardian: true });
-    // v1.19.0 DAEMON COUNTER: a guardian exit is a counter event too — flush
+    // DAEMON COUNTER: a guardian exit is a counter event too — flush
     // the run's accounting to the lifetime store before reporting the stop.
     try {
       const c = stateRef?.guardianCounter;
@@ -212,8 +210,8 @@ export async function runPrivacyAgent(ctx) {
       const stepT0 = Date.now();
       stepCount++;
 
-      // ── 1) Capture + sanitize ───────────────────────────────────────────
-      // v1.8: THINKING (not SCREENSHOT) — the SW drops imageless SCREENSHOT steps
+      // 1) Capture + sanitize
+      // THINKING (not SCREENSHOT) — the SW drops imageless SCREENSHOT steps
       // and the raw-broadcast fallback that used to render them is gone.
       onStep?.(STEP_TYPE.THINKING, `Capturing & sanitizing screen (step ${stepCount})…`, {
         step: stepCount, phase: 'capture-sanitize',
@@ -221,14 +219,14 @@ export async function runPrivacyAgent(ctx) {
       const sanitized = await captureAndSanitize(tabId, {}, { tabIds: sandboxTabIds() });
       // Follow the tab that was actually captured — survives the original
       // task tab being closed and keeps actions on the visible page.
-      // v1.15: that follow is now sandbox-constrained (privacy-agent.js only
+      // that follow is now sandbox-constrained (privacy-agent.js only
       // ever returns a tab inside { tabIds }, or throws honestly when the
       // sandbox is empty).
       if (Number.isInteger(sanitized.usedTabId) && sanitized.usedTabId !== tabId) {
         tabId = sanitized.usedTabId;
         onStep?.(STEP_TYPE.THINKING, 'Following the newly selected tab…', { step: stepCount, phase: 'tab-followed', tabId });
       }
-      // v1.15 TAB-GROUP SANDBOX: the visible/active tab drifted OUT of the
+      // TAB-GROUP SANDBOX: the visible/active tab drifted OUT of the
       // task group mid-run (user clicked another tab, or a page stole focus).
       // captureVisibleTab photographs the ACTIVE tab — the capture layer
       // re-focused the sandbox tab instead of photographing a foreign page.
@@ -236,7 +234,7 @@ export async function runPrivacyAgent(ctx) {
         onStep?.(STEP_TYPE.MUTED, 'Active tab left the task group — re-focused the task tab so the capture stays inside the sandbox.', { step: stepCount, phase: 'sandbox-refocus' });
       }
 
-      // ── SIH v1.15.2: per-task privacy census (fresh frames only) ───────
+      // SIH per-task privacy census (fresh frames only)
       if (sanitized.stats?.counts && !sanitized.stats?.reusedShot) {
         runPii.frames += 1;
         runPii.faces   += sanitized.stats.counts.faces || 0;
@@ -257,7 +255,7 @@ export async function runPrivacyAgent(ctx) {
         sendToOffscreen({ type: 'ML_TOUCH' }).catch(() => {});
       }
 
-      // v1.10 shot reuse: when the page fingerprint is unchanged, the
+      // shot reuse: when the page fingerprint is unchanged, the
       // previous screenshot is re-used — don't push a duplicate SCREENSHOT
       // row into the chat; tell the user why the image is identical instead.
       if (sanitized.stats?.reusedShot) {
@@ -271,11 +269,11 @@ export async function runPrivacyAgent(ctx) {
           phase: 'sanitized',
           stats: sanitized.stats,
           page: sanitized.page,
-          // SIH Phase 25: REAL Privacy Inspector payload (firewall envelope).
+          // REAL Privacy Inspector payload (firewall envelope).
           inspector: sanitized.privacy
             ? firewallStatusForInspector(sanitized.privacy, (sanitized.sanitizedDataUrl || '').length)
             : null,
-          // v1.8: imageDataUrl (not just previewDataUrl) — pushStep DROPS
+          // imageDataUrl (not just previewDataUrl) — pushStep DROPS
           // SCREENSHOT steps without imageDataUrl, so the sanitized screenshot
           // never reached the chat. The sidepanel renders it as the same
           // clickable thumbnail the non-privacy loop shows — with the REDACTED
@@ -284,20 +282,20 @@ export async function runPrivacyAgent(ctx) {
           previewDataUrl: sanitized.sanitizedDataUrl,
         });
       }
-      // ── Page/DOM diagnostics in the console (debugging aid, user-requested)
+      // Page/DOM diagnostics in the console (debugging aid, user-requested)
       console.log(`[Open Comet] Step ${stepCount} page state · url=${sanitized.page?.url || '?'} · title="${sanitized.page?.title || ''}" · ` +
         `videos=${(sanitized.page?.videos || []).length} (playing=${(sanitized.page?.videos || []).filter(v => !v.paused).length}) · ` +
         `redactions: faces=${sanitized.stats?.counts?.faces ?? 0} dom=${sanitized.stats?.counts?.domSensitive ?? 0} yoloObj=${sanitized.stats?.counts?.objects ?? 0} textPii=${sanitized.stats?.counts?.textPii ?? 0} · ` +
         `sanitize=${sanitized.stats?.totalMs}ms`);
 
-      // ── 2) Ask the model for next action (server or fully on-device) ────
+      // 2) Ask the model for next action (server or fully on-device)
       const isOnDevice = String(settings?.provider || '').toLowerCase() === 'local';
       onStep?.(STEP_TYPE.API, isOnDevice
         ? 'Asking on-device model for next action (nothing leaves the browser)…'
         : 'Asking VLM for next action (server is redaction-aware)…', {
         step: stepCount, phase: isOnDevice ? 'ondevice-decide' : 'server-decide',
       });
-      // v1.15.1 LIVE USER CONTEXT: drain notes the user typed mid-run and
+      // LIVE USER CONTEXT: drain notes the user typed mid-run and
       // inject them into THIS decision prompt ("Add context while task
       // running"). Consumed exactly once — no re-injection on later steps.
       const pendingNotes = Array.isArray(stateRef?.userNotes) ? stateRef.userNotes.splice(0) : [];
@@ -316,7 +314,7 @@ export async function runPrivacyAgent(ctx) {
         manifestSummary: decision.manifestSummary,
       });
 
-      // ── 3) Parse + execute ──────────────────────────────────────────────
+      // 3) Parse + execute
       const plan = decision.actionPlan || {};
       // `let` (SIH): may be re-bound by the secret-echo guard when a typed
       // value landed in a sensitive field.
@@ -329,7 +327,7 @@ export async function runPrivacyAgent(ctx) {
       if (plan.is_complete || action.type === 'done') {
         history.push({ action, result: 'complete' });
         const totalMs = Date.now() - runT0;
-        // v1.15.6 FINAL RESPONSE: for information/summary tasks the answer text
+        // FINAL RESPONSE: for information/summary tasks the answer text
         // (action.message) IS the deliverable. Carry it end-to-end — result
         // card, History entry — instead of ending on a bare "Task complete".
         const finalAnswer = String(action?.message || action?.summary || action?.text || plan?.answer || '').trim();
@@ -345,9 +343,9 @@ export async function runPrivacyAgent(ctx) {
           finalAnswer,
           totalMs,
           totalLatencyMs: history.reduce((a, h) => a + (h.latencyMs || 0), 0),
-          // SIH Phase 22: measured P50/P90 latency profile for this run.
+          // measured P50/P90 latency profile for this run.
           latencyProfile: latencyProfile(runTiming),
-          // SIH v1.15.2: measured per-task privacy census (see runPii).
+          // measured per-task privacy census (see runPii).
           privacy: {
             frames: runPii.frames, faces: runPii.faces, dom: runPii.dom,
             objects: runPii.objects, textPii: runPii.textPii, ocr: runPii.ocr,
@@ -362,12 +360,12 @@ export async function runPrivacyAgent(ctx) {
         onStep?.(STEP_TYPE.PLAN_READY, `VLM is asking the user: ${action.message || plan.thought}`, {
           step: stepCount, phase: 'ask_user', action,
         });
-        // ── v1.16.1 FIX: ZOMBIE RUN. This was a bare `return` — the loop
-        // ended without onDone/onError/history, leaving agentState.running
-        // true, the PRV badge up and the run keepalive immortal. Worse, the
-        // firewall's fail-closed path (privacyBlockedDecision) returns
-        // EXACTLY this shape, so every network-gate block produced a zombie
-        // run. Two honest paths now:
+        // ZOMBIE-RUN GUARD: a bare `return` here ends the loop without
+        // onDone/onError/history — agentState.running stays true, the PRV
+        // badge stays up and the run keepalive goes immortal. The firewall's
+        // fail-closed path (privacyBlockedDecision) returns exactly this
+        // shape, so every network-gate block would produce a zombie run.
+        // Two honest paths:
         //   • privacyBlocked → TERMINAL: the user cannot unblock this turn,
         //     so finalize immediately with the block explanation.
         //   • genuine question → PAUSE: wait (bounded, abortable) for the
@@ -457,7 +455,7 @@ export async function runPrivacyAgent(ctx) {
         return;
       }
 
-      // ── v1.18.0 TASK AUTHORIZATION DAEMON (primary action) ──────────────
+      // TASK AUTHORIZATION DAEMON (primary action)
       // Purchase/delete clicks need authorization from the user's OWN text —
       // negated tasks ("do not purchase anything") are blocked too. Rejected
       // BEFORE the approval gate / executor. A block also OVERRIDES any
@@ -487,7 +485,7 @@ export async function runPrivacyAgent(ctx) {
         step: stepCount, phase: 'execute', action,
       });
 
-      // ── v1.15.1 ASK-BEFORE-ACTING: per-action approval gate ────────────
+      // ASK-BEFORE-ACTING: per-action approval gate
       // 'ask' mode pauses BEFORE every browser action; the sidepanel shows
       // an approval card. Approved → run · Skipped → honest history entry +
       // a fresh model decision next step · Stop → normal abort path.
@@ -508,7 +506,7 @@ export async function runPrivacyAgent(ctx) {
       let result;
       const actT0 = Date.now();
       try {
-        // v1.15 TAB-GROUP SANDBOX: pass the LIVE state (not a throwaway) so
+        // TAB-GROUP SANDBOX: pass the LIVE state (not a throwaway) so
         // tab actions (new_tab/switch_tab/close_tab/list_tabs/organize_tabs)
         // enforce taskTabIds membership and keep new tabs inside the group.
         result = await executeAction(tabId, action, stateRef || { settings });
@@ -517,7 +515,7 @@ export async function runPrivacyAgent(ctx) {
       }
       const actMs = Date.now() - actT0;
 
-      // ── SIH: SECRET ECHO GUARD — a typed value that went into a sensitive
+      // : SECRET ECHO GUARD — a typed value that went into a sensitive
       // field (password/OTP/CVV) must never reach the next VLM prompt via
       // history. Mask it HERE, at the source.
       if (result?.fieldSensitive && action.type !== 'done') {
@@ -526,7 +524,7 @@ export async function runPrivacyAgent(ctx) {
       }
       runTiming.actionMs.push(actMs);
 
-      // ── Honest result accounting: the model MUST know when a click was
+      // Honest result accounting: the model MUST know when a click was
       // dispatched but had zero effect on the page (YouTube players ignore
       // synthetic clicks) — otherwise it declares victory while the video
       // keeps playing (user-reported bug).
@@ -535,7 +533,7 @@ export async function runPrivacyAgent(ctx) {
       if (!result?.ok) {
         resultText = 'failed — ' + (result?.error || 'unknown');
       } else if (result?.alreadyInState) {
-        // v1.15.1 honest accounting (field log: "media play" on an ALREADY
+        // honest accounting (field log: "media play" on an ALREADY
         // playing video reported NO CHANGE → the model burned a full extra
         // turn re-playing). Verified no-op ≠ verification failure.
         resultText = 'ok — verified: the media was ALREADY in the requested state (nothing to do — do NOT repeat this action)';
@@ -559,7 +557,7 @@ export async function runPrivacyAgent(ctx) {
       });
       logVerifyState(stepCount, action, result);
 
-      // ── v1.11 loop governor: escalate strategy when the target keeps
+      // loop governor: escalate strategy when the target keeps
       // failing. A verified success resets the ladder. Level mapping:
       //   2 stalls → level 1 (expand collapsed group / type into focused)
       //   4 stalls → level 2 (keyboard Tab / pre-filling URL)
@@ -579,7 +577,7 @@ export async function runPrivacyAgent(ctx) {
       }
       hintLevel = newLevel;
 
-      // ── v1.9 AUTO-MEDIA RECOVERY (no VLM call) ───────────────────────────
+      // AUTO-MEDIA RECOVERY (no VLM call)
       // Field log: "click play glyph → no effect → VLM burns 2–3 full turns
       // rediscovering the media action each time (~2.5 min)". When the click
       // was playback-related, verified ineffective, and a <video> exists
@@ -616,7 +614,7 @@ export async function runPrivacyAgent(ctx) {
         }
       }
 
-      // ── v1.9 SPECULATIVE QUEUE (no VLM call per extra action) ────────────
+      // SPECULATIVE QUEUE (no VLM call per extra action)
       // The decision JSON may pre-authorize up to 2 follow-up actions that
       // the model believes still apply once the primary action VERIFIES.
       // We execute them in order, verifying each; the first "no visible
@@ -626,7 +624,7 @@ export async function runPrivacyAgent(ctx) {
       const queue = (result?.ok && result?.changed !== false) ? planQueueActions(plan) : [];
       for (const qAction of queue) {
         if (signal?.aborted) break;
-        // ── v1.18.0 TASK AUTHORIZATION DAEMON (speculative queue) ─────────
+        // TASK AUTHORIZATION DAEMON (speculative queue)
         // Queued actions are SPECULATIVE (no fresh VLM turn) — they get the
         // same gate, and a block OVERRIDES the rest of the queue: nothing
         // risky rides behind an approved one.
@@ -649,8 +647,8 @@ export async function runPrivacyAgent(ctx) {
             break;   // OVERRIDE: drop the remaining speculative queue
           }
         }
-        // v1.15.1 ASK-BEFORE-ACTING: queued actions are real browser actions
-        // — they get the same approval gate as primary ones.
+        // ASK-BEFORE-ACTING: queued actions are real browser actions
+        // they get the same approval gate as primary ones.
         if (approvalGate) {
           const qVerdict = await approvalGate(qAction, stepCount + 1);
           if (qVerdict === 'stop') throw new Error('Agent aborted by user');
@@ -721,7 +719,7 @@ export async function runPrivacyAgent(ctx) {
       history,
       finalThought: 'Max steps reached',
       totalMs: Date.now() - runT0,
-      // SIH v1.15.2: same privacy census on the max-steps exit path.
+      // same privacy census on the max-steps exit path.
       latencyProfile: latencyProfile(runTiming),
       privacy: {
         frames: runPii.frames, faces: runPii.faces, dom: runPii.dom,

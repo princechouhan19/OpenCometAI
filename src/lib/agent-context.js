@@ -1,8 +1,7 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/agent-context.js
 // Pure, dependency-free helpers that shape the CONTEXT the VLM sees each turn.
 //
-// v1.9.0 VLM-speed package (see docs/research/vlm-speed-research.md):
+// VLM-speed package (see docs/research/vlm-speed-research.md):
 //   • compactHistory()      — history window compaction so the prompt does not
 //                             grow every step (fewer prompt tokens + a stable
 //                             prefix improves provider KV/context cache hits).
@@ -14,7 +13,6 @@
 //                             loop can execute them WITHOUT extra VLM calls.
 // No chrome.* and no imports — safe to unit-test in Node and cheap to import
 // from any context (SW, offscreen, tests).
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Action types allowed inside a speculative queue (never navigate — context
  *  changes too much; never done/ask_user — those are decisions, not actions). */

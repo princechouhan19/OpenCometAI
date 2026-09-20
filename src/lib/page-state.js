@@ -57,7 +57,7 @@ function buildScreenshotAnchors(interactiveElements = []) {
       badge: Number(item.index || 0),
       uid: item.uid,
       selector: item.selector || `uid:${item.uid}`,
-      // v1.19.0: duplicates surface their canonical ordinal name ("Buy Now #2")
+      // duplicates surface their canonical ordinal name ("Buy Now #2")
       label: item.ref || item.label || item.text || '',
       role: item.role || '',
       domPath: item.domPath || '',

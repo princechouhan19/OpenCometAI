@@ -8,6 +8,7 @@ each file preserves the section that used to live in the root `README.md`
 
 | Version | File | Headline |
 |---|---|---|
+| v1.29.0 | [v1.29.0.md](./v1.29.0.md) | Streaming failure ladder (45s idle watchdog, 150s/300s caps, budget×2 → thinking-off → non-stream fallback) + diagnostics guide rebuilt + source-wide comment discipline |
 | v1.19.0 | [v1.19.0.md](./v1.19.0.md) | Disambiguation: repeated tags get `dup`/`pos`/`nearform`/`ref` receipts resolvable to the EXACT control (`"Buy Now #2"`) + Daemon Counter (per-run + lifetime gate accounting) + Hindi intent matching with both negation orders |
 | v1.18.0 | [v1.18.0.md](./v1.18.0.md) | Task Authorization Daemon: purchase/delete clicks authorized ONLY by the user's own task text (negation-enforced), fault shutdown, injection prevention, speculative-queue override, 3-hit honest exit |
 | v1.17.0 | [v1.17.0.md](./v1.17.0.md) | Firefox from one source tree (event-page backend, in-page ML runtime, sidebar-as-tab, `build-firefox.mjs`) + wire-guard byte-level line protection + `stateVersion` state gating |

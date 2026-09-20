@@ -1,16 +1,13 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/prompts.js
 // AI system prompt + plan/action prompt builders.
 // System prompt engineered by a senior prompt engineer for maximum reliability,
 // loop-resistance, selector precision, and clear completion criteria.
-// ─────────────────────────────────────────────────────────────────────────────
 
-// SIH Phase 15: prompt-injection defense. Page-derived content is fenced as
+// prompt-injection defense. Page-derived content is fenced as
 // UNTRUSTED DATA with a fresh per-prompt nonce — a page can never elevate
 // its own text to instructions.
 import { makeFenceNonce, fenceUntrusted, neutralizeUntrusted, injectionDefenseRules } from './prompt-defense.js';
 
-// ═══════════════════════════════════════════════════════════════════════════════
 // SYSTEM PROMPT
 // Design principles:
 //   1. Crystal-clear output contract — one JSON shape, zero ambiguity
@@ -19,7 +16,6 @@ import { makeFenceNonce, fenceUntrusted, neutralizeUntrusted, injectionDefenseRu
 //   4. Done criteria specified — agent knows when to stop, not just when to act
 //   5. Safety rules — no destructive actions without approval
 //   6. Skill awareness — agent knows to honour user-defined skills
-// ═══════════════════════════════════════════════════════════════════════════════
 export const SYSTEM_PROMPT = `\
 You are Open Comet — a precise, methodical, and reliable autonomous browser agent.
 You control a real Chrome browser tab on behalf of a user and must complete tasks efficiently with minimal unnecessary steps.
@@ -223,9 +219,7 @@ The "answer" MUST contain the actual result — findings, prices, comparisons, d
 not vague statements like "I completed the task" or "Done".
 Structure the answer with clear sections if it covers multiple points.`;
 
-// ═══════════════════════════════════════════════════════════════════════════════
 // PLAN PROMPT BUILDER
-// ═══════════════════════════════════════════════════════════════════════════════
 export function buildPlanPrompt(task, pageInfo, screenshot, options = {}) {
   const {
     profile     = 'default',
@@ -293,9 +287,7 @@ Return ONLY the PLANNING JSON (no other text).
 • "estimated_actions" = realistic integer estimate.`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
 // ACTION PROMPT BUILDER
-// ═══════════════════════════════════════════════════════════════════════════════
 export function buildActionPrompt(task, plan, pageInfo, screenshot, recentSteps, iteration, options = {}) {
   const {
     profile     = 'default',
@@ -329,7 +321,7 @@ export function buildActionPrompt(task, plan, pageInfo, screenshot, recentSteps,
     ? `⚠️ LOOP WARNING:\n${loopHints.map(h => `  • ${h}`).join('\n')}`
     : '  None';
 
-  // SIH Phase 15: one nonce per action prompt; all page-derived blocks fenced.
+  // one nonce per action prompt; all page-derived blocks fenced.
   const nonce = makeFenceNonce();
 
   return `\
@@ -425,9 +417,7 @@ ${plan ? JSON.stringify(plan.steps || [], null, 2) : 'No plan provided'}
 Return ONLY the ACTION JSON.`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
 // SKILL PROMPT BUILDER  (for when a skill is the primary context)
-// ═══════════════════════════════════════════════════════════════════════════════
 export function buildSkillActionPrompt(skill, pageInfo, recentSteps, iteration) {
   return buildActionPrompt(
     skill.prompt,
@@ -445,7 +435,7 @@ export function buildSkillActionPrompt(skill, pageInfo, recentSteps, iteration) 
   );
 }
 
-// ─── Context formatters ───────────────────────────────────────────────────────
+// Context formatters
 function formatAttachments(attachments) {
   if (!attachments?.length) return '  None';
   return attachments.slice(0, 6).map(a => {
@@ -489,7 +479,7 @@ function formatProfile(profileData) {
     ['Website', profile.website],
     ['Notes', profile.notes],
   ].filter(([, value]) => String(value || '').trim());
-  // v1.15.6: user-defined custom fields (Settings → Profile → Custom info).
+  // user-defined custom fields (Settings → Profile → Custom info).
   const custom = Array.isArray(profile.customInfo)
     ? profile.customInfo
       .map(e => [String(e?.key || '').trim(), String(e?.value ?? '').trim()])

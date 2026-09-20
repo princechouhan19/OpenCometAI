@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_about_page.mjs — v1.15.5 About-page regression (real extension).
 //
 // Covers the new Settings → About page:
@@ -14,7 +13,6 @@
 //      printed/copied text contains the real version.
 //   6. Back button returns to the settings home.
 //   7. Zero uncaught page errors during the whole flow.
-// ─────────────────────────────────────────────────────────────────────────────
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

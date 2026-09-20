@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/local-llm-engine.js
 // The on-device model ENGINE — runs ONLY inside the offscreen document.
 //
@@ -14,7 +13,6 @@
 //                         with rich per-file logging + progress broadcasts
 //   • deleteLocalModel  — evicts a model's cache entries + in-memory runtime
 //   • generateLocal     — single-shot generate (VLM: image+text → text)
-// ─────────────────────────────────────────────────────────────────────────────
 
 import {
   getLocalModelDef,
@@ -40,7 +38,7 @@ const ORT_BASE_URL = new URL('../vendor/transformers/ort/', import.meta.url).hre
  *  them. Prefer the modern class, fall back on older bundles. */
 const visionAutoClass = (tr) => tr.AutoModelForImageTextToText || tr.AutoModelForVision2Seq;
 
-// ── Module state ───────────────────────────────────────────────────────────────
+// Module state
 let _transformers = null;
 let _device = null;                       // 'webgpu' | 'wasm' (cached detection)
 let _adapterProbed = false;               // deep WebGPU probe done?
@@ -63,7 +61,7 @@ export function activeDownloadIds() {
   return Object.keys(_downloads);
 }
 
-// ── Checkpoint resume (Cache API preflight) ────────────────────────────────────
+// Checkpoint resume (Cache API preflight)
 // Transformers.js stores every FULLY-downloaded file in the browser Cache API
 // under its HF resolve-URL (env.cacheKey = "transformers-cache"). A cache entry
 // therefore exists only for complete files — a perfect byte-level checkpoint.
@@ -135,7 +133,7 @@ function resetKvSessions() {
   _kvSessions.clear();
 }
 
-// ── Runtime bootstrap ──────────────────────────────────────────────────────────
+// Runtime bootstrap
 async function getTransformers() {
   if (_transformers) return _transformers;
   const t0 = performance.now();
@@ -151,7 +149,7 @@ async function getTransformers() {
   // "asyncify" artifacts export it, the older "jsep" artifacts do NOT. Pairing
   // the new esm with jsep artifacts failed with:
   //   "no available backend found. ERR: [webgpu] TypeError: ...webgpuInit is not a function"
-  // v1.8: disable the ORT-wasm pre-cache FIRST and OUTSIDE the try block.
+  // disable the ORT-wasm pre-cache FIRST and OUTSIDE the try block.
   // Previously it was the last statement inside the try — any throw above it
   // left env.useWasmCache at its default (true) and the preloader then routed
   // the wasm artifacts through the Cache API, which REJECTS chrome-extension://
@@ -183,7 +181,7 @@ async function getTransformers() {
   return tr;
 }
 
-// ── Download / delete ──────────────────────────────────────────────────────────
+// Download / delete
 export async function downloadLocalModel(id) {
   const def = getLocalModelDef(id);
   if (!def) return { ok: false, error: `Unknown local model: ${id}` };
@@ -379,7 +377,7 @@ export async function deleteLocalModel(id) {
   }
 }
 
-// ── Pipeline loading ───────────────────────────────────────────────────────────
+// Pipeline loading
 async function ensureRuntime(id) {
   const def = getLocalModelDef(id);
   if (!def) throw new Error(`Unknown local model: ${id}`);
@@ -424,7 +422,7 @@ async function ensureRuntime(id) {
   return { def, ...rt };
 }
 
-// ── Generation ─────────────────────────────────────────────────────────────────
+// Generation
 function composeUserText(prompt, systemPrompt) {
   return systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 }
@@ -527,7 +525,7 @@ async function runGeneration({ modelId, prompt, imageDataUrl = null, systemPromp
     } catch { return null; }
   };
 
-  // ── Vision path (VLM / Gemma 4 with an image attached) ─────────────────────
+  // Vision path (VLM / Gemma 4 with an image attached)
   // Text-only prompts on a VLM must NOT call processor() without an image —
   // LFM2-VL's preprocess iterates its images argument and throws
   // "undefined is not iterable". They take the tokenizer-only path below.
@@ -559,7 +557,7 @@ async function runGeneration({ modelId, prompt, imageDataUrl = null, systemPromp
     return { text: outText, modelId, device, metrics, kvReused };
   }
 
-  // ── Text-only path (llm / gemma4 text-only) ─────────────────────────────────
+  // Text-only path (llm / gemma4 text-only)
   const messages = [{ role: 'user', content: userText }];
   const templateOpts = { add_generation_prompt: true, tokenize: false };
   if (useTools) templateOpts.tools = tools;
@@ -638,7 +636,7 @@ async function runGeneration({ modelId, prompt, imageDataUrl = null, systemPromp
   return { text: outText, modelId, device, metrics, kvReused };
 }
 
-// ── Embeddings (page RAG + semantic history) ──────────────────────────────────
+// Embeddings (page RAG + semantic history)
 /**
  * Embed texts with the internal MiniLM model — normalised mean-pooled vectors
  * (cosine-ready), exactly the gemma4-browser-extension FeatureExtractor recipe.

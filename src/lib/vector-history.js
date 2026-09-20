@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/vector-history.js
 // Semantic browsing-history search — adapted from the gemma4-browser-extension
 // VectorHistory (their IndexedDB store + MiniLM embeddings + time filtering).
@@ -6,7 +5,6 @@
 // embedded (in-memory cache keyed by url+title) and ranked by cosine
 // similarity; graceful keyword fallback when the embeddings model isn't
 // available. Runs in the SERVICE WORKER.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { cosineSimilarity } from './page-rag.js';
 // Static import — MV3 service workers forbid dynamic import().

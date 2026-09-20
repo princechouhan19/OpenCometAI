@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/tool-calls.js
 // Robust tool-call extraction for on-device models (Gemma 4 / Granite 4).
 // Ported from the gemma4-browser-extension reference (extractToolCalls.ts).
@@ -8,7 +7,6 @@
 //   2. Gemma style      : <|tool_call>call:navigate{"url":"…"}<tool_call|>
 //   3. Bare Gemma style : call:navigate{"url":"…"}   (tags dropped while streaming)
 // All three are parsed here; the surrounding prose is returned as `message`.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Gemma tool-call arguments arrive slightly malformed: unquoted keys and the
  *  `<|"|>` quote token. Normalise before JSON.parse (reference implementation). */

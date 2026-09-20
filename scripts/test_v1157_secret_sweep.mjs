@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_v1157_secret_sweep.mjs — v1.15.7 regression (real extension).
 //
 // Field report (v1.15.6): "Summarize this page in clear bullet points." on a
@@ -25,7 +24,6 @@
 //          carrying five key-shaped strings past char 8000 → the run must
 //          COMPLETE with the answer delivered, the gate must NOT fire, and
 //          no raw secret may reach the mock backend.
-// ─────────────────────────────────────────────────────────────────────────────
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

@@ -1,5 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/lib/guardian-daemon.js — v1.18.0 TASK AUTHORIZATION DAEMON
+// src/lib/guardian-daemon.js — TASK AUTHORIZATION DAEMON
 //
 // Run-scoped wrapper around the pure guardian (task-guardian.js). The pure
 // module answers ONE question — "does the user's own text authorize this
@@ -29,7 +28,6 @@
 //     executed.
 //
 // Pure & synchronous — safe to call before every primary AND queued action.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { guardAction, guardianStrategyHint } from './task-guardian.js';
 
@@ -97,10 +95,8 @@ export function authorizeAction(action, { taskText = '', extraTexts = [], hits =
   return { pass: false, skip: true, ...base };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// v1.19.0 DAEMON COUNTER — visible, honest accounting of every gate decision.
+// DAEMON COUNTER — visible, honest accounting of every gate decision.
 // The counter is PURE state: loops own the instance (per-run) and persistence.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Fresh per-run counter. Every field stays numeric — JSON-safe for status. */
 export function createGuardianCounter() {

@@ -1,5 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/lib/wire-guard.js — v1.17.0 BYTE-LEVEL EXACT-PAYLOAD VERIFICATION
+// src/lib/wire-guard.js — BYTE-LEVEL EXACT-PAYLOAD VERIFICATION
 // (SIH master-prompt Phase 10: "Do not merely inspect JSON fields. Implement
 //  an exact serialized payload / byte-level leakage test.")
 //
@@ -20,7 +19,6 @@
 //
 // Fail-closed: every check is a hard predicate; callers MUST treat { ok:
 // false } as "do not transmit". No network failure mode can produce a pass.
-// ─────────────────────────────────────────────────────────────────────────────
 
 // Query-parameter keys that carry credentials / sessions / trackers. The
 // value (not the key name) is what must never leave the browser unredacted.

@@ -1,6 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/field-matching.js
-// v1.11.0 — provider-agnostic FORM-FIELD TARGETING intelligence.
+// provider-agnostic FORM-FIELD TARGETING intelligence.
 //
 // Field log (Gmail "write a mail" task, 25 steps, task failed):
 //   • The compose dialog opens with the recipients row COLLAPSED — the <input>
@@ -19,7 +18,6 @@
 // executors (domClick/domType in actions.js) keep small self-contained copies
 // of the same rules because chrome.scripting serializes the function source —
 // imports are not available inside the page.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Query looks like a request to target a form field (vs a button/link). */
 export const FIELD_QUERY_RE = /\b(field|input|box|textbox|text box|textarea|editor|type into|type in|fill|enter .*(into|in)|recipients?|subject|search bar|search box|email field|password|message body|compose body|body)\b/i;

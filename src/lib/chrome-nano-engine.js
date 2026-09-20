@@ -1,6 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/chrome-nano-engine.js
-// v1.21.0 — Chrome BUILT-IN AI (Prompt API / Gemini Nano) engine.
+// Chrome BUILT-IN AI (Prompt API / Gemini Nano) engine.
 //
 // Runs in the OFFSCREEN document (a window context) where the Prompt API's
 // `LanguageModel` is exposed to extensions. The service worker reaches it
@@ -26,7 +25,6 @@
 // `setLanguageModelImpl()` injects a fake LanguageModel for the benchmark
 // suite (OpenCometBench/chrome-nano.test.js) — the injection point IS the
 // seam under test: everything below it is exactly what runs in production.
-// ─────────────────────────────────────────────────────────────────────────────
 
 let _impl = null;                     // injected test double (or forced backend)
 let _session = null;                  // cached LanguageModel session

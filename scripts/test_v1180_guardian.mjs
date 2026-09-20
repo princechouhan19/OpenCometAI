@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_v1180_guardian.mjs — v1.18.0 TASK AUTHORIZATION DAEMON HARNESS
 // Verifies, without a browser:
 //   1. Authorization semantics (silent / negated / authorized / suppressed /
@@ -11,7 +10,6 @@
 //   5. Wiring markers in BOTH loops (primary + queue gates, queue override,
 //      snapshot pinning, honest-exit finalizers)
 // Exit code 0 = all pass.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -26,7 +24,7 @@ function check(name, cond, extra = '') {
   else { failed++; console.log(`  FAIL ${name}${extra ? ` — ${extra}` : ''}`); }
 }
 
-// ── 1. Authorization semantics ─────────────────────────────────────────────────
+// 1. Authorization semantics
 console.log('\n1) Authorization semantics:');
 {
   const r = authorizeAction({ type: 'click', selector: 'Buy Now' }, { taskText: 'find me a good laptop under 50k', hits: 0 });
@@ -80,7 +78,7 @@ console.log('\n1) Authorization semantics:');
   check('mid-run USER NOTE ("you may complete the purchase") authorizes', r.pass === true);
 }
 
-// ── 2. Fault shutdown ──────────────────────────────────────────────────────────
+// 2. Fault shutdown
 console.log('\n2) Fault shutdown (fail-closed):');
 {
   const poisoned = { get type() { throw new Error('boom'); } };
@@ -90,7 +88,7 @@ console.log('\n2) Fault shutdown (fail-closed):');
   check('authorized task does NOT bypass a daemon fault', r.fatal === true);
 }
 
-// ── 3. Injection prevention ────────────────────────────────────────────────────
+// 3. Injection prevention
 console.log('\n3) Injection prevention:');
 {
   // Page text / model reasoning must never be an accepted evidence channel.
@@ -110,7 +108,7 @@ console.log('\n3) Injection prevention:');
   check('note without class-granting wording still BLOCKED', r2.pass === false && r2.skip === true);
 }
 
-// ── 4. Wiring markers in BOTH loops ────────────────────────────────────────────
+// 4. Wiring markers in BOTH loops
 console.log('\n4) Loop wiring (standard + privacy):');
 const sw = readFileSync(join(ROOT, 'src', 'background', 'sw.js'), 'utf8');
 const pl = readFileSync(join(ROOT, 'src', 'background', 'privacy-loop.js'), 'utf8');

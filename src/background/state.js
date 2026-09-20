@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/background/state.js
 // Agent state factory and mutation helpers.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function createEmptyAgentState(overrides = {}) {
   return {

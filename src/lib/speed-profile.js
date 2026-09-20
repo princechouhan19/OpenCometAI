@@ -1,9 +1,7 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/speed-profile.js
-// v1.10.0 — GENERALIZED (provider-agnostic) VLM speed solution.
+// GENERALIZED (provider-agnostic) VLM speed solution.
 //
-// The v1.9.0 speed package was tuned against one provider (kimi-k3 via a
-// custom gateway). This module turns every latency lever into a single
+// This module turns every latency lever into a single
 // "speed profile" that works identically on ANY OpenAI-compatible endpoint
 // (OpenAI, OpenRouter, Moonshot/Kimi, DeepSeek, GLM, Qwen/DashScope,
 // Together, Groq, vLLM, Ollama, …) and on the on-device path.
@@ -29,7 +27,6 @@
 //
 // Pure, dependency-free (no Chrome APIs, no imports) — safe for the SW, the
 // offscreen document, and Node unit tests.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const SPEED_PROFILES = {
   fast: {
@@ -148,7 +145,7 @@ export function hashStr(s = '') {
  * length+hash of the visible text. Query strings are never included
  * (page.url is already origin+pathname from pageMediaProbe).
  *
- * v1.11: DIALOGS + FOCUS + EDITABLE census. Field log: Gmail compose expands
+ * DIALOGS + FOCUS + EDITABLE census. Field log: Gmail compose expands
  * its recipients row ("Recipients" → "To Cc Bcc") with zero movement in the
  * old fingerprint (url/title/scroll/media/text-hash all unchanged — the
  * compose text sits beyond the 4000-node walk on a 20k-row inbox), so STALE
@@ -181,7 +178,7 @@ export function computeShotFingerprint({ page = {}, domText = '', scrollY = 0 } 
     foc,
     txt.length,
     hashStr(txt.slice(0, 4000)),
-    // v1.16.1: hashed img/canvas pixel-proxy census from pageContextScan —
+    // hashed img/canvas pixel-proxy census from pageContextScan —
     // a page that mutates PIXELS only (swapped <img> src, redrawn <canvas>)
     // used to keep the fingerprint stable and serve a stale frame for up to
     // reuseMaxStreak turns / reuseMaxAgeMs. Any pixel-proxy change now

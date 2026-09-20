@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/providers.js
 // One function per AI provider. All return parsed JSON objects.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { parseJSON } from './utils.js';
 import { SYSTEM_PROMPT } from './prompts.js';
@@ -13,7 +11,7 @@ import { createLogger, describeHttpError } from '../core/logger.js';
 // sidepanel console via the DIAG_LOG relay.
 const logAPI = createLogger('API', { relayType: 'DIAG_LOG', relayLevel: 'warn' });
 
-// ── Capability registry ────────────────────────────────────────────────────────
+// Capability registry
 export function getProviderCapabilities(settings = {}) {
   const provider = String(settings.provider || 'openai').toLowerCase();
   const model    = String(settings.model    || '').trim();
@@ -98,13 +96,11 @@ export function isProviderConfigured(settings = {}) {
   return Boolean(String(settings.apiKey || '').trim());
 }
 
-// ── Unified entry point ────────────────────────────────────────────────────────
-// v1.15.1 CONSOLE VISIBILITY (user request: "in console also show what data we
-// are sending to VLM/LLM and response also"). Every provider funnels through
-// callAI / callAIRaw, so the exact prompt and the returned payload are logged
-// here — one place, all backends. Pixels are NEVER dumped: images are
-// summarized (name · mime · KB). The raw pre-parse model text is logged by
-// the OpenAI-compatible reader (see readCompatStream).
+// Unified entry point
+// Unified entry point. Every provider funnels through callAI / callAIRaw, so
+// the prompt and the returned payload are logged here for all backends. Images
+// are summarized (name · mime · KB), never dumped. The raw pre-parse model
+// text is logged by the OpenAI-compatible reader (readCompatStream).
 function logVlmRequest(tag, prompt, images, options = {}) {
   try {
     const imgs = Array.isArray(images) ? images : [];
@@ -359,7 +355,7 @@ export async function callAIRaw(settings, prompt, options = {}) {
 }
 
 
-// ── Anthropic ──────────────────────────────────────────────────────────────────
+// Anthropic
 async function callAnthropic(apiKey, model, prompt, images, options = {}) {
   const content = [
     ...images.map(img => ({
@@ -397,7 +393,7 @@ async function callAnthropic(apiKey, model, prompt, images, options = {}) {
   return parseJSON(data.content?.[0]?.text);
 }
 
-// ── OpenAI ─────────────────────────────────────────────────────────────────────
+// OpenAI
 async function callOpenAI(apiKey, model, prompt, images, options = {}) {
   const userContent = [
     ...images.map(img => ({
@@ -437,7 +433,7 @@ async function callOpenAI(apiKey, model, prompt, images, options = {}) {
   return parseJSON(data.choices?.[0]?.message?.content);
 }
 
-// ── Gemini ─────────────────────────────────────────────────────────────────────
+// Gemini
 async function callGemini(apiKey, model, prompt, images, options = {}) {
   const parts = [
     ...images.map(img => ({
@@ -471,7 +467,7 @@ async function callGemini(apiKey, model, prompt, images, options = {}) {
   return parseJSON(data.candidates?.[0]?.content?.parts?.[0]?.text);
 }
 
-// ── Groq ───────────────────────────────────────────────────────────────────────
+// Groq
 async function callGroq(apiKey, model, prompt, options = {}) {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -500,7 +496,7 @@ async function callGroq(apiKey, model, prompt, options = {}) {
   return parseJSON(data.choices?.[0]?.message?.content);
 }
 
-// ── Mistral ────────────────────────────────────────────────────────────────────
+// Mistral
 async function callMistral(apiKey, model, prompt, images, options = {}) {
   // Attempt with images first; fall back to text-only if the provider rejects images
   const attempts = dedupeMistralAttempts([
@@ -612,20 +608,40 @@ async function callOllama(settings, model, prompt, images, options = {}) {
   throw lastError ?? new Error('Ollama request failed');
 }
 
-// ── OpenAI-compatible providers (kimi / deepseek / glm / custom) ─────────────
-// v1.9.0 VLM-speed package. Research basis (docs/research/vlm-speed-research.md):
-//   • Kimi K3 ALWAYS reasons and ignores the old "thinking" switch — the only
-//     control is the TOP-LEVEL `reasoning_effort` field ("low"/"high"/"max")
-//     (platform.kimi.ai → "Thinking Models"). Some OpenRouter-routed providers
-//     (e.g. Novita) run reasoning at MAX by default — that is exactly why
-//     un-tuned kimi-k3 agent turns took 27–93 s in the field.
-//   • OpenRouter normalizes the same control across providers as
-//     `reasoning: { effort: "low"|"high"|…, exclude: true }`.
-//   • Streaming gives us TTFT vs generation-rate split, so a slow turn is
-//     attributable (server queue / reasoning burn vs output throughput) and
-//     the first bytes arrive instead of a silent 90 s wait.
-// All extra params are failure-tolerant: a 400/422 automatically retries
-// without them so strict gateways keep working.
+// OpenAI-compatible providers (kimi / deepseek / glm / custom)
+// Reasoning effort is provider-specific: Kimi takes a top-level
+// `reasoning_effort`, OpenRouter normalizes it as `reasoning: { effort, exclude }`.
+// Streaming gives the TTFT vs generation-rate split, so a slow turn is
+// attributable (queue / reasoning burn vs throughput).
+
+// Guards for gateways hosting thinking models. A request can return 200 OK
+// with zero visible text: the model spends minutes on invisible reasoning and
+// either hits the token cap or holds the stream open without emitting
+// anything (observed 290s on qwen3-vl-235b-a22b-thinking). These limits make
+// that recoverable instead of a silent hang.
+const STREAM_IDLE_MS = 45000;      // wire silence before an attempt is written off
+const ATTEMPT_TIMEOUT_MS = 150000; // hard cap per attempt, headers + body
+const TOTAL_TIMEOUT_MS = 300000;   // cap for the whole ladder
+
+// Escalations applied to a rung when it comes back empty/stalled: double the
+// token budget (room for reasoning + answer), then disable thinking, then
+// fall through to the next rung (non-streaming last).
+const ESCALATIONS = [null, { budget: 2 }, { budget: 2, thinkOff: true }];
+
+function isAbortError(err) {
+  return err?.name === 'AbortError' || /abort/i.test(String(err?.message || ''));
+}
+
+function attemptTag(a, esc) {
+  const base = attemptKey(a);
+  return esc ? `${base}·x${esc.budget || 1}${esc.thinkOff ? '-nothink' : ''}` : base;
+}
+
+function emptyResponseHint(model) {
+  return /thinking/i.test(String(model))
+    ? 'Thinking models burn tokens on invisible reasoning — the -instruct variant of the same model typically answers in a few seconds. '
+    : '';
+}
 
 /** Build provider-appropriate reasoning params. Exported for unit tests. */
 export function buildReasoningParam(baseUrl, effort) {
@@ -684,13 +700,13 @@ function attemptKey(a) {
 }
 
 /**
- * Streaming/non-streaming OpenAI-compatible chat call with a graceful
- * attempt ladder:
- *   1. stream  + json_object + reasoning   (fastest, most informed)
- *   2. stream  + json_object               (strict gateway: no reasoning)
- *   3. stream                               (no json mode either)
- *   4. no-stream                            (legacy behaviour)
- * Only 400/422 responses advance the ladder — auth/rate/network errors throw.
+ * Streaming/non-streaming OpenAI-compatible chat call.
+ *
+ * Rungs, fastest first: stream+json+reasoning → stream+json → stream →
+ * non-stream. A 400/422 moves down the ladder (gateway rejected a param).
+ * A 200 with no usable text escalates the rung in place: 2x token budget,
+ * then thinking off, then the next rung. Auth/rate/network errors throw.
+ * Hard caps: ATTEMPT_TIMEOUT_MS per attempt, TOTAL_TIMEOUT_MS for everything.
  */
 async function callOpenAICompatible(settings, model, prompt, images, options = {}) {
   const base = resolveCompatibleBaseUrl(settings);
@@ -701,6 +717,7 @@ async function callOpenAICompatible(settings, model, prompt, images, options = {
     : 2500;
   const reasoning = buildReasoningParam(base, options.reasoningEffort);
   const wantStream = options.stream !== false;   // default: streaming ON
+  const tag = `${providerLabel(settings.provider)}/${model}`;
 
   const attempts = [];
   if (wantStream) {
@@ -712,88 +729,148 @@ async function callOpenAICompatible(settings, model, prompt, images, options = {
   }
   attempts.push({ stream: false, jsonMode: false });
 
+  // Timeouts are overridable via options so unit tests can run the ladder fast.
+  const idleMs = Number(options.streamIdleMs) >= 0 ? Number(options.streamIdleMs) : STREAM_IDLE_MS;
+  const attemptMs = Number(options.attemptTimeoutMs) > 0 ? Number(options.attemptTimeoutMs) : ATTEMPT_TIMEOUT_MS;
+  const totalMs = Number(options.totalTimeoutMs) > 0 ? Number(options.totalTimeoutMs) : TOTAL_TIMEOUT_MS;
+  const deadline = Date.now() + totalMs;
+  const canEscalate = (esc, i) =>
+    ESCALATIONS.indexOf(esc) < ESCALATIONS.length - 1 || i < attempts.length - 1;
   let lastErr = null;
+
   for (let i = 0; i < attempts.length; i++) {
     const a = attempts[i];
-    const body = {
-      model,
-      messages,
-      temperature: 0.1,
-      max_tokens: maxTokens,
-      stream: a.stream,
-    };
-    if (a.jsonMode) body.response_format = { type: 'json_object' };
-    if (a.stream) body.stream_options = { include_usage: true };
-    Object.assign(body, a.reasoning || {});
 
-    let res;
-    try {
-      res = await fetch(url, {
-        method: 'POST',
-        headers: buildCompatibleHeaders(settings),
-        body: JSON.stringify(body),
-      });
-    } catch (err) {
-      lastErr = err;
-      break; // network failure — retrying with fewer params won't help
-    }
-
-    if (!res.ok) {
-      let errText = '';
-      try { errText = (await res.text()).slice(0, 400); } catch {}
-      lastErr = new Error(`${providerLabel(settings.provider)} ${res.status}${errText ? ': ' + errText : ''}`);
-      // 400/422 usually means "unknown field" / "json mode unsupported" →
-      // try the next, simpler attempt. Everything else is a real error.
-      if ((res.status === 400 || res.status === 422) && i < attempts.length - 1) {
-        logAPI.warn(`${providerLabel(settings.provider)} ${res.status} (${describeHttpError(lastErr)}) on attempt ${attemptKey(a)} — retrying with ${attemptKey(attempts[i + 1])}`);
-        continue;
+    for (const esc of ESCALATIONS) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        throw new Error(`${tag} · gave up after ${totalMs / 1000}s total${lastErr ? ` — last error: ${lastErr.message}` : ''}`);
       }
-      throw lastErr;
-    }
 
-    if (a.stream) {
-      const out = await readCompatStream(res, { tag: `${providerLabel(settings.provider)}/${model}`, attempt: attemptKey(a), maxTokens });
-      if (options.onUsage && out.usage) {
-        options.onUsage({
-          model,
-          promptTokens: out.usage.prompt_tokens,
-          completionTokens: out.usage.completion_tokens ?? out.usage.completionTokens,
-          totalTokens: out.usage.total_tokens,
-        });
-      }
-      if (out.finishReason === 'length') {
-        logAPI.warn(`Output hit the ${maxTokens}-token cap — response may be truncated. Raise vlm maxTokens if JSON parsing starts failing.`);
-      }
-      logVlmRawText(`${providerLabel(settings.provider)}/${model}`, out.content);
-      return parseJSON(out.content);
-    }
-
-    // ── legacy non-streaming path ──────────────────────────────────────────
-    const t1 = Date.now();
-    const data = await res.json();
-    logAPI.info(`✓ ${providerLabel(settings.provider)}/${model} · non-stream · ${Date.now() - t1}ms${a.reasoning ? ' · reasoning' : ''}`);
-    if (options.onUsage && data.usage) {
-      options.onUsage({
+      const budget = Math.min(16000, Math.round(maxTokens * (esc?.budget ?? 1)));
+      const body = {
         model,
-        promptTokens: data.usage.prompt_tokens,
-        completionTokens: data.usage.completion_tokens,
-        totalTokens: data.usage.total_tokens,
-      });
+        messages,
+        temperature: 0.1,
+        max_tokens: budget,
+        stream: a.stream,
+      };
+      if (a.jsonMode) body.response_format = { type: 'json_object' };
+      if (a.stream) body.stream_options = { include_usage: true };
+      Object.assign(body, a.reasoning || {});
+      // Two spellings: vLLM reads chat_template_kwargs, DashScope-style
+      // gateways read the top-level flag. Gateways that reject unknown
+      // fields land in the 400/422 handler below.
+      if (esc?.thinkOff) Object.assign(body, { enable_thinking: false, chat_template_kwargs: { enable_thinking: false } });
+
+      const ctrl = new AbortController();
+      const attemptTimer = setTimeout(() => {
+        const err = new Error(`no completion within ${Math.round(Math.min(attemptMs, remaining) / 1000)}s`);
+        err.name = 'AbortError';
+        ctrl.abort(err);
+      }, Math.min(attemptMs, remaining));
+
+      let res;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: buildCompatibleHeaders(settings),
+          body: JSON.stringify(body),
+          signal: ctrl.signal,
+        });
+      } catch (err) {
+        lastErr = err;
+        if (isAbortError(err) && canEscalate(esc, i)) {
+          logAPI.warn(`⏱ ${tag} · ${attemptTag(a, esc)} · ${describeHttpError(err)} — escalating`);
+          continue; // server never answered; another rung may still make it
+        }
+        throw err; // network failure — retries with different params won't help
+      }
+
+      try {
+        if (!res.ok) {
+          let errText = '';
+          try { errText = (await res.text()).slice(0, 400); } catch {}
+          lastErr = new Error(`${providerLabel(settings.provider)} ${res.status}${errText ? ': ' + errText : ''}`);
+          if ((res.status === 400 || res.status === 422) && i < attempts.length - 1) {
+            logAPI.warn(`${providerLabel(settings.provider)} ${res.status} (${describeHttpError(lastErr)}) on ${attemptTag(a, esc)} — retrying with ${attemptTag(attempts[i + 1], null)}`);
+            break; // next rung
+          }
+          throw lastErr;
+        }
+
+        if (a.stream) {
+          const out = await readCompatStream(res, { tag, attempt: attemptTag(a, esc), maxTokens: budget, idleMs });
+          if (options.onUsage && out.usage) {
+            options.onUsage({
+              model,
+              promptTokens: out.usage.prompt_tokens,
+              completionTokens: out.usage.completion_tokens ?? out.usage.completionTokens,
+              totalTokens: out.usage.total_tokens,
+            });
+          }
+          if (!String(out.content || '').trim()) {
+            lastErr = new Error(`Empty response from model (finish=${out.finishReason || 'unknown'})`);
+            if (canEscalate(esc, i)) {
+              logAPI.warn(`✗ ${tag} · ${attemptTag(a, esc)} · 200 OK but no text${out.finishReason === 'length' ? ` — hit the ${budget}-token cap` : ''}. ${emptyResponseHint(model)}Escalating.`);
+              continue;
+            }
+            throw lastErr;
+          }
+          if (out.finishReason === 'length') {
+            logAPI.warn(`Output hit the ${budget}-token cap — response may be truncated. Raise vlm maxTokens if JSON parsing starts failing.`);
+          }
+          logVlmRawText(tag, out.content);
+          return parseJSON(out.content);
+        }
+
+        const t1 = Date.now();
+        const data = await res.json();
+        logAPI.info(`✓ ${tag} · non-stream · ${Date.now() - t1}ms${a.reasoning ? ' · reasoning' : ''}`);
+        if (options.onUsage && data.usage) {
+          options.onUsage({
+            model,
+            promptTokens: data.usage.prompt_tokens,
+            completionTokens: data.usage.completion_tokens,
+            totalTokens: data.usage.total_tokens,
+          });
+        }
+        const rawContent = data.choices?.[0]?.message?.content;
+        if (!String(rawContent || '').trim()) {
+          lastErr = new Error(`Empty response from model (finish=${data.choices?.[0]?.finish_reason || 'unknown'})`);
+          if (canEscalate(esc, i)) {
+            logAPI.warn(`✗ ${tag} · ${attemptTag(a, esc)} · 200 OK but no text. ${emptyResponseHint(model)}Escalating.`);
+            continue;
+          }
+          throw lastErr;
+        }
+        logVlmRawText(tag, rawContent);
+        return parseJSON(rawContent);
+      } catch (err) {
+        if (isAbortError(err) && canEscalate(esc, i)) {
+          lastErr = err;
+          logAPI.warn(`⏱ ${tag} · ${attemptTag(a, esc)} · ${describeHttpError(err)} — escalating`);
+          continue;
+        }
+        throw err;
+      } finally {
+        clearTimeout(attemptTimer);
+      }
     }
-    const rawContent = data.choices?.[0]?.message?.content;
-    logVlmRawText(`${providerLabel(settings.provider)}/${model}`, rawContent);
-    return parseJSON(rawContent);
   }
 
   throw lastErr ?? new Error('OpenAI-compatible request failed');
 }
 
+
 /**
  * Read an OpenAI-compatible SSE stream. Logs TTFT (first token) and total
- * wall time so slow VLM turns are attributable: TTFT ≫ gen-rate means server
- * queue / reasoning burn; low chars/sec after TTFT means provider throughput.
+ * wall time so slow VLM turns are attributable: TTFT far above the
+ * generation rate means queue / reasoning burn; low chars/sec after TTFT
+ * means provider throughput. A stream silent for idleMs is aborted so the
+ * caller can escalate.
  */
-async function readCompatStream(res, { tag, attempt, maxTokens }) {
+async function readCompatStream(res, { tag, attempt, maxTokens, idleMs = STREAM_IDLE_MS }) {
   const t0 = Date.now();
   let ttftMs = null;
   let content = '';
@@ -807,9 +884,25 @@ async function readCompatStream(res, { tag, attempt, maxTokens }) {
     return { content: data.choices?.[0]?.message?.content || '', usage: data.usage || null, finishReason: data.choices?.[0]?.finish_reason || null, ttftMs: null };
   }
   const decoder = new TextDecoder();
+
+  let fireIdle;
+  const idle = new Promise((_, reject) => {
+    fireIdle = () => {
+      const err = new Error(`stream idle > ${Math.round(idleMs / 1000)}s`);
+      err.name = 'AbortError'; // treat like a timeout: the caller escalates
+      reject(err);
+    };
+  });
+  let idleTimer = setTimeout(fireIdle, idleMs);
+  const bumpIdle = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(fireIdle, idleMs);
+  };
+
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      const { done, value } = await Promise.race([reader.read(), idle]);
+      bumpIdle();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const { events, rest } = consumeSSEChunk(buffer);
@@ -826,7 +919,7 @@ async function readCompatStream(res, { tag, attempt, maxTokens }) {
             ttftMs = Date.now() - t0;
             logAPI.info(`⚡ ${tag} · TTFT ${ttftMs}ms [${attempt}] — prefill+reasoning done, generating…`);
             if (ttftMs > 30000) {
-              logAPI.warn(`TTFT ${ttftMs}ms is very high — provider queue or reasoning burn. See the speed guide: a low-reasoning model or :nitro route cuts this dramatically.`);
+              logAPI.warn(`TTFT ${ttftMs}ms is very high — provider queue or reasoning burn. A low-reasoning model or a faster route cuts this dramatically.`);
             }
           }
           content += delta;
@@ -834,8 +927,13 @@ async function readCompatStream(res, { tag, attempt, maxTokens }) {
       }
     }
   } catch (err) {
-    if (!content) throw err;            // nothing usable → real failure
+    if (!content) {
+      try { reader.cancel(); } catch {}
+      throw err; // nothing usable — caller escalates
+    }
     logAPI.warn(`Stream interrupted after ${content.length} chars (${err?.message || err}) — using partial content`);
+  } finally {
+    clearTimeout(idleTimer);
   }
   const total = Date.now() - t0;
   const genMs = Math.max(0, total - (ttftMs ?? 0));
@@ -844,7 +942,7 @@ async function readCompatStream(res, { tag, attempt, maxTokens }) {
   return { content, usage, finishReason, ttftMs };
 }
 
-// ── Image helpers ──────────────────────────────────────────────────────────────
+// Image helpers
 async function buildImageInputs(screenshotBase64, extraImages = [], options = {}) {
   const list = [];
   if (screenshotBase64) {
@@ -916,7 +1014,7 @@ function dedupeOllamaAttempts(attempts) {
   });
 }
 
-// ── Misc helpers ───────────────────────────────────────────────────────────────
+// Misc helpers
 function supportsMistralVision(model) {
   const lower = String(model || '').toLowerCase();
   return ['mistral-large', 'mistral-medium', 'mistral-small', 'ministral', 'pixtral', 'vision']

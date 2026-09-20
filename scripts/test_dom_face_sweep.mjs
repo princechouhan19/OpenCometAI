@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/test_dom_face_sweep.mjs
-// v1.15.3 — DOM-guided face sweep regression (user-reported: small profile
+// DOM-guided face sweep regression (user-reported: small profile
 // photos get "Faces detected: 0" and stay VISIBLE in the sanitized capture).
 //
 // Covers, on REAL browser pixels + the REAL vendored MediaPipe model:
@@ -100,14 +100,14 @@ async function openScene({ dpr, icon }) {
   return { ctx, page, scan, run };
 }
 
-// ── warm the detector once ────────────────────────────────────────────────
+// warm the detector once
 {
   const s = await openScene({ dpr: 1, icon: false });
   await s.run({ faceDetect: { memo: false } });
   await s.ctx.close();
 }
 
-// ── T1 collector ──────────────────────────────────────────────────────────
+// T1 collector
 console.log('T1: pageContextScan photoCandidates collector');
 {
   const s = await openScene({ dpr: 1, icon: false });
@@ -132,7 +132,7 @@ console.log('T1: pageContextScan photoCandidates collector');
   await ctx.close();
 }
 
-// ── T2 RESCUE — the user's field condition ────────────────────────────────
+// T2 RESCUE — the user's field condition
 console.log('T2: cascade-disabled rescue (Faces detected: 0 → dom-sweep finds it)');
 {
   const s = await openScene({ dpr: 1, icon: false });
@@ -154,7 +154,7 @@ console.log('T2: cascade-disabled rescue (Faces detected: 0 → dom-sweep finds 
   await s.ctx.close();
 }
 
-// ── T3 STAND-DOWN — cascade already covers the avatar ─────────────────────
+// T3 STAND-DOWN — cascade already covers the avatar
 console.log('T3: cascade-covered stand-down (no redundant sweep)');
 {
   const s = await openScene({ dpr: 1, icon: false });
@@ -165,7 +165,7 @@ console.log('T3: cascade-covered stand-down (no redundant sweep)');
   await s.ctx.close();
 }
 
-// ── T4 NEGATIVE CONTROL — icon-only image must NOT be redacted ────────────
+// T4 NEGATIVE CONTROL — icon-only image must NOT be redacted
 console.log('T4: icon-only image (no human face) scanned but not redacted');
 {
   const s = await openScene({ dpr: 1, icon: true });
@@ -177,7 +177,7 @@ console.log('T4: icon-only image (no human face) scanned but not redacted');
   await s.ctx.close();
 }
 
-// ── T5 DPR conversion ─────────────────────────────────────────────────────
+// T5 DPR conversion
 console.log('T5: DPR 1.25 — CSS rect × 1.25 reaches the sweep');
 {
   const s = await openScene({ dpr: 1.25, icon: false });
@@ -195,7 +195,7 @@ console.log('T5: DPR 1.25 — CSS rect × 1.25 reaches the sweep');
   await s.ctx.close();
 }
 
-// ── T6 cap ────────────────────────────────────────────────────────────────
+// T6 cap
 console.log('T6: collector caps at 32 candidates');
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });

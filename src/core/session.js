@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/core/session.js
 // Session metadata — elapsed time, step count, session ID utilities.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Generate a unique session ID. */
 export function generateSessionId() {

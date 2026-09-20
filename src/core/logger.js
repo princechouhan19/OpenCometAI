@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/core/logger.js
 // Unified diagnostics logger for EVERY extension context (service worker /
 // offscreen ML runtime / sidepanel).
@@ -12,7 +11,6 @@
 //   • Optional relay: background contexts forward warn/error lines to the
 //     sidepanel console (DIAG_LOG) and page contexts relay crashes back to
 //     the service-worker console (DIAG_LOG_RELAY) — one console sees all.
-// ─────────────────────────────────────────────────────────────────────────────
 
 const IS_DEV = true; // flip to false for production builds
 
@@ -25,7 +23,7 @@ const COLORS = {
 };
 const METHOD = { debug: 'log', info: 'log', warn: 'warn', error: 'error' };
 
-// ── Ring buffer (diagnostics) ────────────────────────────────────────────────
+// Ring buffer (diagnostics)
 const RING_MAX = 500;
 const RING = [];
 
@@ -43,7 +41,7 @@ export function getRecentLogs(filter = {}) {
   return rows.slice();
 }
 
-// ── Formatting ───────────────────────────────────────────────────────────────
+// Formatting
 function fmtArg(a) {
   if (typeof a === 'string') return a;
   if (a instanceof Error) return a.stack || `${a.name}: ${a.message}`;
@@ -87,7 +85,7 @@ export function createLogger(namespace, opts = {}) {
   return { debug: mk('debug'), info: mk('info'), warn: mk('warn'), error: mk('error') };
 }
 
-// ── HTTP / network error classifier ──────────────────────────────────────────
+// HTTP / network error classifier
 // Turns fetch failures (API providers, HuggingFace model requests) into a
 // short human-readable kind + hint, so console logs are actionable.
 export function describeHttpError(err) {
@@ -103,7 +101,7 @@ export function describeHttpError(err) {
   return 'request failed';
 }
 
-// ── Global error traps ───────────────────────────────────────────────────────
+// Global error traps
 // Works in page contexts (window) AND the service worker (self). Uncaught
 // errors and unhandled promise rejections are logged with full stacks; if
 // relayType is given, they are also forwarded to another context's console.

@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // server/server.js
 // Companion server for OpenComet-SIH Privacy Vision Agent.
 //
@@ -22,7 +21,6 @@
 //
 // Run:   node server.js
 //   or:  OPENAI_API_KEY=sk-... PORT=8787 node server.js
-// ─────────────────────────────────────────────────────────────────────────────
 
 import express from 'express';
 import cors from 'cors';
@@ -30,10 +28,10 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
-// SIH Phase 15: same prompt-injection fencing as the extension (defence in
+// same prompt-injection fencing as the extension (defence in
 // depth — the server independently fences page-derived content).
 import { makeFenceNonce, fenceUntrusted, injectionDefenseRules } from '../src/lib/prompt-defense.js';
-// SIH v1.13: inbound validation — the server never blindly trusts client fields.
+// inbound validation — the server never blindly trusts client fields.
 import { validateInboundRequest } from './validate.js';
 import { finalPiiSweepText } from '../src/lib/privacy-firewall.js';
 
@@ -48,7 +46,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 
 app.use(cors());
 app.use(express.json({ limit: '16mb' }));
 
-// ── SIH hardening: lightweight rate limit + optional shared-token auth ──────
+// SIH hardening: lightweight rate limit + optional shared-token auth
 const RATE = { windowMs: 60_000, max: Number(process.env.RATE_LIMIT || 30) };
 const _hits = new Map();   // ip → [timestamps]
 function rateLimited(ip) {
@@ -73,10 +71,10 @@ app.use('/agent/decide', (req, res, next) => {
   next();
 });
 
-// ── Health check ──────────────────────────────────────────────────────────────
+// Health check
 app.get('/health', (req, res) => res.json({ ok: true, version: '1.0.0', ts: Date.now() }));
 
-// ── Config introspection ──────────────────────────────────────────────────────
+// Config introspection
 app.get('/config', (req, res) => {
   res.json({
     backend: detectBackend(),
@@ -89,7 +87,7 @@ app.get('/config', (req, res) => {
   });
 });
 
-// ── Main endpoint: /agent/decide ──────────────────────────────────────────────
+// Main endpoint: /agent/decide
 // Multipart form fields:
 //   image           — sanitized PNG/JPEG
 //   sanitizedText   — DOM text with [REDACTED:<type>] tokens
@@ -100,7 +98,7 @@ app.get('/config', (req, res) => {
 app.post('/agent/decide', upload.single('image'), async (req, res) => {
   const t0 = Date.now();
   try {
-    // ── SIH v1.13: VALIDATE before anything else ──────────────────────
+    // SIH VALIDATE before anything else
     let manifestRaw, historyRaw, settingsRaw, pvRaw;
     try { manifestRaw = req.body.manifest ? JSON.parse(req.body.manifest) : undefined; } catch { manifestRaw = { __parseError: true }; }
     try { historyRaw = req.body.history ? JSON.parse(req.body.history) : undefined; } catch { historyRaw = { __parseError: true }; }
@@ -133,7 +131,7 @@ app.post('/agent/decide', upload.single('image'), async (req, res) => {
     if (!image) return res.status(400).json({ error: 'Missing sanitized image' });
 
     const backend = detectBackend(settings);
-    // ── v1.16.1 OPEN-PROXY FIX ────────────────────────────────────────
+    // OPEN-PROXY FIX
     // Previously an UNAUTHENTICATED request could set provider:'openai' with
     // no apiKey and silently spend the OPERATOR's env key — with open CORS
     // and the token optional, any client could burn the operator's credits.
@@ -175,10 +173,10 @@ app.post('/agent/decide', upload.single('image'), async (req, res) => {
   }
 });
 
-// ── Vision-only endpoint (for testing) ────────────────────────────────────────
+// Vision-only endpoint (for testing)
 app.post('/vision/describe', upload.single('image'), async (req, res) => {
   try {
-    // SIH v1.13: LOCAL-TEST-ONLY gate. This endpoint accepts an ARBITRARY
+    // LOCAL-TEST-ONLY gate. This endpoint accepts an ARBITRARY
     // image with no privacy envelope — on a deployed server it would be an
     // accidental raw-image bypass right next to the gate that forbids exactly
     // that. Disabled unless the operator explicitly opts in per environment.
@@ -202,7 +200,7 @@ app.post('/vision/describe', upload.single('image'), async (req, res) => {
   }
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers
 function detectBackend(settings = {}) {
   if (settings.provider) return settings.provider.toLowerCase();
   if (process.env.OPENAI_API_KEY)    return 'openai';
@@ -213,7 +211,7 @@ function detectBackend(settings = {}) {
 }
 
 function buildPrompt(task, sanitizedText, manifest, history) {
-  // SIH Phase 15: fresh nonce per request; every page-derived block is fenced.
+  // fresh nonce per request; every page-derived block is fenced.
   const nonce = makeFenceNonce();
   const manifestStr = manifest.map((m, i) =>
     `${i + 1}. ${m.regionId || `region_${i + 1}`} type=${m.type} bounds=(${m.bounds?.x ?? 0},${m.bounds?.y ?? 0},${m.bounds?.w ?? 0}×${m.bounds?.h ?? 0})` +
@@ -309,7 +307,7 @@ function defaultModelFor(backend) {
   }
 }
 
-// ── Provider implementations ──────────────────────────────────────────────────
+// Provider implementations
 async function callOpenAI(settings, model, prompt, imageBuffer) {
   const client = new OpenAI({ apiKey: settings.apiKey || process.env.OPENAI_API_KEY });
   const b64 = imageBuffer.toString('base64');
@@ -354,7 +352,7 @@ async function callAnthropic(settings, model, prompt, imageBuffer) {
 async function callGemini(settings, model, prompt, imageBuffer) {
   const key = settings.apiKey || process.env.GEMINI_API_KEY;
   const b64 = imageBuffer.toString('base64');
-  // SIH: key moved OUT of the query string (URLs end up in proxy logs) into
+  // key moved OUT of the query string (URLs end up in proxy logs) into
   // the x-goog-api-key header.
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const body = {
@@ -450,7 +448,7 @@ function parseActionPlan(raw) {
   }
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+// Boot
 app.listen(PORT, HOST, () => {
   console.log(`\n  ┌─────────────────────────────────────────────────────────┐`);
   console.log(`  │  OpenComet-SIH Privacy Vision Server                    │`);

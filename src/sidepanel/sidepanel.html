@@ -1029,6 +1029,14 @@
         <div class="s-section-title">What's New</div>
         <div class="about-changelog">
           <div class="about-cl-item newest">
+            <div class="about-cl-head"><span class="about-cl-ver">v1.29.0</span><span class="about-cl-title">Streaming failure ladder + diagnostics guide</span></div>
+            <ul class="about-cl-list">
+              <li>Thinking-model dead ends recovered: a 45s stream-idle watchdog, a 150s per-attempt cap and a 300s total budget; an empty or stalled attempt escalates — token budget ×2 → thinking off → next rung → non-streaming.</li>
+              <li><code>docs/guides/DIAGNOSTICS_LOGGING.md</code> rebuilt around a real captured run: namespaces, VLM request/response groups, failure kinds, log export.</li>
+              <li>Source-wide comment cleanup: version-history narration removed from code (this changelog and git history carry it).</li>
+            </ul>
+          </div>
+          <div class="about-cl-item">
             <div class="about-cl-head"><span class="about-cl-ver">v1.16.0</span><span class="about-cl-title">Local-perception cost round: warm-up + OCR memo</span></div>
             <ul class="about-cl-list">
               <li>Cold-start eliminated from the capture path: a privacy session now warms the YOLO + ViT pipelines in the offscreen runtime the moment it starts (<code>VISION_WARMUP</code>, fire-and-forget, non-fatal) — the first capture pays inference only, not the one-time model download + compile (cold-cache ViT load measured <strong>37.9 s</strong> on the reference hardware; that load dominated the real-VLM first-step <code>sanitizeMs 41487</code>).</li>

@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/canvas-redactor.js
 // Canvas-based pixel-level redactor.  Takes a screenshot (PNG data-URL from
 // chrome.tabs.captureVisibleTab) and a list of sensitive bounding boxes, and
@@ -10,7 +9,6 @@
 //
 // Crucially, the ORIGINAL un-redacted pixels never leave this module.
 // The function returns the sanitized image only.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Redact an image.
@@ -94,7 +92,7 @@ export async function redactImage(dataUrl, regions = [], opts = {}) {
       case 'api_key':
       case 'url_cred':
       case 'sensitive_input':
-      // SIH v1.15.2 — Indian ID expansion: same opaque-black treatment as
+      // — Indian ID expansion: same opaque-black treatment as
       // aadhaar/pan (explicit, though the default below is also solid black).
       case 'voter_id':
       case 'passport':
@@ -168,7 +166,7 @@ export async function redactImage(dataUrl, regions = [], opts = {}) {
   };
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers
 function loadImage(dataUrl) {
   return new Promise((resolve, reject) => {
     if (typeof createImageBitmap !== 'undefined' && dataUrl instanceof Blob) {
@@ -183,7 +181,7 @@ function loadImage(dataUrl) {
 }
 
 function blurRegion(srcCanvas, dstCanvas, x, y, w, h, radius) {
-  // v1.16.1 SIZE-ADAPTIVE RADIUS: the fixed 18px Gaussian was fine for small
+  // SIZE-ADAPTIVE RADIUS: the fixed 18px Gaussian was fine for small
   // UI elements but left coarse identity-revealing structure (hairline, jaw,
   // glasses) on LARGE portraits — an 18px blur on a ~1200px DPR-2 face box is
   // plausibly recoverable. The radius now scales with the box (min edge / 3),
@@ -243,7 +241,7 @@ function blobToDataUrl(blob) {
   });
 }
 
-// ── Debug helper: render the original + redacted side-by-side for inspection ──
+// Debug helper: render the original + redacted side-by-side for inspection
 export async function makeRedactionDiffPreview(originalDataUrl, regions) {
   const redacted = await redactImage(originalDataUrl, regions, { drawBadges: false });
   return { original: originalDataUrl, redacted: redacted.dataUrl, byType: redacted.byType };

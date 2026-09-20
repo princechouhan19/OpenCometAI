@@ -1,5 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/lib/task-guardian.js — v1.18.0 TASK AUTHORIZATION GUARDIAN
+// src/lib/task-guardian.js — TASK AUTHORIZATION GUARDIAN
 //
 // Safety layer designed during SIH competitor research (re-implemented from
 // scratch, zero code shared): a click that COMMITS MONEY (purchase) or
@@ -19,7 +18,7 @@
 //   • Pure & synchronous: regex-only, sub-millisecond, zero network, no DOM
 //     dependency — safe to run on every plan (primary AND queued) in both
 //     the privacy loop and the standard loop.
-//   • v1.19.0: HINDI (Devanagari) task-text matching — authorization intent,
+//   • HINDI (Devanagari) task-text matching — authorization intent,
 //     element triggers, benign-context suppression and BOTH negation orders
 //     ("मत खरीदो" pre-verbal AND "खरीदो मत" post-verbal) are recognized.
 //     JS `\b` is ASCII-only (it NEVER matches around Devanagari letters), so
@@ -28,12 +27,11 @@
 //   • A rare false BLOCK costs one ask_user round-trip; a false ALLOW would
 //     cost real money/data — the asymmetry justifies strictness.
 //
-// Known honest limitations (documented in docs/changelog/v1.19.0.md):
+// Known honest limitations:
 //   • Classification is plan-level: it reads the model's declared target
 //     label (action.selector) / navigate URL. It cannot see pixels.
 //   • press_key Enter / key submission are not classifiable (no label) —
 //     they remain covered by the page-fingerprint verifier and ask-mode.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const GUARDIAN_VERSION = 'v1.19.0';
 
@@ -44,7 +42,7 @@ const NEGATION_RE =
 // Explicit "no purchases / no buying / no deleting" style bans.
 const BAN_RE =
   /\bno\s+(?:purchases?|buying|shopping|deleting|deletions?|removing|payments?|orders?)\b/i;
-// v1.19.0 POST-VERBAL Hindi negation. Hindi negators usually FOLLOW the verb
+// POST-VERBAL Hindi negation. Hindi negators usually FOLLOW the verb
 // ("खरीदो मत" = don't buy, "खरीदना ज़रूरी नहीं" = needn't buy) — the English
 // before-window cannot see them. The after-window is DEVANAGARI-ONLY on
 // purpose: English prose can never contain मत/नहीं/बिना, so the extra window
@@ -55,13 +53,13 @@ const BAN_RE =
 // Devanagari-only before-window can still never fire on English prose.
 const HINDI_NEGATION_RE = /मत|नहीं|कभी\s*नहीं|बिना/;
 const HINDI_NEGATION_AFTER_RE = HINDI_NEGATION_RE;
-// v1.19.0 ENGLISH post-verbal negation ("buying is not allowed") — an
+// ENGLISH post-verbal negation ("buying is not allowed") — an
 // explicit-phrase allowlist on purpose: bare "not" would false-negate
 // authorizations like "buy one, not the other". Only full negation phrases
 // count, so "buy what is needed" stays authorized.
 const POST_NEGATION_RE = /\b(?:is\s*not|are\s*not|was\s*not|not\s*allowed|not\s*needed|not\s*required|not\s*necessary|forbidden|prohibited)\b/i;
 
-// ── Risk taxonomy ────────────────────────────────────────────────────────────
+// Risk taxonomy
 // triggers    — the ELEMENT side: patterns on the click label / URL that make
 //               an action risky. Conservative on purpose.
 // auth        — the USER side: ordered authorization phrases (task text or
@@ -89,7 +87,7 @@ const RISK_CLASSES = {
       /\bbook\s*now\b|\breserve\s*now\b/i,
       /\bsend\s*money\b|\btransfer\b|\bwithdraw\b/i,
       /\bdonate\b|\bdonation\b/i,
-      // v1.19.0 Hindi (Devanagari) ELEMENT triggers — Indian e-commerce
+      // Hindi (Devanagari) ELEMENT triggers — Indian e-commerce
       // labels (Flipkart/IRCTC-style Hindi UIs). Substring matching on
       // purpose (\b never matches Devanagari). Bare "रद्द" (dialog Cancel)
       // stays NOT risky — mirrors the bare-"Cancel" decision above.
@@ -124,7 +122,7 @@ const RISK_CLASSES = {
         suppress: /\border\s*(?:status|history|tracking|details|number|id|summary)\b|\b(?:track|tracking|check|view|see|find|follow)\b[^.;]{0,30}\border/i },
       { tag: 'money transfer',   re: /\btransfer\b[^.;]{0,24}\b(?:money|funds|amount|\u20b9|\$)\b|\bsend\s+money\b|\bwithdraw\b/i },
       { tag: 'donate',           re: /\bdonat(?:e|es|ed|ing|ion|ions)\b/i },
-      // ── v1.19.0 Hindi authorization phrases (user task / mid-run notes) ──
+      // Hindi authorization phrases (user task / mid-run notes)
       { tag: 'खरीद (buy)',       re: /ख़?रीद/, suppress: /ख़?रीद(?:ारी)?\s*(?:सूची|लिस्ट|इतिहास)/ },
       { tag: 'ऑर्डर (order)',    re: /ऑर्डर|आर्डर/,
         suppress: /(ऑर्डर|आर्डर)[^.;]{0,16}(स्टेटस|ट्रैक|हिस्ट्री|इतिहास|नंबर|आईडी|डिटेल|सूची|लिस्ट)|ट्रैक[^.;]{0,16}(ऑर्डर|आर्डर)/ },
@@ -160,7 +158,7 @@ const RISK_CLASSES = {
       /\bdeactivate\s*(?:my\s*)?account\b/i,
       /\bcancel\s*(?:my\s*)?(?:subscription|order|account|plan|booking|reservation|membership)\b/i,
       /\bclose\s*(?:my\s*)?account\b/i,
-      // v1.19.0 Hindi deletion ELEMENT triggers.
+      // Hindi deletion ELEMENT triggers.
       /डिलीट/,                    // डिलीट / डिलीट करें
       /हटा(?:ओ|एं|एँ|यें)/,        // हटाओ / हटाएं / हटाएँ / रिमोव
       /मिटा(?:ओ|एं|एँ)/,           // मिटाओ / मिटाएं
@@ -186,7 +184,7 @@ const RISK_CLASSES = {
       { tag: 'deactivate',re: /\bdeactivat(?:e|es|ed|ing)\b/i },
       { tag: 'close account', re: /\bclose\s+(?:my\s+|the\s+)?account\b/i },
       { tag: 'empty trash',   re: /\bempty\s+(?:the\s+)?(?:trash|bin|cart|spam)\b/i },
-      // ── v1.19.0 Hindi deletion authorization phrases ─────────────────────
+      // Hindi deletion authorization phrases
       { tag: 'डिलीट',      re: /डिलीट/ },
       { tag: 'हटाओ',       re: /हटा(?:ओ|एं|एँ|ना|ने|कर|\s*दो|\s*दें|\s*दीजिए|या|ई|यें)?/ },
       { tag: 'मिटाओ',      re: /मिटा(?:ओ|एं|एँ|ना|ने|कर|\s*दो|\s*दें)?/ },
@@ -267,12 +265,12 @@ function findAuthorizationInText(classDef, text) {
     let m;
     while ((m = re.exec(t)) !== null) {
       const before = t.slice(Math.max(0, m.index - 28), m.index);
-      // v1.19.0: the BAN cue can share the verb's own phrase — "no buying":
+      // the BAN cue can share the verb's own phrase — "no buying":
       // the "no" IS in the before-window, but "buying" is the MATCH itself,
       // so a before-only BAN_RE test was blind and the task read as
       // AUTHORIZED. Scan the phrase INCLUDING the matched verb.
       const phrase = t.slice(Math.max(0, m.index - 28), m.index + m[0].length);
-      // v1.19.0: Hindi negators FOLLOW the verb ("खरीदो मत", "खरीदना ज़रूरी
+      // Hindi negators FOLLOW the verb ("खरीदो मत", "खरीदना ज़रूरी
       // नहीं") — a Devanagari-only AFTER window (16 chars) catches them and
       // can never match English prose, so no English regression is possible.
       const after = t.slice(m.index + m[0].length, m.index + m[0].length + 16);
@@ -335,12 +333,12 @@ export function guardAction(action, { taskText = '', extraTexts = [] } = {}) {
   const what = risk.where === 'url'
     ? `navigation to a ${kind} page`
     : `clicking "${risk.label.slice(0, 60)}"`;
-  // v1.19.0: authorization examples now include Hindi phrasings so a Hindi
+  // authorization examples now include Hindi phrasings so a Hindi
   // task author immediately knows what unlocks the action.
   const hindiExample = kind === 'purchase'
     ? 'buy … / "… खरीदना है"'
     : 'delete … / "… डिलीट कर दो"';
-  // v1.18.0: explicit negation ("do not purchase anything") gets its own
+  // explicit negation ("do not purchase anything") gets its own
   // honest message — the ban WINS, not merely "not authorized".
   const authClause = auth.negated
     ? `Your task explicitly FORBIDS ${kind}s ("do not ${kind === 'purchase' ? 'purchase' : 'delete'}"-style instructions are enforced — the ban wins over any button on the page).`

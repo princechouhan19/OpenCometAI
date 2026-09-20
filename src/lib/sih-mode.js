@@ -1,5 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/lib/sih-mode.js — SIH COMPETITION MODE (v1.13).
+// src/lib/sih-mode.js — SIH COMPETITION MODE.
 //
 // SIH MODE = ON is the strict privacy configuration for evaluation:
 //
@@ -20,7 +19,6 @@
 //
 // PURE module — no top-level chrome access; storage guarded so Node tests
 // can exercise the pure helpers.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const SIH_MODE_KEY = 'sihMode';
 

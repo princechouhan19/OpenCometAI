@@ -1,5 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/lib/offscreen-client.js — v1.17.0 DUAL-TRANSPORT ML RUNTIME CLIENT
+// src/lib/offscreen-client.js — DUAL-TRANSPORT ML RUNTIME CLIENT
 // Service-worker side helpers for talking to the ML runtime document.
 //
 // MV3 forbids dynamic import() inside a Chromium service worker and exposes
@@ -8,7 +7,7 @@
 // hosts it depends on the runtime — ONE source tree, TWO transports:
 //
 //   Chromium : chrome.offscreen document  → chrome.runtime.sendMessage RPC
-//              (exactly as in v1.16.x — byte-for-byte the same protocol)
+//              (byte-for-byte the same protocol)
 //   Firefox  : chrome.offscreen does NOT exist. The SAME offscreen/offscreen.html
 //              document is hosted in a hidden iframe inside the event page
 //              (which has a DOM), and RPCs travel over window.postMessage
@@ -19,8 +18,7 @@
 //   • mlRuntimeMode()    — 'offscreen' | 'inpage' | 'none' (diagnostics)
 //   • ensureOffscreen()  — create the offscreen doc / iframe on demand
 //   • sendToOffscreen()  — request/response RPC with optional timeout
-//   • warmupVisionModels() — unchanged v1.16.0 contract
-// ─────────────────────────────────────────────────────────────────────────────
+//   • warmupVisionModels() — vision model warm-up
 
 const OFFSCREEN_URL = new URL('../offscreen/offscreen.html', import.meta.url).href;
 
@@ -33,9 +31,7 @@ export function mlRuntimeMode() {
   return HAS_OFFSCREEN_API ? 'offscreen' : (INPAGE_MODE ? 'inpage' : 'none');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Transport A — Chromium offscreen document (v1.16.x behavior, unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
+// Transport A — Chromium offscreen document
 
 async function ensureOffscreenDocument() {
   // hasDocument() exists since Chrome 116; fall back to create-and-catch.
@@ -81,9 +77,7 @@ function sendViaRuntime(message, { timeoutMs }) {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Transport B — Firefox in-page ML runtime (hidden iframe + postMessage)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const ML_FRAME_ID = 'opencomet-ml-frame';
 const FRAME_READY_TIMEOUT_MS = 30 * 1000;
@@ -172,9 +166,7 @@ async function waitForInpageReady(deadlineMs = FRAME_READY_TIMEOUT_MS) {
   throw new Error(`In-page ML runtime did not become ready within ${deadlineMs}ms (${lastErr?.message || 'no reply'})`);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Public API (transport-agnostic — callers don't care where the ML runs)
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function ensureOffscreen() {
   if (HAS_OFFSCREEN_API) return ensureOffscreenDocument();
@@ -193,7 +185,7 @@ export function sendToOffscreen(message, { timeoutMs = 0 } = {}) {
 }
 
 /**
- * v1.16.0 — fire-and-forget vision model warm-up: asks the ML runtime to load
+ * — fire-and-forget vision model warm-up: asks the ML runtime to load
  * the YOLO (+ optional ViT) pipelines BEFORE the first capture, moving the
  * one-time model download + WASM/GPU-compile cost off the first-capture
  * critical path (cold-cache ViT load measured at 37.9 s on the reference
@@ -213,7 +205,7 @@ export async function warmupVisionModels({ yolo = true, vit = true } = {}) {
 }
 
 /**
- * v1.17.0 — ask the ML runtime to shut down. On Chromium this closes the
+ * — ask the ML runtime to shut down. On Chromium this closes the
  * offscreen document; on Firefox the SW removes the in-page iframe (see the
  * OFFSCREEN_CLOSE_REQUEST route in sw.js). Exposed so tests/diagnostics can
  * reason about the teardown path without reaching into transport details.

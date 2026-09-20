@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_vision_warmup.mjs — v1.16.0 RUNTIME WIRING TEST (real extension)
 //
 // The static suite (test_ocr_memo.mjs) proves the wiring TEXT; this test proves
@@ -14,7 +13,6 @@
 //
 // Run: node scripts/test_vision_warmup.mjs   (needs playwright + network for
 // the 6 MB yolos-tiny download on a cold browser cache)
-// ─────────────────────────────────────────────────────────────────────────────
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

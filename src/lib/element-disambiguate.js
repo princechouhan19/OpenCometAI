@@ -1,9 +1,8 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/lib/element-disambiguate.js — v1.19.0 ELEMENT DISAMBIGUATION
+// src/lib/element-disambiguate.js — ELEMENT DISAMBIGUATION
 //
 // Repeated tags (the same tag rendered several times with the SAME visible
 // label — "Buy Now" ×4) are invisible to a score-based resolver: every
-// candidate ties and the first one wins silently. v1.19.0 gives every member
+// candidate ties and the first one wins silently. This module gives every member
 // of a repeated (tag, label) group a DISAMBIGUATION RECEIPT that resolves to
 // the EXACT control:
 //
@@ -24,7 +23,6 @@
 // lib/field-matching.js and its domClick mirror).
 //
 // Pure & synchronous: no DOM, no chrome.* — safe to unit-test in node.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const DISAMBIGUATE_VERSION = 'v1.19.0';
 

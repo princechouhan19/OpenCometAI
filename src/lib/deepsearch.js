@@ -31,7 +31,7 @@ Respond ONLY with valid JSON:
 }`;
 }
 
-// v1.16.1 DEFENCE-IN-DEPTH SYNC: the deep-research prompt builders previously
+// DEFENCE-IN-DEPTH SYNC: the deep-research prompt builders previously
 // interpolated RAW page text WITHOUT the <untrusted_data nonce> fencing that
 // every other page-derived embed point uses (Phase 15 never reached this
 // older path). Page-derived content is now fenced with a fresh nonce at

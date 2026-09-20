@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_scene_change_attack.mjs — v1.14.1 SCENE-CHANGE ATTACK + MEMO
 // SAFETY TEST (SIH brief §11: mandatory when detector caching is introduced).
 //
@@ -21,7 +20,6 @@
 //      capture) now yields a non-null structured visual context.
 //
 // Run: node scripts/test_scene_change_attack.mjs
-// ─────────────────────────────────────────────────────────────────────────────
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -34,7 +32,7 @@ function check(name, cond, detail = '') {
   else { fail++; console.error(`FAIL  ${name}${detail ? ' — ' + detail : ''}`); }
 }
 
-// ── 1) LRU primitives ────────────────────────────────────────────────────────
+// 1) LRU primitives
 console.log('[1] memo LRU primitives (exported pure from privacy-filter.js)');
 {
   const m = new Map();
@@ -54,7 +52,7 @@ console.log('[1] memo LRU primitives (exported pure from privacy-filter.js)');
   check('stored detections returned intact', memoLruGet(m, 'shot').detections === boxes);
 }
 
-// ── 2) Exact-key scene-change semantics (+ old-hash counterfactual) ─────────
+// 2) Exact-key scene-change semantics (+ old-hash counterfactual)
 console.log('[2] scene-change attack: exact-capture keying');
 {
   // Build a 100k-char fake "data-URL body" pair that the OLD sampled hash
@@ -105,12 +103,12 @@ console.log('[2] scene-change attack: exact-capture keying');
     oldSampledHash(safe) === oldSampledHash(sensitive) && memoLruGet(m, sensitive) === null);
 }
 
-// ── 3) Wiring (static assertions on privacy-filter.js source) ────────────────
+// 3) Wiring (static assertions on privacy-filter.js source)
 console.log('[3] wiring: memo before detector, success-only population, disable switch');
 {
   const src = readFileSync(join(ROOT, 'src', 'lib', 'privacy-filter.js'), 'utf8');
   const lookupIdx = src.indexOf('yoloMemoGet(input.imageDataUrl)');
-  // v1.16.0: the detector call gained the maxEdge opt — match the full form.
+  // the detector call gained the maxEdge opt — match the full form.
   const detectIdx = src.indexOf('await detectObjects(input.imageDataUrl, { maxEdge: cfg.yoloMaxEdge })');
   const setIdx = src.indexOf('yoloMemoSet(input.imageDataUrl');
   const catchIdx = src.indexOf('[Privacy] YOLO detection failed:');
@@ -128,7 +126,7 @@ console.log('[3] wiring: memo before detector, success-only population, disable 
     src.includes('yoloMemoHit') && src.includes('faceMemoHit'));
 }
 
-// ── 4) TDZ regression: visual-context fusion must produce a result ──────────
+// 4) TDZ regression: visual-context fusion must produce a result
 console.log('[4] visual-context fusion (was silently null via ocrRegions TDZ)');
 {
   const TINY_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';

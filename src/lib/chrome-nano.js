@@ -1,6 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // src/lib/chrome-nano.js
-// v1.21.0 — Service-worker-side CLIENT for Chrome built-in AI (Prompt API /
+// Service-worker-side CLIENT for Chrome built-in AI (Prompt API /
 // Gemini Nano). Same split-brain pattern as local-llm.js:
 //
 //   • this module (service worker): thin capability probe + RPC relay
@@ -9,7 +8,6 @@
 // The session lives in the offscreen document because MV3 service workers
 // die after ~30s idle (killing any cached session with them), while the
 // offscreen document persists (with heartbeats) across a whole agent task.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { ensureOffscreen, sendToOffscreen } from './offscreen-client.js';
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
 // scripts/test_v1190_disambiguation.mjs — v1.19.0 HARNESS
 // Verifies, without a browser:
 //   1. Ordinal selector parsing ("Buy Now #2" → base + ordinal; negatives)
@@ -12,7 +11,6 @@
 //   5. Daemon counter (tally semantics, summary, lifetime merge)
 //   6. Wiring markers (inventory pass, ordinal resolution, receipt, counter)
 // Exit code 0 = all pass.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -34,7 +32,7 @@ function check(name, cond, extra = '') {
   else { failed++; console.log(`  FAIL ${name}${extra ? ` — ${extra}` : ''}`); }
 }
 
-// ── 1. Ordinal selector parsing ────────────────────────────────────────────────
+// 1. Ordinal selector parsing
 console.log('\n1) Ordinal selector parsing:');
 {
   const r = parseOrdinalSelector('Buy Now #2');
@@ -54,7 +52,7 @@ console.log('\n1) Ordinal selector parsing:');
   check('uid selectors never parse as ordinals', parseOrdinalSelector('uid:nx-2') === null);
 }
 
-// ── 2. Disambiguation primitives ───────────────────────────────────────────────
+// 2. Disambiguation primitives
 console.log('\n2) Disambiguation primitives:');
 {
   check('version constant is v1.19.0', DISAMBIGUATE_VERSION === 'v1.19.0');
@@ -82,7 +80,7 @@ console.log('\n2) Disambiguation primitives:');
   check('ref round-trips through the ordinal parser', rt && rt.base === 'Buy Now' && rt.ordinal === 2);
 }
 
-// ── 3. Repeated-tag grouping ───────────────────────────────────────────────────
+// 3. Repeated-tag grouping
 console.log('\n3) Repeated-tag grouping (tagRepeated):');
 {
   const items = [
@@ -119,7 +117,7 @@ console.log('\n3) Repeated-tag grouping (tagRepeated):');
   })());
 }
 
-// ── 4. EN/HI guardian parity — the Hindi set has the SAME shape ───────────────
+// 4. EN/HI guardian parity — the Hindi set has the SAME shape
 console.log('\n4) EN/HI guardian parity (mirrored sets, same structure):');
 {
   // Each pair: [name, elementEN, taskEN, elementHI, taskHI, extraEN, extraHI, expectPass]
@@ -156,7 +154,7 @@ console.log('\n4) EN/HI guardian parity (mirrored sets, same structure):');
   check('HI post-verbal ban ("खरीदो मत") carries FORBIDS', bannedHIpost.verdict.userMessage.includes('FORBIDS'));
   const engSafe = authorizeAction({ type: 'click', selector: 'Buy Now' }, { taskText: 'buy one get one free offer', hits: 0 });
   check('Devanagari after-window never fires on English prose', engSafe.pass === true);
-  // v1.19.0 window fixes (exposed by this parity set):
+  // window fixes (exposed by this parity set):
   const banPhrase = authorizeAction({ type: 'click', selector: 'Buy Now' }, { taskText: 'no buying today', hits: 0 });
   check('EN ban "no buying today" → BLOCKED (cue shares the verb phrase)', banPhrase.pass === false && banPhrase.verdict.userMessage.includes('FORBIDS'));
   const banPost = authorizeAction({ type: 'click', selector: 'Buy Now' }, { taskText: 'buying is not allowed', hits: 0 });
@@ -175,7 +173,7 @@ console.log('\n4) EN/HI guardian parity (mirrored sets, same structure):');
   check('HI blocks hit-account 1→2→3 and exit at 3 (same daemon policy)', hiThree[0].hit === 1 && hiThree[1].hit === 2 && hiThree[2].hit === 3 && hiThree[2].exit === true);
 }
 
-// ── 5. Daemon counter ──────────────────────────────────────────────────────────
+// 5. Daemon counter
 console.log('\n5) Daemon counter:');
 {
   const c = createGuardianCounter();
@@ -197,7 +195,7 @@ console.log('\n5) Daemon counter:');
   check('lifetime merge tolerates empty inputs', mergeGuardianLifetime(null, null).runs === 1);
 }
 
-// ── 6. Wiring markers ──────────────────────────────────────────────────────────
+// 6. Wiring markers
 console.log('\n6) Wiring markers:');
 {
   check('lib module exists at src/lib/element-disambiguate.js', existsSync(join(ROOT, 'src/lib/element-disambiguate.js')));
@@ -210,13 +208,13 @@ console.log('\n6) Wiring markers:');
   const tg = read('src/lib/task-guardian.js');
   const manifest = JSON.parse(read('manifest.json'));
 
-  check('sw.js: inventory disambiguation pass (dup/pos/nearform/ref)', sw.includes('v1.19.0 DISAMBIGUATION PASS') && sw.includes('it.dup =') && sw.includes('it.ref ='));
+  check('sw.js: inventory disambiguation pass (dup/pos/nearform/ref)', sw.includes('DISAMBIGUATION PASS') && sw.includes('it.dup =') && sw.includes('it.ref ='));
   check('sw.js: nearform context (nearHint) computed per element', sw.includes('nearHint') && sw.includes("el.closest('form')"));
   check('sw.js: counter created at run start + tallied at the gate', sw.includes('agentState.guardianCounter = createGuardianCounter()') && sw.includes('tallyGuardian(agentState.guardianCounter, gAuth)'));
   check('sw.js: lifetime flush on EVERY honest terminal path', (sw.match(/flushGuardianLifetime\(\)/g) || []).length >= 6 && sw.includes('opencometGuardianLifetime'));
   check('sw.js: counter surfaced on AGENT_DONE broadcasts', sw.includes('guardian: guardianData') && sw.includes('guardianRunData()'));
-  check('actions.js: ordinal pre-resolution + honest out-of-range', act.includes('v1.19.0 ORDINAL PRE-RESOLUTION') && act.includes("resolution = 'ordinal'") && act.includes('Ordinal out of range'));
-  check('actions.js: disambiguation receipt on click results', act.includes('disambiguation') && act.includes('v1.19.0 DISAMBIGUATION RECEIPT'));
+  check('actions.js: ordinal pre-resolution + honest out-of-range', act.includes('ORDINAL PRE-RESOLUTION') && act.includes("resolution = 'ordinal'") && act.includes('Ordinal out of range'));
+  check('actions.js: disambiguation receipt on click results', act.includes('disambiguation') && act.includes('DISAMBIGUATION RECEIPT'));
   check('actions.js: context.ref exact-control fallback', act.includes('context.ref') && act.includes('ref: matched.ref'));
   check('agent-runtime.js: receipts pass through to the model prompt', rt.includes("dup: String(item?.dup || '')") && rt.includes("ref: String(item?.ref || '')"));
   check('page-state.js: duplicates surface their ordinal name on anchors', ps.includes('item.ref || item.label'));
@@ -224,7 +222,8 @@ console.log('\n6) Wiring markers:');
   check('privacy-loop.js: guardian exit flushes the lifetime counter', pl.includes('mergeGuardianLifetime(prev, c)'));
   check('daemon: counter API exported (create/tally/summary/merge)', gd.includes('export function createGuardianCounter') && gd.includes('export function tallyGuardian') && gd.includes('export function guardianCounterSummary') && gd.includes('export function mergeGuardianLifetime'));
   check('guardian: Hindi both negation orders documented in code', tg.includes('HINDI_NEGATION_RE') && tg.includes('HINDI_NEGATION_AFTER_RE') && tg.includes('GUARDIAN_VERSION = \'v1.19.0\''));
-  check('manifest bumped to 1.19.0', manifest.version === '1.19.0');
+  const semver = String(manifest.version).split('.').map(Number);
+  check('manifest at least 1.19.0', semver[0] > 1 || semver[1] >= 19);
   check('changelog v1.19.0.md exists + INDEX row', existsSync(join(ROOT, 'docs/changelog/v1.19.0.md')) && read('docs/changelog/INDEX.md').includes('v1.19.0'));
 }
 
