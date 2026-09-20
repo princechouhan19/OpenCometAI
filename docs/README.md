@@ -9,7 +9,7 @@ agent built for **Smart India Hackathon PS #26171** (ISRO). Start at the root
 
 ```
 docs/
-├── changelog/     ← per-version release notes (v1.14 → v1.16.0)
+├── changelog/     ← per-version release notes (v1.14 → v1.29.0)
 ├── guides/        ← install, features, demos, developer & debugging guides
 ├── sih/           ← SIH-specific: readiness, novelty claims, gap analysis, distribution
 ├── architecture/  ← privacy architecture deep-dive
@@ -17,6 +17,14 @@ docs/
 ├── project/       ← roadmap & historical project notes
 └── assets/        ← brand logo + the demo page used in Quick Start
 ```
+
+Guides carry interactive Mermaid diagrams (rendered natively on GitHub):
+architecture and the agent run loop live in the root README; the privacy
+pipeline, PII taxonomy and face-recall cascade in
+[`architecture/PRIVACY_VISION.md`](./architecture/PRIVACY_VISION.md); the VLM
+turn and streaming failure ladder in
+[`guides/DIAGNOSTICS_LOGGING.md`](./guides/DIAGNOSTICS_LOGGING.md); the DOM
+detector in [`guides/DOM_DETECTOR.md`](./guides/DOM_DETECTOR.md).
 
 ## Start here
 
@@ -30,8 +38,9 @@ docs/
 ## Changelog
 
 Release notes live in **[`changelog/`](./changelog/INDEX.md)** — one file per
-version from v1.15.0 to v1.16.0, plus the v1.14 firewall note and a summary of
-earlier milestones. The root README no longer carries version narratives.
+version from v1.15.0 through v1.29.0, plus the v1.14 firewall note and a
+summary of earlier milestones. The root README no longer carries version
+narratives.
 
 ## Development & debugging
 
@@ -39,6 +48,7 @@ earlier milestones. The root README no longer carries version narratives.
 |---|---|
 | [Developer Guide](./guides/DEVELOPER_GUIDE.md) | Architecture overview, environment, workflows |
 | [Diagnostics & Logging](./guides/DIAGNOSTICS_LOGGING.md) | Console channels, log capture, debugging the agent loop |
+| [DOM Detector](./guides/DOM_DETECTOR.md) | Element tagging with boxes + numeric badges, uid relocation chain |
 | [Gemma 4 Integration](./guides/GEMMA4_INTEGRATION.md) | On-device WebGPU intelligence and native tool calling |
 | [VLM Speed Research](./research/vlm-speed-research.md) | Measured provider latency notes behind the speed profiles |
 

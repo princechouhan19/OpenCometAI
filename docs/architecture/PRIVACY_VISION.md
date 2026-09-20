@@ -6,46 +6,51 @@ to extend, debug, or replace parts of the system.
 
 ## 1. Module dependency graph
 
+```mermaid
+flowchart TD
+  SP["sidepanel.js"] -->|"chrome.runtime.sendMessage"| SW["background/sw.js"]
+  SW -->|"PRIVACY_START / PRIVACY_CAPTURE / PRIVACY_CONFIGURE"| LOOP["background/privacy-loop.js"]
+  LOOP -->|"captureAndSanitize() + decideViaServer()"| PA["lib/privacy-agent.js"]
+  PA --> PF["lib/privacy-filter.js"]
+  PA --> INJ["chrome.scripting<br/>pageContextScan injected into the tab"]
+  INJ -->|"sensitive · text · photoCandidates"| PA
+  PA --> SRV["companion server / direct provider<br/>sanitised image + manifest only"]
+  PF --> DET["lib/pii-detector.js<br/>regex + DOM scan"]
+  PF --> FACE["lib/mediapipe-face.js<br/>MediaPipe FaceDetector"]
+  PF --> VIS["lib/local-vision.js<br/>Transformers YOLO / ViT / NER"]
+  PF --> RED["lib/canvas-redactor.js<br/>Canvas 2D filters"]
+  DET --> OUT["sanitised payload<br/>image + manifest + text"]
+  FACE --> OUT
+  VIS --> OUT
+  RED --> OUT
 ```
-                       sidepanel.js
-                            │
-                            │  chrome.runtime.sendMessage
-                            ▼
-                       background/sw.js
-                            │
-                            │  routes PRIVACY_START / PRIVACY_CAPTURE / PRIVACY_CONFIGURE
-                            ▼
-                  background/privacy-loop.js
-                            │
-                            │  calls captureAndSanitize() + decideViaServer()
-                            ▼
-                    lib/privacy-agent.js
-                            │
-              ┌─────────────┼─────────────────┐
-              ▼             ▼                 ▼
-   lib/privacy-filter.js  chrome.scripting   fetch(server)
-              │             │                 │
-              │             ▼                 ▼
-              │     injects pageContextScan  /agent/decide
-              │     into tab → returns       (multipart POST
-              │     { sensitive, text,       with sanitised
-              │       photoCandidates }      image + manifest)
-              │
-       ┌──────┴───────┬──────────────┬───────────────┐
-       ▼              ▼              ▼               ▼
-  lib/pii-         lib/           lib/           lib/
-  detector.js      mediapipe-    local-vision   canvas-
-                   face.js       .js            redactor.js
-       │              │              │               │
-       │ regex + DOM  │ MediaPipe    │ Transformers  │ Canvas 2D
-       │ scan         │ FaceDetector │ YOLO/ViT/NER  │ filter
-       │              │              │               │
-       └──────────────┴──────────────┴───────────────┘
-                           │
-                           ▼
-                  sanitised payload
-                  (image + manifest + text)
+
+### 1.1 PII detection taxonomy — what catches what
+
+```mermaid
+flowchart LR
+  SRC["Page under scan"] --> DOMTXT["DOM text"]
+  SRC --> PIX["Pixels"]
+  SRC --> SEM["DOM semantics<br/>form structure"]
+  DOMTXT --> REG["Regex battery<br/>email · phone · Aadhaar · PAN · voter ID · passport · DL · IFSC · UPI · GSTIN · bank · api key"]
+  REG --> CHK{"Checksum validation<br/>Luhn · Verhoeff · mod-97"}
+  CHK -->|"valid + context-gated"| MAN["Redaction manifest<br/>type · bounds · reason · confidence"]
+  DOMTXT --> NER["BERT NER (opt-in)<br/>person · org · address"]
+  PIX --> OCR["OCR — full-page + targeted ROI crops<br/>canvas / img text, never propagated raw"]
+  OCR --> BAT["Structural battery<br/>longest-span-wins · labelled ocr-roi"]
+  SEM --> CRED["Credential-field redaction<br/>password · card · OTP inputs → black"]
+  PIX --> FC["Face-recall cascade<br/>§5.1"]
+  NER --> MAN
+  BAT --> MAN
+  CRED --> MAN
+  FC --> MAN
+  MAN --> OUT2["Pixel redaction + REDACTED tokens"]
 ```
+
+Indian ID families (Aadhaar + VID, PAN including mid-entry, Voter ID/EPIC,
+passport, driving licence, GSTIN, bank account, IFSC, UPI VPA) are
+pattern + context-gated; a Luhn-valid card wins arbitration over an
+Aadhaar-shape match so hyphenated card numbers cannot double-fire.
 
 ## 2. The data contract between client and server
 
@@ -190,6 +195,23 @@ hallucinate into face blurs; stages 4–5 already produce their hits by exactly
 that upscaled-crop protocol; stage 6 is heuristic BY DESIGN and labelled as
 such in telemetry (`stats.avatarGuard`) and console lines
 (`Faces(avatar-guard): …`).
+
+```mermaid
+flowchart TD
+  FRAME["Captured frame"] --> S1["1 · Full-frame pass<br/>≤1280px long edge · conf ≥ 0.35"]
+  S1 --> S2["2 · 512px tile sweep<br/>conf ≥ 0.30"]
+  S2 --> S3["3 · 256px fine sweep<br/>conf ≥ 0.28 · risk-adaptive cap 16/48"]
+  S3 --> S4["4 · YOLO person-guided crops<br/>upscaled · min edge ≈ 256px"]
+  S4 --> S5["5 · DOM-guided image sweep<br/>visible img / canvas regions · cap 32"]
+  S5 --> S6["6 · Avatar guard — heuristic<br/>page-named avatar never face-covered"]
+  S1 --> VER{"Verification rescan<br/>upscaled margin crop · threshold 0.75"}
+  S2 --> VER
+  S3 --> VER
+  VER -->|"confirmed"| BLUR["Blur + black eye-bar"]
+  S4 --> BLUR
+  S5 --> BLUR
+  S6 --> GUARD["Redact element rect · confidence 0.5<br/>labelled dom-avatar-guard"]
+```
 
 ## 6. Performance budget
 

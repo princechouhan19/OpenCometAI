@@ -7,6 +7,7 @@ Open Comet is more than just a chatbot—it is a comprehensive browser operating
 ## 🚀 Autonomous Browser Agents
 The core of Open Comet is its ability to perform multi-step browser tasks without constant human intervention.
 -   **Visual Perceptiveness**: The agent "sees" the page through internal screenshots and DOM mapping.
+-   **Element Tagging (upgraded dom-detector)**: Every interactive control is boxed on-screen with a numeric badge; the element list carries the same `uid:nx-N` identity, so the model's pick is relocated to the exact element — not a look-alike. Cursor-first detection reaches shadow DOM, same-origin iframes and custom `<div>` widgets. Deep dive: [DOM Detector](./DOM_DETECTOR.md).
 -   **Native Interactions**: It can click, type, scroll, and navigate exactly as a human would.
 -   **Continuous Reasoning**: After every action, it re-evaluates the page to ensure it is on the right track.
 

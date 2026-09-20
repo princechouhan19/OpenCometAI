@@ -1269,3 +1269,25 @@ disable switch, actual-cost memo-hit logging, `ocrMemoHit` telemetry, maxEdge
 back-mapping + fail-safe wiring, VISION_WARMUP + fire-and-forget SW wiring,
 zero-VLM warm-up in the runner, `meta.warmup` stamping). Probe verdict gate PASS.
 All standing suites re-run this round; no authoritative number above changed.
+
+---
+
+## Shipped since v1.16.0 (v1.17.0 → v1.29.0 — capability rounds)
+
+The authoritative measured rows above are v1.16.0 numbers and remain
+unchanged — no later round re-measured them under different conditions, and
+the never-merge rule stands. The rounds since v1.16.0 shipped capabilities,
+each verified by its own harness with OpenCometBench `run-all` kept green
+throughout:
+
+| Version | Round | What shipped | Verification |
+|---|---|---|---|
+| v1.17.0 | Firefox support | Single source tree → Firefox build (event-page backend, in-page ML bridge, sidebar-as-tab); byte-level line protection fail-closed; `stateVersion` settings gating | `test_v1170_firefox.mjs` 40/40 incl. drift guards |
+| v1.18.0 | Task Authorization Daemon | Purchase/deletion clicks authorized ONLY by the user's own task text; negation enforcement ("no buying today" blocks Buy); fault shutdown fail-closed | `test_v1180_guardian.mjs` 38/38 |
+| v1.19.0 | Disambiguation | Repeated tags → exact controls (ordinal + position + form context receipts); daemon counter; Hindi intent parity (both negation orders) | `test_v1190_disambiguation.mjs` 103/103 |
+| v1.29.0 | Execution quality | **Upgraded dom-detector** — interactive-element detection with visual tagging (boxes + numeric badges; cursor-first interactivity, shadow DOM + same-origin iframes, top-element guard, registry/xpath relocation); streaming failure ladder (45 s idle watchdog, 150 s/300 s caps, ×2 → thinking-off → non-stream) with **402 credit-fit refit**; diagnostics guide rebuilt; source-wide comment discipline | `test_creditfit_402.mjs` 10/10; ladder/guardian/disambiguation suites re-run green; OpenCometBench run-all 6/6 (202 checks) |
+
+Documentation note: all core diagrams (architecture, agent loop, privacy
+pipeline, PII taxonomy, face-recall cascade, VLM turn, failure ladder, DOM
+detector) are now interactive Mermaid blocks in the Markdown docs — see the
+root README and `docs/README.md`.

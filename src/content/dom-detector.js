@@ -1,7 +1,7 @@
 // src/content/dom-detector.js
 // Interactive-element detection with visual tagging (boxes + numeric badges).
 //
-// Detection model ported from nanobrowser's buildDomTree engine (MIT):
+// The upgraded detection engine (v1.29.0):
 //   - interactivity decided primarily by computed cursor style, then by
 //     tag/role/contenteditable checks — catches the custom <div> widgets
 //     (YouTube player controls, Gmail chips) that tag-only scans miss;
