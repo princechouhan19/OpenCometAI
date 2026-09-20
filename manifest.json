@@ -46,7 +46,8 @@
         "<all_urls>"
       ],
       "js": [
-        "src/content/agent.js"
+        "src/content/agent.js",
+        "src/content/dom-detector.js"
       ],
       "run_at": "document_idle",
       "all_frames": false
