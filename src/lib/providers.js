@@ -699,6 +699,17 @@ function attemptKey(a) {
   return `s${a.stream ? 1 : 0}r${a.reasoning ? 1 : 0}j${a.jsonMode ? 1 : 0}`;
 }
 
+// Pay-as-you-go gateways (OpenRouter) reject requests whose max_tokens the
+// balance cannot cover and state the largest affordable output
+// ("You requested up to 800 tokens, but can only afford 544"). A decision
+// response needs roughly this much room before truncation breaks JSON.
+const MIN_VIABLE_TOKENS = 256;
+
+function parseCreditAfford(text) {
+  const m = /can only afford (\d+)/i.exec(String(text || ''));
+  return m ? Number(m[1]) : null;
+}
+
 /**
  * Streaming/non-streaming OpenAI-compatible chat call.
  *
@@ -706,9 +717,11 @@ function attemptKey(a) {
  * non-stream. A 400/422 moves down the ladder (gateway rejected a param).
  * A 200 with no usable text escalates the rung in place: 2x token budget,
  * then thinking off, then the next rung. Auth/rate/network errors throw.
+ * A 402 with an affordable token count refits max_tokens to the balance and
+ * retries the same rung; below the minimum it fails with a top-up hint.
  * Hard caps: ATTEMPT_TIMEOUT_MS per attempt, TOTAL_TIMEOUT_MS for everything.
  */
-async function callOpenAICompatible(settings, model, prompt, images, options = {}) {
+export async function callOpenAICompatible(settings, model, prompt, images, options = {}) {
   const base = resolveCompatibleBaseUrl(settings);
   const url = base + '/chat/completions';
   const messages = buildCompatMessages(prompt, images);
@@ -737,17 +750,20 @@ async function callOpenAICompatible(settings, model, prompt, images, options = {
   const canEscalate = (esc, i) =>
     ESCALATIONS.indexOf(esc) < ESCALATIONS.length - 1 || i < attempts.length - 1;
   let lastErr = null;
+  let creditCap = null;   // balance-derived max_tokens ceiling, once learned
+  let refits = 0;
 
   for (let i = 0; i < attempts.length; i++) {
     const a = attempts[i];
 
-    for (const esc of ESCALATIONS) {
+    for (let e = 0; e < ESCALATIONS.length; e++) {
+      const esc = ESCALATIONS[e];
       const remaining = deadline - Date.now();
       if (remaining <= 0) {
         throw new Error(`${tag} · gave up after ${totalMs / 1000}s total${lastErr ? ` — last error: ${lastErr.message}` : ''}`);
       }
 
-      const budget = Math.min(16000, Math.round(maxTokens * (esc?.budget ?? 1)));
+      const budget = Math.min(16000, Math.round(maxTokens * (esc?.budget ?? 1)), creditCap ?? Infinity);
       const body = {
         model,
         messages,
@@ -792,6 +808,26 @@ async function callOpenAICompatible(settings, model, prompt, images, options = {
           let errText = '';
           try { errText = (await res.text()).slice(0, 400); } catch {}
           lastErr = new Error(`${providerLabel(settings.provider)} ${res.status}${errText ? ': ' + errText : ''}`);
+
+          if (refits < 4) {
+            const afford = parseCreditAfford(errText);
+            const fitted = afford != null ? Math.floor(afford * 0.85) : null;
+            if (fitted != null && fitted < MIN_VIABLE_TOKENS) {
+              const hint = /openrouter/i.test(base)
+                ? 'Add credits at https://openrouter.ai/settings/credits'
+                : 'Top up the API account or switch provider';
+              throw new Error(`${providerLabel(settings.provider)} credits too low — balance covers ~${afford} output tokens, a decision needs ~${MIN_VIABLE_TOKENS}. ${hint}.`);
+            }
+            if (fitted != null && (!creditCap || fitted < creditCap)) {
+              creditCap = fitted;
+              refits++;
+              logAPI.warn(`${providerLabel(settings.provider)} ${res.status} — balance covers ~${afford} output tokens · refitting max_tokens=${creditCap}`);
+              e--; continue;   // same rung, clamped budget
+            }
+          }
+          if (res.status === 402 && parseCreditAfford(errText) == null) {
+            throw new Error(`${providerLabel(settings.provider)} 402 — out of credits. ${/openrouter/i.test(base) ? 'Add credits at https://openrouter.ai/settings/credits' : 'Top up the API account or switch provider'}.`);
+          }
           if ((res.status === 400 || res.status === 422) && i < attempts.length - 1) {
             logAPI.warn(`${providerLabel(settings.provider)} ${res.status} (${describeHttpError(lastErr)}) on ${attemptTag(a, esc)} — retrying with ${attemptTag(attempts[i + 1], null)}`);
             break; // next rung

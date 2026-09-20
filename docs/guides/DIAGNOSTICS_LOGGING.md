@@ -235,6 +235,24 @@ Network/API failures are classified into a short kind + hint
 The full error line is `✗ provider/model · <elapsed>ms · <kind> · <first
 220 chars of the underlying message>`.
 
+### 7.1 Credit-fit refit (402)
+
+Pay-as-you-go gateways (OpenRouter) reject requests whose `max_tokens` the
+balance cannot cover and state the largest affordable output. Before v1.29.0's
+credit-fit that was a dead end: every step died at `402 … can only afford 544`
+before any action ran. Now the request is refitted to the balance and retried
+on the same rung:
+
+```
+[Open Comet:API][WARN] OpenAI Compatible 402 — balance covers ~544 output tokens · refitting max_tokens=462
+```
+
+- `max_tokens` is set to 85% of the affordable count (safety margin) and stays
+  clamped for the rest of the call, including the x2 escalation rung.
+- A balance that cannot fund ~256 output tokens (below the room an action JSON
+  needs) fails fast with the top-up URL instead of returning truncated JSON.
+- A plain 402 with no affordable count fails with the same hint.
+
 ---
 
 ## 8. Capturing logs for a bug report
