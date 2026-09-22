@@ -147,6 +147,63 @@ Rules:
 - Do not include markdown fences or commentary.`;
 }
 
+// -- You.com Web Search API ---------------------------------------------------
+// Optional API-backed discovery for Deep Research. Selected from the research
+// settings dropdown; nothing runs unless a key is configured, and a failed
+// call only logs progress — the browser-tab pipeline stays the default.
+
+/**
+ * Run one or more research queries through the You.com Web Search API
+ * and return them in the same shape as scrapeSearchResults, so the
+ * downstream source-selection steps are unchanged.
+ * @param {string} apiKey You.com API key (https://you.com/platform/api-keys)
+ * @param {string[]} queries Sub-queries to search
+ * @param {(text: string) => void} [onProgress] Optional progress reporter
+ * @param {number} [maxResults=8] Max results requested per query
+ * @returns {Promise<Array<{url: string, host: string, title: string, snippet: string}>>}
+ */
+export async function searchYoucom(apiKey, queries, onProgress, maxResults = 8) {
+  const allResults = [];
+  const cleaned = (queries || []).map(q => String(q || '').trim()).filter(Boolean);
+  for (const query of cleaned) {
+    try {
+      const res = await fetch('https://api.ydcindex.io/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({
+          query,
+          num_search_results: maxResults,
+          safesearch: 'Moderate',
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) {
+        onProgress?.(`You.com search failed for "${query}": HTTP ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      for (const hit of (data?.hits || [])) {
+        const url = String(hit.url || '');
+        if (!url) continue;
+        const host = getHostFromUrl(url);
+        const snippet = String((hit.snippets || []).join('\n') || hit.description || '').substring(0, 300);
+        allResults.push({
+          url,
+          host,
+          title: String(hit.title || '').trim() || host,
+          snippet,
+        });
+      }
+    } catch (err) {
+      onProgress?.(`You.com search error for "${query}": ${err?.message || err}`);
+    }
+  }
+  return allResults;
+}
+
 export function buildSearchUrl(engine, query) {
   const q = encodeURIComponent(String(query || '').trim());
   switch (String(engine || 'google').toLowerCase()) {
@@ -156,6 +213,8 @@ export function buildSearchUrl(engine, query) {
       return `https://www.bing.com/search?q=${q}`;
     case 'google':
     default:
+      // "youcom" never reaches a tab URL in the Deep Research pipeline (it
+      // goes through the API); if it lands here, degrade to a Google tab.
       return `https://www.google.com/search?q=${q}`;
   }
 }

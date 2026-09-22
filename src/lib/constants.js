@@ -33,6 +33,7 @@ export const DEFAULT_SETTINGS = {
   langSearchKey:       '',
   braveSearchKey:      '',
   serperKey:           '',
+  youcomKey:           '',
   deepResearchMode:    'browser',
   deepResearchMaxSites: 6,
   deepResearchMaxQueries: 4,

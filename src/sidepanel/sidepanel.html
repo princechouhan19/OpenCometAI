@@ -190,6 +190,7 @@
                 <option value="google">Google</option>
                 <option value="bing">Bing</option>
                 <option value="duckduckgo">DuckDuckGo</option>
+                <option value="youcom">You.com (API key)</option>
               </select>
             </div>
           </div>
@@ -814,7 +815,7 @@
       <!-- Deep Research — Optional Search APIs -->
       <div class="s-section settings-subpage-section" data-settings-page="research">
         <div class="s-section-title">Deep Research — Optional Search APIs</div>
-        <div class="dr-note">Deep Research now works with browser tabs by default. These keys are optional fallbacks if you want external search-provider support later.</div>
+        <div class="dr-note">Deep Research works with browser tabs by default. The You.com key enables API-backed search when "You.com (API key)" is selected as the research engine; the other keys are optional fallbacks for future provider support.</div>
 
         <!-- LangSearch -->
         <div class="s-field">
@@ -843,7 +844,7 @@
         </div>
 
         <!-- Serper (Google) -->
-        <div class="s-field s-field-last">
+        <div class="s-field">
           <label class="s-label">
             Serper API Key <span class="s-hint">(Google results)</span>
             <a class="s-key-link" href="https://serper.dev" target="_blank">Get free key →</a>
@@ -852,6 +853,19 @@
           <div class="api-status-row">
             <span class="api-dot" id="serperDot"></span>
             <span class="api-status-text" id="serperStatusText">Not configured</span>
+          </div>
+        </div>
+
+        <!-- You.com -->
+        <div class="s-field s-field-last">
+          <label class="s-label">
+            You.com API Key
+            <a class="s-key-link" href="https://you.com/platform/api-keys" target="_blank">Get key →</a>
+          </label>
+          <input type="password" class="s-input" id="youcomKeyInput" placeholder="ydc-…" autocomplete="off"/>
+          <div class="api-status-row">
+            <span class="api-dot" id="youcomDot"></span>
+            <span class="api-status-text" id="youcomStatusText">Not configured</span>
           </div>
         </div>
       </div>
@@ -876,6 +890,7 @@
             <option value="google">Google</option>
             <option value="bing">Bing</option>
             <option value="duckduckgo">DuckDuckGo</option>
+            <option value="youcom">You.com (API key)</option>
           </select>
         </div>
 

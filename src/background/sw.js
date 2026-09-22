@@ -10,6 +10,7 @@ import {
   buildSynthesisPrompt,
   buildBrowserSourceAnalysisPrompt,
   buildScrapeExtractionPrompt,
+  searchYoucom,
 } from '../lib/deepsearch.js';
 import { getSettings, saveSettings as persistSettings, getHistory, appendHistory, clearHistory, initStorage, appendExport, recordTokenUsage, clearTokenUsage, serializeStorageWrite, STATE_VERSION } from '../lib/storage.js';
 import { sleep, getHostFromUrl, normalizeHost, parseJSON } from '../lib/utils.js';
@@ -2205,22 +2206,43 @@ async function handleDeepResearch(msg, respond) {
     const candidateSources = [];
     const seenUrls = new Set();
 
-    for (let index = 0; index < subQueries.length; index++) {
-      const query = subQueries[index];
-      onProgress(`Searching query ${index + 1}/${subQueries.length}: ${query}`);
-      const searchTab = await openResearchTab(buildSearchUrl(engine, query), {
-        active: false,
-        openerTabId: activeTab?.id,
-      });
-      searchTabIds.push(searchTab.id);
+    // Optional API-backed discovery: when the research engine is set to
+    // "youcom" AND a key is configured, sub-queries hit the You.com Web
+    // Search API instead of scraping a search-engine tab. Any other
+    // engine value keeps the default browser-tab pipeline untouched.
+    const useYoucomApi = engine === 'youcom' && settings.youcomKey;
 
-      const results = await scrapeSearchResults(searchTab.id, engine, Math.max(6, maxSites * 2), preferredHosts);
-      for (const result of results) {
+    if (useYoucomApi) {
+      onProgress('Searching with You.com API.');
+      const apiResults = await searchYoucom(settings.youcomKey, subQueries, onProgress, Math.max(6, maxSites * 2));
+      for (const result of apiResults) {
         if (!result?.url || seenUrls.has(result.url)) continue;
         seenUrls.add(result.url);
-        candidateSources.push({ ...result, query });
+        candidateSources.push({ ...result, query: subQueries[0] });
       }
-      onProgress(`Found ${results.length} candidate results for query ${index + 1}.`);
+      onProgress(`Found ${candidateSources.length} candidate results via You.com API.`);
+    } else {
+      if (engine === 'youcom' && !settings.youcomKey) {
+        onProgress('You.com selected but no key configured — falling back to browser search.');
+      }
+
+      for (let index = 0; index < subQueries.length; index++) {
+        const query = subQueries[index];
+        onProgress(`Searching query ${index + 1}/${subQueries.length}: ${query}`);
+        const searchTab = await openResearchTab(buildSearchUrl(engine === 'youcom' ? 'google' : engine, query), {
+          active: false,
+          openerTabId: activeTab?.id,
+        });
+        searchTabIds.push(searchTab.id);
+
+        const results = await scrapeSearchResults(searchTab.id, engine === 'youcom' ? 'google' : engine, Math.max(6, maxSites * 2), preferredHosts);
+        for (const result of results) {
+          if (!result?.url || seenUrls.has(result.url)) continue;
+          seenUrls.add(result.url);
+          candidateSources.push({ ...result, query });
+        }
+        onProgress(`Found ${results.length} candidate results for query ${index + 1}.`);
+      }
     }
 
     const sources = pickResearchSources(candidateSources, preferredHosts, maxSites);
