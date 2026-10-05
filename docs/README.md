@@ -9,7 +9,7 @@ agent built for **Smart India Hackathon PS #26171** (ISRO). Start at the root
 
 ```
 docs/
-├── changelog/     ← per-version release notes (v1.14 → v1.29.0)
+├── changelog/     ← per-version release notes (v1.14 → v1.30.0)
 ├── guides/        ← install, features, demos, developer & debugging guides
 ├── sih/           ← SIH-specific: readiness, novelty claims, gap analysis, distribution
 ├── architecture/  ← privacy architecture deep-dive

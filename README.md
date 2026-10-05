@@ -246,7 +246,7 @@ Firefox from one source tree (v1.17.0) — are summarised in
 
 | Folder | Contents |
 |---|---|
-| [`docs/changelog/`](docs/changelog/INDEX.md) | Release notes v1.14 → v1.29.0, one file per version |
+| [`docs/changelog/`](docs/changelog/INDEX.md) | Release notes v1.14 → v1.30.0, one file per version |
 | [`docs/guides/`](docs/guides/GETTING_STARTED.md) | Getting started, features, demo script, developer guide, FAQ, Gemma 4, diagnostics, DOM detector |
 | [`docs/sih/`](docs/sih/SIH_READINESS.md) | SIH readiness per version, claim-by-claim novelty, gap analysis, distribution |
 | [`docs/architecture/`](docs/architecture/PRIVACY_VISION.md) | Privacy architecture deep-dive + file-by-file guide |
