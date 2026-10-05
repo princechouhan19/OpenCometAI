@@ -561,6 +561,51 @@ export async function scanImageForPiiRegions(imageDataUrl, opts = {}) {
   }
 }
 
+/**
+ * ROI-ONLY PII SCAN (v1.30.0) — STRICT variant for the ROI-rescan path.
+ *
+ * Re-OCR ONLY the changed scan regions (from roi-diff regionsFromMask) as
+ * isolated ×2-upscaled crops — the same deterministic re-read the targeted
+ * crop pass uses, but driven by pixel-diff regions instead of DOM rects.
+ *
+ * STRICT CONTRACT (differs from scanImageForPiiRegions):
+ *   • a region-set that is empty, unclampable, or produces ZERO scanned
+ *     crops THROWS — the caller must degrade to a FULL scan (a silently
+ *     skipped changed region would be a privacy hole);
+ *   • every region is expanded to at least the crop pass's minimum window
+ *     (60×24) so a small changed block is READ, never skipped;
+ *   • raw OCR text never propagates — regions only, same as the full scan.
+ */
+export async function scanImagePiiRegionsRoi(imageDataUrl, { regions } = {}) {
+  const t0 = performance.now();
+  if (!Array.isArray(regions) || !regions.length) {
+    throw new Error('scanImagePiiRegionsRoi: empty scan-region set (caller must fall back to a full scan)');
+  }
+  // Verify the decode HERE so a broken capture THROWS (the crop pass would
+  // otherwise silently report scanned:0 and look like "nothing to read").
+  const probe = await createImageBitmap(await (await fetch(imageDataUrl)).blob());
+  const imgW = probe.width, imgH = probe.height;
+  probe.close?.();
+  if (!imgW || !imgH) throw new Error('scanImagePiiRegionsRoi: image decode produced 0×0');
+  // Expand each region to the minimum crop window (60×24), clamped to the
+  // image — shifting x/y back so edge-hugging regions still fit the window.
+  const clamped = [];
+  for (const r of regions) {
+    let x = Math.max(0, Math.round(r.x));
+    let y = Math.max(0, Math.round(r.y));
+    let w = Math.max(60, Math.round(r.w));
+    let h = Math.max(24, Math.round(r.h));
+    if (x + w > imgW) { x = Math.max(0, imgW - w); w = Math.min(imgW, x + w) - x; }
+    if (y + h > imgH) { y = Math.max(0, imgH - h); h = Math.min(imgH, y + h) - y; }
+    if (w >= 60 && h >= 24) clamped.push({ x, y, w, h });
+  }
+  if (!clamped.length) throw new Error('scanImagePiiRegionsRoi: no scannable regions after clamp');
+  const worker = await getOcrEngine();
+  const roi = await ocrRoiRegions(worker, imageDataUrl, clamped, []);
+  if (!roi.scanned) throw new Error('scanImagePiiRegionsRoi: zero regions scanned (decode or engine failure)');
+  return { regions: roi.regions, scanned: roi.scanned, ms: Math.round(performance.now() - t0) };
+}
+
 /** Warm up / dispose the OCR worker (model management). */
 export async function disposeOcrEngine() {
   try { await _engine?.terminate?.(); } catch { /* already gone */ }

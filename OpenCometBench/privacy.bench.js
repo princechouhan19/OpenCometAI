@@ -9,6 +9,7 @@
 // asserted constants.
 // ─────────────────────────────────────────────────────────────────────────────
 import { detectPiiInText } from '../src/lib/pii-detector.js';
+import { timed, latencyStats, roundSamples } from './latency.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -20,9 +21,11 @@ export async function run() {
   const perType = {};   // type → {tp, fp, fn}
   const misses = [];
   const falsePositives = [];
+  const lat = [];   // v1.30.0: per-corpus-case detection latency samples (ms)
 
   for (const p of corpus.positives) {
-    const dets = await detectPiiInText(p.text);
+    const { out: dets, ms } = await timed(() => detectPiiInText(p.text));
+    lat.push(ms);
     const idx = p.text.indexOf(p.expect);
     const span = { start: idx, end: idx + p.expect.length };
     const hit = dets.some(d => d.type === p.type && d.start < span.end && d.end > span.start);
@@ -30,16 +33,17 @@ export async function run() {
     if (hit) perType[p.type].tp++;
     else {
       perType[p.type].fn++;
-      misses.push({ id: p.id, type: p.type, expected: p.expect, got: dets.map(d => `${d.type}:"${d.raw}"`).join(', ') || 'none' });
+      misses.push({ id: p.id, type: p.type, expected: p.expect, got: dets.map(d => `${d.type}:"${d.raw}"`).join(', ') || 'none', latencyMs: r3(ms) });
     }
   }
 
   for (const n of corpus.negatives) {
-    const dets = await detectPiiInText(n.text);
+    const { out: dets, ms } = await timed(() => detectPiiInText(n.text));
+    lat.push(ms);
     for (const d of dets) {
       perType[d.type] ??= { tp: 0, fp: 0, fn: 0 };
       perType[d.type].fp++;
-      falsePositives.push({ id: n.id, type: d.type, matched: d.raw, reason: n.reason });
+      falsePositives.push({ id: n.id, type: d.type, matched: d.raw, reason: n.reason, latencyMs: r3(ms) });
     }
   }
 
@@ -67,6 +71,8 @@ export async function run() {
       misses,
       falsePositives,
       corpusSize: { positives: corpus.positives.length, negatives: corpus.negatives.length },
+      // v1.30.0: per-test latency — every corpus case individually timed
+      latency: { ...latencyStats(lat), samplesMs: roundSamples(lat) },
     },
   };
 }

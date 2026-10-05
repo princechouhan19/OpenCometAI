@@ -12,6 +12,7 @@
 // the SIH metric.
 // ─────────────────────────────────────────────────────────────────────────────
 import { redactionActionForType, buildSafeManifest } from '../src/lib/privacy-firewall.js';
+import { timed, latencyStats, roundSamples } from './latency.js';
 import { fileURLToPath } from 'node:url';
 
 // Synthetic screenshot 1280×800 (CSS px), DPR 2 → image 2560×1600.
@@ -52,51 +53,80 @@ const intersect = (a, b) => ({
 const ia = (a, b) => Math.max(0, area(intersect(a, b)));
 
 export async function run() {
+  // v1.30.0: every analytic step is individually timed (+stageMs breakdown).
+  const lat = [];
+  const stageMs = {};
+  let overRedactionPct = 0, manifestOk = false;
+
   // 1) Style mapping precision — every detector type must map to the SIH
   //    redaction policy (secrets → blackout, personal → pixelate, face → blur).
+  //    v1.30.0: each region's mapping is individually timed.
   const styleRows = [];
   for (const gt of GROUND_TRUTH) {
-    const got = redactionActionForType(gt.type);
-    styleRows.push({ id: gt.id, type: gt.type, expect: gt.expect, got, ok: got === gt.expect });
+    const { out: row, ms } = await timed(() => {
+      const got = redactionActionForType(gt.type);
+      return { id: gt.id, type: gt.type, expect: gt.expect, got, ok: got === gt.expect };
+    });
+    styleRows.push(row); lat.push(ms); (stageMs.styleMapping ??= []).push(ms);
   }
   const styleCorrect = styleRows.filter(r => r.ok).length;
 
   // 2) Coverage — fraction of each GT region covered by DETECTED regions of
   //    the same action class (a blackout over a pixelate-expected region would
   //    still COVER it, but the style row above flags the style mismatch).
+  //    v1.30.0: each region's coverage computation is individually timed.
   const actionsOf = (regions) => regions.map(r => ({ ...r, action: redactionActionForType(r.type) }));
   const det = actionsOf(DETECTED);
-  const coverageRows = GROUND_TRUTH.map(gt => {
-    const want = gt.expect;
-    const covering = det.filter(d => d.action === want);
-    const cov = covering.reduce((acc, d) => acc + ia(gt.bounds, d.bounds), 0) / Math.max(1, area(gt.bounds));
-    return { id: gt.id, coverage: Math.min(1, Math.round(cov * 1000) / 1000) };
-  });
+  const coverageRows = [];
+  for (const gt of GROUND_TRUTH) {
+    const { out: row, ms } = await timed(() => {
+      const want = gt.expect;
+      const covering = det.filter(d => d.action === want);
+      const cov = covering.reduce((acc, d) => acc + ia(gt.bounds, d.bounds), 0) / Math.max(1, area(gt.bounds));
+      return { id: gt.id, coverage: Math.min(1, Math.round(cov * 1000) / 1000) };
+    });
+    coverageRows.push(row); lat.push(ms); (stageMs.coverage ??= []).push(ms);
+  }
   const avgCoverage = coverageRows.reduce((a, r) => a + r.coverage, 0) / coverageRows.length;
 
   // 3) Mean IoU between each GT region and its best-matching detection.
-  const iouRows = GROUND_TRUTH.map(gt => {
-    const want = gt.expect;
-    let best = 0;
-    for (const d of det.filter(x => x.action === want)) {
-      const i = ia(gt.bounds, d.bounds);
-      const u = area(gt.bounds) + area(d.bounds) - i;
-      if (u > 0) best = Math.max(best, i / u);
-    }
-    return { id: gt.id, iou: Math.round(best * 1000) / 1000 };
-  });
+  //    v1.30.0: each region's IoU computation is individually timed.
+  const iouRows = [];
+  for (const gt of GROUND_TRUTH) {
+    const { out: row, ms } = await timed(() => {
+      const want = gt.expect;
+      let best = 0;
+      for (const d of det.filter(x => x.action === want)) {
+        const i = ia(gt.bounds, d.bounds);
+        const u = area(gt.bounds) + area(d.bounds) - i;
+        if (u > 0) best = Math.max(best, i / u);
+      }
+      return { id: gt.id, iou: Math.round(best * 1000) / 1000 };
+    });
+    iouRows.push(row); lat.push(ms); (stageMs.iou ??= []).push(ms);
+  }
   const meanIou = iouRows.reduce((a, r) => a + r.iou, 0) / iouRows.length;
 
   // 4) Over-redaction — redacted area outside ALL GT regions ÷ total page area.
-  const gtUnion = (r) => GROUND_TRUTH.some(gt => ia(r.bounds, gt.bounds) > 0);
-  const overArea = det.filter(d => !gtUnion(d))
-    .reduce((a, d) => a + area(d.bounds), 0);
-  const overRedactionPct = Math.round((overArea / (VIEW.w * VIEW.h)) * 10000) / 100;
+  {
+    const { out, ms } = await timed(() => {
+      const gtUnion = (r) => GROUND_TRUTH.some(gt => ia(r.bounds, gt.bounds) > 0);
+      const overArea = det.filter(d => !gtUnion(d))
+        .reduce((a, d) => a + area(d.bounds), 0);
+      return Math.round((overArea / (VIEW.w * VIEW.h)) * 10000) / 100;
+    });
+    overRedactionPct = out; lat.push(ms); stageMs.overRedaction = [ms];
+  }
 
   // 5) Safe manifest integration — buildSafeManifest keeps bounds intact.
-  const manifest = buildSafeManifest(GROUND_TRUTH.map(g => ({ type: g.type, bounds: g.bounds, source: 'dom', confidence: 0.95 })));
-  const manifestOk = manifest.length === GROUND_TRUTH.length
-    && manifest.every((m, i) => m.bounds.x === GROUND_TRUTH[i].bounds.x);
+  {
+    const { out, ms } = await timed(() => {
+      const manifest = buildSafeManifest(GROUND_TRUTH.map(g => ({ type: g.type, bounds: g.bounds, source: 'dom', confidence: 0.95 })));
+      return manifest.length === GROUND_TRUTH.length
+        && manifest.every((m, i) => m.bounds.x === GROUND_TRUTH[i].bounds.x);
+    });
+    manifestOk = out; lat.push(ms); stageMs.safeManifest = [ms];
+  }
 
   const targets = { coverage: 0.98, meanIou: 0.85, styleAccuracy: 1.0, maxOverRedactionPct: 10 };
   return {
@@ -114,6 +144,8 @@ export async function run() {
       styleRows, coverageRows, iouRows,
       manifestOk,
       targets,
+      // v1.30.0: per-step latency — every analytic step individually timed
+      latency: { ...latencyStats(lat), stageMs: Object.fromEntries(Object.entries(stageMs).map(([k, v]) => [k, Array.isArray(v) ? v.map(r3) : r3(v)])), samplesMs: roundSamples(lat) },
     },
   };
 }

@@ -5,6 +5,7 @@
 // and never become an accidental raw-image bypass.
 // ─────────────────────────────────────────────────────────────────────────────
 import { validateInboundRequest, sniffImageMime, LIMITS } from '../server/validate.js';
+import { latencyStats, roundSamples, r3 } from './latency.js';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...Array(64).fill(0)]);
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, ...Array(64).fill(0)]);
@@ -87,16 +88,20 @@ const TESTS = [
 
 export async function run() {
   const results = [];
+  const lat = [];   // v1.30.0: per-test latency samples (ms)
   for (const [name, fn] of TESTS) {
     let ok = false, err = null;
+    const t0 = performance.now();
     try { ok = Boolean(await fn()); } catch (e) { err = e?.message || String(e); }
-    results.push({ name, ok, ...(err ? { error: err } : {}) });
+    const ms = performance.now() - t0;
+    lat.push(ms);
+    results.push({ name, ok, latencyMs: r3(ms), ...(err ? { error: err } : {}) });
   }
   const passed = results.filter(r => r.ok).length;
   return {
     name: 'Server inbound validation (reject malformed/unsafe payloads)',
     pass: passed === results.length,
-    metrics: { passed, total: results.length, results },
+    metrics: { passed, total: results.length, results, latency: { ...latencyStats(lat), samplesMs: roundSamples(lat) } },
   };
 }
 

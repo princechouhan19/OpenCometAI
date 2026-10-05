@@ -1272,7 +1272,7 @@ All standing suites re-run this round; no authoritative number above changed.
 
 ---
 
-## Shipped since v1.16.0 (v1.17.0 → v1.29.0 — capability rounds)
+## Shipped since v1.16.0 (v1.17.0 → v1.30.0 — capability rounds)
 
 The authoritative measured rows above are v1.16.0 numbers and remain
 unchanged — no later round re-measured them under different conditions, and
@@ -1286,6 +1286,7 @@ throughout:
 | v1.18.0 | Task Authorization Daemon | Purchase/deletion clicks authorized ONLY by the user's own task text; negation enforcement ("no buying today" blocks Buy); fault shutdown fail-closed | `test_v1180_guardian.mjs` 38/38 |
 | v1.19.0 | Disambiguation | Repeated tags → exact controls (ordinal + position + form context receipts); daemon counter; Hindi intent parity (both negation orders) | `test_v1190_disambiguation.mjs` 103/103 |
 | v1.29.0 | Execution quality | **Upgraded dom-detector** — interactive-element detection with visual tagging (boxes + numeric badges; cursor-first interactivity, shadow DOM + same-origin iframes, top-element guard, registry/xpath relocation); streaming failure ladder (45 s idle watchdog, 150 s/300 s caps, ×2 → thinking-off → non-stream) with **402 credit-fit refit**; diagnostics guide rebuilt; source-wide comment discipline | `test_creditfit_402.mjs` 10/10; ladder/guardian/disambiguation suites re-run green; OpenCometBench run-all 6/6 (202 checks) |
+| v1.30.0 | Benchmark observability + changed-frame latency | **Per-test latency in EVERY benchmark test** — 815 individually-timed cases across all 6 Node suites + every adversarial e2e case, p50/p90/p95 per suite + full sample arrays in the result JSON (shared floor-index percentile method); **ROI-rescan activated** — `roi-diff.js` (previously dead code) wired into the OCR stage: partial-change frames re-OCR changed regions only (fail-toward-full on first sight/URL/dims/ratio/periodic/coverage caps and any error; fingerprints-only chain state; strict `scanImagePiiRegionsRoi` throws on decode/zero-scanned → full-scan degrade; `cfg.roiRescan` switch); decision overhead measured 0.095 ms/frame; **quality metrics byte-identical v1.29.0→v1.30.0** (measured same-sandbox comparison, changelog) | `test_v1300_latency_roi.mjs` 67/67; OpenCometBench run-all 6/6 with per-suite latency lines (815 timed cases, 815/815 sample arrays in JSON) |
 
 Documentation note: all core diagrams (architecture, agent loop, privacy
 pipeline, PII taxonomy, face-recall cascade, VLM turn, failure ladder, DOM

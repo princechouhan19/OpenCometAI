@@ -191,8 +191,10 @@ node OpenCometBench/e2e/run-e2e-real.mjs --warmup # real-VLM tier, steady-state 
 | Redaction coverage / mean IoU | **1.000 / 0.987**, pixel leakage 0/340, over-redaction 0% (real-browser pixel tier) — unit harness on the same build: 0.983 / 0.938 / 5.9% over-redaction | `browser/harness.mjs` (browser report) · `redaction.bench.js` |
 | Visual context accuracy | **12/12** DOM-fused, **12/12** ViT-fused (browser tier; unit harness: 11/11) | `browser/harness.mjs` (browser report) · `visual-context.bench.js` |
 | Security / fuzz / server-validation | 29/29 · 0 leaks in 216 · 25/25 | `security/fuzz/server-validation` |
+| **Per-test benchmark latency (v1.30.0)** | **815 cases individually timed** across all 6 Node suites + every adversarial case; p50/p90/p95 published per suite (unit-tier p50 0.014–0.093 ms; full sample arrays in the result JSON) | `OpenCometBench/latency.js` + every suite |
+| **Changed-frame OCR (v1.30.0 ROI-rescan)** | partially-changed frames re-OCR **changed regions only** (fail-toward-full guards on first sight/URL/dims/ratio/periodic caps); ROI decision overhead measured **0.095 ms/frame**; quality metrics byte-identical v1.29.0→v1.30.0 | `src/lib/roi-diff.js` + `privacy-filter.js` |
 | Sanitize P50 **warm** (unchanged screen) | **1216 ms** (memo hit; OCR memo collapses the OCR leg; n=7) | browser report |
-| Changed frame (memo miss, full re-detect) | 12885 ms (YOLO 7841 + OCR 3402) — by design, scene-change-attack verified | browser report |
+| Changed frame (memo miss, full re-detect) | 12885 ms (YOLO 7841 + OCR 3402) — by design, scene-change-attack verified; v1.30.0 ROI-rescan narrows the OCR leg to **changed regions only** on partially-changed frames (full scan stays the floor for material scene changes) | browser report |
 | Real-VLM step (OpenRouter free model) | VLM 4679 ms · action 777 ms · **0 privacy blocks** · verified 1/1 (single-step reference run) | `e2e-real` report |
 | Cold first step (one-time model load) | ViT load 37873 ms — a session warm-up (`--warmup`) collapses subsequent turns; a committed warm-up results artifact is still pending | `e2e-real` + warm-up probe |
 
@@ -211,27 +213,33 @@ drag it onto `OpenCometBench/dashboard.html`. Full methodology:
 | Sensitive/PII detection P+R (20%) | 4-layer detector: tiled faces, DOM semantics, regex+checksums, contextual risk |
 | Redaction precision (20%) | Per-type styles, safe manifest (no raw selectors leave), fail-closed |
 | Client resource use (20%) | INT8 models, WebGPU-first/WASM fallback, lazy-load, ~50–150 MB RAM, heap Δ0 in browser run |
-| E2E latency (15%) | Memoized re-hits, session warm-up, speed profiles, shot-reuse on unchanged screens |
+| E2E latency (15%) | Memoized re-hits, session warm-up, speed profiles, shot-reuse on unchanged screens, ROI-rescan (changed regions only) on partially-changed frames |
 
-## What's new in v1.29.0
+## What's new in v1.30.0
 
-- **Upgraded dom-detector** — interactive-element detection with visual tagging:
-  every clickable control is boxed on-screen with a numeric badge, and the
-  element list carries the same number as its identity — one identity per
-  control across screenshot, prompt and click. Cursor-first interactivity,
-  shadow DOM + same-origin iframes, top-element guard, registry/xpath
-  relocation. How it works:
-  [`docs/guides/DOM_DETECTOR.md`](docs/guides/DOM_DETECTOR.md).
-- **Streaming failure ladder** — 45 s idle watchdog, 150 s attempt / 300 s total
-  caps, budget ×2 → thinking-off → non-stream fallback, plus a **402
-  credit-fit refit** that rescales `max_tokens` to what the gateway balance can
-  afford instead of killing the run.
-- **Diagnostics guide rebuilt** — line anatomy, `VLM-REQ / VLM-RAW / VLM-RES`
-  groups, failure kinds with interactive diagrams, export how-to.
+- **Per-test latency in EVERY benchmark test** — 815 individually-timed cases
+  (was: tier-level wall time only): every corpus case, every analytic step,
+  every page classification, every test, every fuzz case's outbound path, and
+  every adversarial e2e case. `run-all.js` prints a p50/p90/p95 line per
+  suite and the result JSON carries the full per-case sample arrays. Shared
+  percentile method matches the browser/e2e tiers (floor-index).
+- **ROI-rescan activated** — `src/lib/roi-diff.js` (region-of-interest change
+  detection, previously complete-but-unwired) now drives the OCR stage:
+  on a memo miss the block fingerprints decide FULL vs region-only re-scan
+  (fail-toward-full on first sight / URL / dims / ratio cap / periodic cap /
+  coverage cap / any error), and partial changes re-OCR **only the changed
+  regions** as ×2 crops while unchanged-pixel regions are kept. Chain state
+  is fingerprints-only (no pixels retained); `cfg.roiRescan` is the fail-safe
+  switch. Decision overhead measured at 0.095 ms/frame.
+- **Quality unchanged, measured** — every v1.29.0 quality metric reproduces
+  identically on v1.30.0 (PII P/R/F1 = 1.00, redaction 0.983/0.938, security
+  29/29, fuzz 0 leaks, server 25/25) — the release adds measurement and a
+  reuse path, not detector changes. Full comparison:
+  [`docs/changelog/v1.30.0.md`](docs/changelog/v1.30.0.md).
 
-Earlier rounds — Firefox support from one source tree (v1.17.0), the
-Task Authorization Daemon (v1.18.0), disambiguation of repeated controls
-(v1.19.0) — are summarised in
+Earlier rounds — dom-detector visual tagging + streaming failure ladder
+(v1.29.0), disambiguation (v1.19.0), Task Authorization Daemon (v1.18.0),
+Firefox from one source tree (v1.17.0) — are summarised in
 **[`docs/changelog/`](docs/changelog/INDEX.md)**, one file per version.
 
 ## Documentation

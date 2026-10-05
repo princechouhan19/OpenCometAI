@@ -8,6 +8,7 @@ each file preserves the section that used to live in the root `README.md`
 
 | Version | File | Headline |
 |---|---|---|
+| v1.30.0 | [v1.30.0.md](./v1.30.0.md) | Per-test benchmark latency EVERYWHERE — 815 individually-timed cases across all 6 Node suites + adversarial runner, p50/p90/p95 + full sample arrays in JSON (`OpenCometBench/latency.js`) + ROI-rescan activation: `roi-diff.js` wired into the OCR stage (changed regions only, fail-toward-full, fingerprints-only chain state); quality metrics byte-identical to v1.29.0 |
 | v1.29.0 | [v1.29.0.md](./v1.29.0.md) | Streaming failure ladder (45s idle watchdog, 150s/300s caps, budget×2 → thinking-off → non-stream fallback) + DOM element detector with visual tagging (cursor-first, shadow DOM, iframes, registry/xpath relocation) + diagnostics guide rebuilt + source-wide comment discipline |
 | v1.19.0 | [v1.19.0.md](./v1.19.0.md) | Disambiguation: repeated tags get `dup`/`pos`/`nearform`/`ref` receipts resolvable to the EXACT control (`"Buy Now #2"`) + Daemon Counter (per-run + lifetime gate accounting) + Hindi intent matching with both negation orders |
 | v1.18.0 | [v1.18.0.md](./v1.18.0.md) | Task Authorization Daemon: purchase/delete clicks authorized ONLY by the user's own task text (negation-enforced), fault shutdown, injection prevention, speculative-queue override, 3-hit honest exit |

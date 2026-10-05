@@ -14,6 +14,7 @@ import {
   deriveVisualElements,
 } from '../src/lib/page-classifier.js';
 import { readFileSync } from 'node:fs';
+import { timed, latencyStats, roundSamples, r3 } from './latency.js';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -97,26 +98,33 @@ const PAGES = [
 ];
 
 export async function run() {
+  // v1.30.0: every page classification is individually timed.
   let correct = 0;
-  const rows = PAGES.map(p => {
-    const ctx = classifyVisualContext(p, p.vitLabels || null);
+  const lat = [];
+  const rows = [];
+  for (const p of PAGES) {
+    const { out: ctx, ms } = await timed(() => classifyVisualContext(p, p.vitLabels || null));
+    lat.push(ms);
     const ok = ctx.pageType === p.expect;
     if (ok) correct++;
-    return { id: p.id, expect: p.expect, got: ctx.pageType, confidence: ctx.confidence, scene: ctx.scene, elements: ctx.visualElements, ok };
-  });
+    rows.push({ id: p.id, expect: p.expect, got: ctx.pageType, confidence: ctx.confidence, scene: ctx.scene, elements: ctx.visualElements, latencyMs: r3(ms), ok });
+  }
 
   // Element recognition: the checkout page must surface order-relevant elements
   const co = rows.find(r => r.id === 'checkout-flow');
   const wantEls = ['form', 'button', 'price_display', 'order_summary'];
   const elsOk = wantEls.filter(e => co.elements.includes(e)).length;
 
-  // Adaptive gate behaviour (Phase 6)
+  // Adaptive gate behaviour (Phase 6) — each gate decision individually timed
+  const gateSamples = [];
+  const gateCall = (state) => timed(() => shouldRunVisionClassifier(state)).then(({ out, ms }) => { gateSamples.push(ms); return out.run; });
   const gate = {
-    domSufficientSkips: shouldRunVisionClassifier({ domBest: { type: 'login', confidence: 0.9 }, pageChanged: true, visuallyHeavy: false }).run === false,
-    uncertaintyRuns: shouldRunVisionClassifier({ domBest: { type: 'unknown', confidence: 0.3 }, pageChanged: true, visuallyHeavy: false }).run === true,
-    unchangedSkips: shouldRunVisionClassifier({ domBest: { type: 'unknown', confidence: 0.3 }, pageChanged: false, visuallyHeavy: false }).run === false,
-    heavyRuns: shouldRunVisionClassifier({ domBest: { type: 'login', confidence: 0.9 }, pageChanged: true, visuallyHeavy: true }).run === true,
+    domSufficientSkips: await gateCall({ domBest: { type: 'login', confidence: 0.9 }, pageChanged: true, visuallyHeavy: false }) === false,
+    uncertaintyRuns: await gateCall({ domBest: { type: 'unknown', confidence: 0.3 }, pageChanged: true, visuallyHeavy: false }) === true,
+    unchangedSkips: await gateCall({ domBest: { type: 'unknown', confidence: 0.3 }, pageChanged: false, visuallyHeavy: false }) === false,
+    heavyRuns: await gateCall({ domBest: { type: 'login', confidence: 0.9 }, pageChanged: true, visuallyHeavy: true }) === true,
   };
+  const gateLatencyMs = r3(Math.max(...gateSamples));   // worst-case gate decision
   const gateOk = Object.values(gate).every(Boolean);
 
   const accuracy = correct / PAGES.length;
@@ -130,7 +138,10 @@ export async function run() {
       rows,
       elementCoverage: `${elsOk}/${wantEls.length}`,
       gate,
+      gateLatencyMs,
       targets,
+      // v1.30.0: per-test latency — every page classification individually timed
+      latency: { ...latencyStats(lat), samplesMs: roundSamples(lat) },
     },
   };
 }

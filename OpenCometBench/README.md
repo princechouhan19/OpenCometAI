@@ -87,6 +87,18 @@ Targets are encoded per suite (P≥0.97, R≥0.95, coverage≥0.98, accuracy≥0
 **Exit code 0 = every target met.** The `--json` output is what Settings → SIH
 Scorecard imports as UNIT rows.
 
+**Per-test latency (v1.30.0):** EVERY unit-tier test case is individually
+timed — 815 timed cases in total (privacy: every corpus case; redaction: every
+analytic step, with a `stageMs` breakdown; visual-context: every page
+classification + worst-case gate decision; security/server-validation: every
+test; fuzz: every case's full outbound path). `run-all.js` prints a
+`latency:` line per suite (n · min · p50 · p90 · p95 · max) and the `--json`
+output carries the full per-case sample array (`metrics.latency.samplesMs[]`)
+plus per-row `latencyMs` fields. The percentile method (`floor(q·n)` over a
+sorted array) is shared with the browser/e2e tiers via
+`OpenCometBench/latency.js`, so latency numbers are comparable across tiers.
+An empty sample set reports `n=0` — a missing measurement is never fabricated.
+
 ### 3.2 BROWSER — REAL pixels (automated)
 
 ```bash

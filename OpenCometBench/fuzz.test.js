@@ -21,6 +21,7 @@ import {
 } from '../src/lib/privacy-firewall.js';
 import { buildPrivacyDecisionPrompt } from '../src/lib/privacy-agent.js';
 import { maskForType } from '../src/lib/pii-detector.js';
+import { latencyStats, roundSamples, r3 } from './latency.js';
 
 // mulberry32 — deterministic
 let _s = 26171;
@@ -78,6 +79,7 @@ export async function run() {
   const CASES_PER_COMBO = 3;
   const results = [];
   const limitations = [];
+  const lat = [];   // per-case outbound-path latency samples (ms)
   let blocked = 0, maskedOnly = 0, leakAttempts = 0;
 
   for (const fam of FAMILIES) {
@@ -96,21 +98,30 @@ export async function run() {
         const payload = { ...pipelineResult, __history: [] };
         inject(payload, secret);
 
-        // 1) firewall envelope (the ONLY shape the gate accepts)
-        const env = sanitizeScreenContext(payload, {});
-        // 2) assemble the wire payload + the exact prompt string
-        const wirePayload = {
-          privacyVerification: env.privacyVerification,
-          sanitizedImage: env.sanitizedImage,
-          sanitizedText: env.sanitizedText,
-          safeManifest: env.safeManifest,
-        };
-        const prompt = buildPrivacyDecisionPrompt(
-          { sanitizedDomText: env.sanitizedText, privacy: env, page: payload.page, visualContext: payload.visualContext },
-          'buy headphones', payload.__history || [],
-        );
-        const gate = validateSanitizedPayload(wirePayload);
-        const secretHits = scanTextForSecrets(prompt);
+        // v1.30.0: the ENTIRE outbound path is individually timed per case —
+        // envelope → prompt assembly → gate validation → secret sweep.
+        const caseMs = await (async () => {
+          const t0 = performance.now();
+          // 1) firewall envelope (the ONLY shape the gate accepts)
+          const env = sanitizeScreenContext(payload, {});
+          // 2) assemble the wire payload + the exact prompt string
+          const wirePayload = {
+            privacyVerification: env.privacyVerification,
+            sanitizedImage: env.sanitizedImage,
+            sanitizedText: env.sanitizedText,
+            safeManifest: env.safeManifest,
+          };
+          const prompt = buildPrivacyDecisionPrompt(
+            { sanitizedDomText: env.sanitizedText, privacy: env, page: payload.page, visualContext: payload.visualContext },
+            'buy headphones', payload.__history || [],
+          );
+          const gate = validateSanitizedPayload(wirePayload);
+          const secretHits = scanTextForSecrets(prompt);
+          const ms = performance.now() - t0;
+          return { gate, prompt, secretHits, wirePayload, ms };
+        })();
+        const { gate, prompt, secretHits, wirePayload, ms } = caseMs;
+        lat.push(ms);
         const promptBlocked = secretHits.length > 0;
 
         // A leak = gate passed AND the raw secret appears in the wire strings.
@@ -126,6 +137,7 @@ export async function run() {
           family: fam.id, channel, k, secret,
           gateBlocked: !gate.ok, gateReasons: gate.reasons, promptBlocked,
           rawInWire, ok: !gate.ok || promptBlocked || !rawInWire,
+          latencyMs: r3(ms),
         });
       }
     }
@@ -155,6 +167,8 @@ export async function run() {
       // include a compact success matrix for the scorecard
       matrix: results.reduce((acc, r) => { acc[`${r.family}→${r.channel}`] = r.ok; return acc; }, {}),
       sampleSize: results.length,
+      // per-test latency (every case's outbound path individually timed)
+      latency: { ...latencyStats(lat), samplesMs: roundSamples(lat) },
       knownLimitations: {
         barePasswordNoKeyword: {
           cases: limitations.filter(l => l.family === 'password').length,

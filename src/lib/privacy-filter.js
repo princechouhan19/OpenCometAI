@@ -25,7 +25,14 @@ import { detectSensitiveDomElements, detectPiiInText, sanitizeText } from './pii
 import { redactImage } from './canvas-redactor.js';
 import { mlLog, mlWarn } from './local-models-shared.js';
 import { classifyVisualContext } from './page-classifier.js';
-import { scanImageForPiiRegions } from './ocr-pii.js';
+import { scanImageForPiiRegions, scanImagePiiRegionsRoi } from './ocr-pii.js';
+// v1.30.0: ROI-diff activation — region-of-interest change detection drives
+// the OCR stage's partial re-scan decision (see planRoiRescan below).
+import {
+  toGray, blockFingerprints, diffFingerprints, planPerception,
+  regionsFromMask, boxOutsideAllRegions,
+  ROI_PROXY_W, ROI_PROXY_H, ROI_GRID_COLS, ROI_GRID_ROWS,
+} from './roi-diff.js';
 
 /**
  * Run the full privacy pipeline on a screenshot.
@@ -65,6 +72,7 @@ export async function runPrivacyPipeline(input, opts = {}) {
     runYolo: false,
     yoloMemo: true,         // v1.14.1: unchanged-screen reuse of YOLO detections (exact-capture-keyed)
     ocrMemo: true,          // v1.16.0: unchanged-screen reuse of OCR PII regions (exact-capture + ROI keyed)
+    roiRescan: true,        // v1.30.0: roi-diff-driven partial re-OCR — changed regions only, fail-toward-full
     useNer: false,
     ocrPii: false,          // SIH Phase 9: opt-in OCR pass for non-DOM PII
     scaleX: 1,
@@ -443,6 +451,12 @@ export async function runPrivacyPipeline(input, opts = {}) {
   let ocrFailed = false;          // v1.13 fail-closed flag (OCR requested but unavailable)
   let ocrFailedReason = '';
   let ocrMemoHit = false;         // v1.16.0 telemetry: unchanged-screen OCR memo reuse
+  // v1.30.0 ROI-rescan telemetry (stats.roi):
+  let roiMode = null;             // 'roi' | 'full' | null (ocrPii off / memo hit)
+  let roiReason = '';
+  let roiChangedBlocks = 0;
+  let roiScanRegions = 0;
+  let roiScanMs = null;
   // TARGETED CROP ROIs: canvases (pixel-text containers) + photo
   // candidates, in IMAGE space, capped. The full-page OCR pass drops small
   // text on busy pages (field report: 1 of 6+ pixel-PII instances redacted);
@@ -478,7 +492,65 @@ export async function runPrivacyPipeline(input, opts = {}) {
       let ocr = ocrMemoKey ? ocrMemoGet(ocrMemoKey) : null;
       ocrMemoHit = Boolean(ocr);
       if (!ocr) {
-        ocr = await scanImageForPiiRegions(input.imageDataUrl, { rois: ocrRois });
+        // ROI-RESCAN DECISION (v1.30.0) — the memo missed (pixels changed or
+        // first sight). planRoiRescan() diffs block fingerprints and FAILS
+        // TOWARD FULL: first sight / URL change / dims change / ratio cap /
+        // periodic cap / ANY error all yield a full-frame pass; ROI mode
+        // survives only when every privacy precondition holds.
+        const plan = await planRoiRescan(input, cfg);
+        if (plan.mode === 'roi') {
+          try {
+            if (plan.regions.length) {
+              // Partial change: re-OCR ONLY the changed regions (×2 crops).
+              const roiScan = await scanImagePiiRegionsRoi(input.imageDataUrl, { regions: plan.regions });
+              // Previous-frame boxes fully outside every scanned region sit
+              // on (per fingerprints) unchanged pixels and remain valid;
+              // boxes touching a scanned region are replaced by the fresh
+              // scan — stale boxes never survive on top of changed pixels.
+              const kept = (_roiState.prevRegions || []).filter(b => boxOutsideAllRegions(b.bounds, plan.regions));
+              ocr = { regions: [...kept, ...roiScan.regions], textChars: 0, ms: roiScan.ms, roiScanned: roiScan.scanned };
+              log(`OCR [ROI rescan — ${plan.reason}]: ${plan.changedCount} changed block(s) → ${plan.regions.length} region(s) re-scanned in ${roiScan.ms}ms (+${kept.length} kept from unchanged pixels)`);
+            } else {
+              // Fingerprints identical (re-encode noise on an exact-string
+              // miss): every previous region is still valid — reuse ALL.
+              ocr = { regions: [...(_roiState.prevRegions || [])], textChars: 0, ms: 0, roiReused: true };
+              log(`OCR [ROI rescan — ${plan.reason}]: 0 changed blocks → all ${(_roiState.prevRegions || []).length} previous region(s) reused (no scan)`);
+            }
+            roiMode = 'roi'; roiReason = plan.reason;
+            roiChangedBlocks = plan.changedCount;
+            roiScanRegions = plan.regions.length;
+            roiScanMs = ocr.ms;
+            _roiState.consecutive++;
+          } catch (e) {
+            // STRICT ROI scan threw (decode / zero-scanned / engine) → FULL.
+            roiMode = 'full';
+            roiReason = `roi-error: ${String(e?.message || e)}`;
+            mlWarn('[Privacy] ROI rescan failed — degrading to FULL scan:', roiReason);
+            ocr = null;
+          }
+        } else {
+          roiMode = 'full';
+          roiReason = plan.reason;
+        }
+        if (!ocr) {
+          ocr = await scanImageForPiiRegions(input.imageDataUrl, { rois: ocrRois });
+        }
+        // Chain bookkeeping for the NEXT frame (fingerprints only — no
+        // pixels are ever retained; see the _roiState contract below).
+        if (!ocr.failed && !ocr.skipped) {
+          _roiState.url = input.pageUrl || '';
+          _roiState.width = plan.currFps?.width || 0;
+          _roiState.height = plan.currFps?.height || 0;
+          _roiState.fps = plan.currFps?.fps || null;
+          _roiState.prevRegions = [...(ocr.regions || [])];
+          if (roiMode !== 'roi') _roiState.consecutive = 0;
+        } else {
+          // FAILED/SKIPPED scans never feed the chain (fail-closed honesty
+          // — the next frame re-establishes ground truth with a full pass).
+          _roiState.fps = null;
+          _roiState.prevRegions = [];
+          _roiState.consecutive = 0;
+        }
         if (ocrMemoKey && !ocr.failed && !ocr.skipped) ocrMemoSet(ocrMemoKey, ocr);
       }
       ocrRegions = ocr.regions || [];
@@ -494,6 +566,11 @@ export async function runPrivacyPipeline(input, opts = {}) {
         log(`OCR: FAILED (${ocrFailedReason}) — fail-closed: transmission will be BLOCKED`);
       } else if (ocr.skipped) {
         log(`OCR: skipped (${ocr.reason}); pipeline continues`);
+      } else if (roiMode === 'roi') {
+        // v1.30.0 ROI-rescan log — honest about what actually ran.
+        log(`OCR [ROI rescan — ${roiReason}]: roiMode=roi · ${roiChangedBlocks} changed block(s) · ${roiScanRegions} region(s) scanned in ${roiScanMs ?? 0}ms → ${ocrRegions.length} PII region(s) total`);
+      } else if (roiMode === 'full') {
+        log(`OCR [full rescan — ${roiReason}]: roiMode=full → ${ocrRegions.length} PII region(s) in ${Math.round(performance.now() - t0)}ms`);
       } else if (ocrMemoHit) {
         // Memo hit: report the ACTUAL phase cost (≈0 ms), never the stored
         // original scan time — the log must stay honest about what ran.
@@ -656,6 +733,15 @@ export async function runPrivacyPipeline(input, opts = {}) {
       // memo telemetry (honest reporting of the reuse path):
       yoloMemoHit,
       ocrMemoHit,
+      // v1.30.0 ROI-rescan telemetry (roi-diff activation):
+      roi: {
+        mode: roiMode || 'off',
+        ...(roiReason ? { reason: roiReason } : {}),
+        changedBlocks: roiChangedBlocks,
+        scanRegions: roiScanRegions,
+        ...(roiScanMs != null ? { scanMs: roiScanMs } : {}),
+        consecutiveRoi: _roiState.consecutive,
+      },
       faceMemoHit: Boolean(faceDebug?.memoHit),
       // fail-closed OCR policy — see the OCR block above.
       ocrFailed,
@@ -767,6 +853,70 @@ function ocrMemoGet(key) {
 }
 function ocrMemoSet(key, val) {
   memoLruSet(_ocrMemo, key, val, 2);
+}
+
+// ── ROI-RESCAN CHAIN (v1.30.0) ──────────────────────────────────────────
+// Block fingerprints of the LAST pass + the OCR regions that were valid on
+// those pixels. PRIVACY CONTRACT: chain state holds FINGERPRINTS ONLY
+// (per-block mean/variance/gradient energies over a 96×54 grayscale proxy —
+// see src/lib/roi-diff.js). No pixels are retained; the statistics cannot
+// reconstruct the screen. Cleared whenever a scan fails or is skipped.
+const _roiState = {
+  url: '',            // page URL the chain was built on
+  width: 0, height: 0,// capture dims the fingerprints belong to
+  fps: null,          // blockFingerprints() of the previous successful pass
+  prevRegions: [],    // OCR regions valid on the previous pass (image px)
+  consecutive: 0,     // consecutive ROI-mode frames since the last full pass
+};
+
+/** Decode the capture into a 96×54 grayscale proxy and take block
+ *  fingerprints (roi-diff contract: derived statistics only, never pixels). */
+async function computeRoiFingerprints(imageDataUrl) {
+  const bmp = await createImageBitmap(await (await fetch(imageDataUrl)).blob());
+  const width = bmp.width, height = bmp.height;
+  const proxy = typeof OffscreenCanvas !== 'undefined'
+    ? new OffscreenCanvas(ROI_PROXY_W, ROI_PROXY_H)
+    : Object.assign(document.createElement('canvas'), { width: ROI_PROXY_W, height: ROI_PROXY_H });
+  const pctx = proxy.getContext('2d', { willReadFrequently: true });
+  pctx.drawImage(bmp, 0, 0, ROI_PROXY_W, ROI_PROXY_H);
+  bmp.close?.();
+  const gray = toGray(pctx.getImageData(0, 0, ROI_PROXY_W, ROI_PROXY_H).data, ROI_PROXY_W, ROI_PROXY_H);
+  return { fps: blockFingerprints(gray, ROI_PROXY_W, ROI_PROXY_H), width, height };
+}
+
+/** Decide FULL vs region-only OCR re-scan for a memo-miss frame.
+ *  NEVER throws — every failure degrades to a full pass
+ *  (fail-toward-more-work; "skip" may never mean "assume nothing sensitive"). */
+async function planRoiRescan(input, cfg) {
+  try {
+    if (cfg.roiRescan === false) return { mode: 'full', reason: 'roi-disabled', currFps: null };
+    const curr = await computeRoiFingerprints(input.imageDataUrl);
+    const urlMatched = _roiState.url === (input.pageUrl || '');
+    const dimsMatched = _roiState.width === curr.width && _roiState.height === curr.height;
+    const hasPrev = Boolean(_roiState.fps) && urlMatched && dimsMatched;
+    let diff = null;
+    if (hasPrev) diff = diffFingerprints(_roiState.fps, curr.fps);
+    const plan = planPerception({
+      hasPrevState: hasPrev,
+      urlMatched: hasPrev,   // URL + dims guards folded in (either mismatch → full)
+      ratio: diff ? diff.ratio : 1,
+      consecutive: _roiState.consecutive,
+    });
+    if (plan.mode !== 'roi') return { ...plan, currFps: curr };
+    if (!diff.changedCount) {
+      // Fingerprints identical: every previous region stays valid.
+      return { mode: 'roi', reason: 'unchanged-reuse', regions: [], changedCount: 0, currFps: curr };
+    }
+    const regions = regionsFromMask(diff.changed, ROI_GRID_COLS, ROI_GRID_ROWS, curr.width, curr.height);
+    if (regions === null) {
+      // Merged regions would cover >coverageCap of the frame → a full scan
+      // is the honest AND cheaper path (roi-diff coverage-cap invariant).
+      return { mode: 'full', reason: 'coverage-cap', currFps: curr };
+    }
+    return { mode: 'roi', reason: plan.reason, regions, changedCount: diff.changedCount, currFps: curr };
+  } catch (e) {
+    return { mode: 'full', reason: `roi-error: ${String(e?.message || e)}`, currFps: null };
+  }
 }
 
 /**

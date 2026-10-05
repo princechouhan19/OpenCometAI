@@ -19,6 +19,7 @@ import { makeFenceNonce, fenceUntrusted, neutralizeUntrusted, injectionDefenseRu
 import { cssRectToImage } from '../src/lib/privacy-filter.js';
 import { buildPrivacyDecisionPrompt, gateOutboundDecision } from '../src/lib/privacy-agent.js';
 import { maskForType } from '../src/lib/pii-detector.js';
+import { timed, latencyStats, roundSamples, r3 } from './latency.js';
 
 const IMG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD' + 'A'.repeat(400);
 const RAW_PNG = 'data:image/png;base64,' + 'iVBORw0KGgoAAAANSUhEUg'.repeat(4000); // oversized
@@ -223,16 +224,20 @@ function eq(a, b) { return a.x === b.x && a.y === b.y && a.w === b.w && a.h === 
 
 export async function run() {
   const results = [];
+  const lat = [];   // v1.30.0: per-test latency samples (ms)
   for (const [name, fn] of TESTS) {
-    let ok = false, err = null;
+    let ok = false, err = null, ms = 0;
+    const t0 = performance.now();
     try { ok = Boolean(await fn()); } catch (e) { err = e?.message || String(e); }
-    results.push({ name, ok, ...(err ? { error: err } : {}) });
+    ms = performance.now() - t0;
+    lat.push(ms);
+    results.push({ name, ok, latencyMs: r3(ms), ...(err ? { error: err } : {}) });
   }
   const passed = results.filter(r => r.ok).length;
   return {
     name: 'Security & privacy leakage suite',
     pass: passed === results.length,
-    metrics: { passed, total: results.length, results },
+    metrics: { passed, total: results.length, results, latency: { ...latencyStats(lat), samplesMs: roundSamples(lat) } },
   };
 }
 

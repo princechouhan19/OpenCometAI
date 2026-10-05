@@ -50,6 +50,10 @@ if (jsonOut) {
     if (m.accuracy !== undefined) {
       console.log(`     accuracy=${m.accuracy} (${m.correct}) elements=${m.elementCoverage} gate=${JSON.stringify(m.gate)}`);
     }
+    if (m.latency) {
+      // v1.30.0: per-test latency measured in EVERY suite (see latency.js)
+      console.log(`     latency: n=${m.latency.n} · min=${m.latency.minMs}ms · p50=${m.latency.p50Ms}ms · p90=${m.latency.p90Ms}ms · p95=${m.latency.p95Ms}ms · max=${m.latency.maxMs}ms`);
+    }
     if (m.passed !== undefined && m.results) {
       for (const t of m.results) console.log(`     ${t.ok ? '✓' : '✗'} ${t.name}`);
       if (!r.pass) {
