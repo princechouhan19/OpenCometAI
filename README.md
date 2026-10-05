@@ -199,6 +199,32 @@ node OpenCometBench/e2e/run-e2e-real.mjs --warmup # real-VLM tier, steady-state 
 | Real-VLM step (OpenRouter free model) | VLM 4679 ms · action 777 ms · **0 privacy blocks** · verified 1/1 (single-step reference run) | `e2e-real` report |
 | Cold first step (one-time model load) | ViT load 37873 ms — a session warm-up (`--warmup`) collapses subsequent turns; a committed warm-up results artifact is still pending | `e2e-real` + warm-up probe |
 
+**Latest measured run (v1.31.0 unit tier, sandbox):** independent re-run
+2026-10-05T17:11Z, fresh session — **6/6 PASS · 815 timed cases · regression
+gate PASS** vs the committed v1.30.0 baseline (quality metrics identical in
+all 6 suites). Per-suite p95 with this run's bootstrap CI95:
+
+| Suite (n) | v1.30.0 baseline p95 | v1.31.0 p95 [CI95] | Δ p95 | Quality |
+|---|---|---|---|---|
+| PII detection (n=514) | 0.109 ms | 0.083 ms [0.048–0.120] | −23.9% | identical |
+| Redaction regions (n=20) | 0.153 ms | 0.149 ms [0.048–0.149] | −2.6% | identical |
+| Visual context (n=11) | 2.383 ms | 2.408 ms [0.611–2.408] | +1.0% | identical |
+| Security & privacy leakage (n=29) | 1.505 ms | 1.588 ms [0.330–3.166] | +5.5% | identical |
+| Privacy leakage fuzz (n=216) | 0.161 ms | 0.150 ms [0.125–0.166] | −6.8% | identical |
+| Server inbound validation (n=25) | 0.160 ms | 0.165 ms [0.033–0.363] | +3.1% | identical |
+
+The gate's noise tolerance is measured, not theoretical: the release run
+(2026-10-05T16:39Z) saw the fuzz suite's p95 spike **+40.4%** on the same
+machine — over the 25% budget — and the Mann-Whitney gate correctly allowed
+it (p = 0.103); this independent re-run lands **−6.8%**, reproducing the
+spike as machine noise, exactly the behaviour the gate exists to handle.
+Adversarial e2e evidence (2026-10-05T16:48Z): **23/23 PASS in one
+invocation** (context budget 8, 2 rotations) with per-case TTFA
+min/median/max = **1711 / 3504 / 19388 ms**. Artifacts:
+`OpenCometBench/results/unit-v1310-release.json`,
+`OpenCometBench/results/adversarial-benchmark-1791219123275.json`, baseline
+`OpenCometBench/baselines/v1.30.0-unit.json`.
+
 **Honesty rule:** cold-start, warm-unchanged-screen and changed-frame numbers are
 different conditions and are never merged. OCR geometric coverage is honestly
 0.75 (4/4 pixel regions altered, zero observed leakage — fail-closed verified).

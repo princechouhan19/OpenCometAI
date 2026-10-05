@@ -99,6 +99,18 @@ sorted array) is shared with the browser/e2e tiers via
 `OpenCometBench/latency.js`, so latency numbers are comparable across tiers.
 An empty sample set reports `n=0` — a missing measurement is never fabricated.
 
+**Latest verified runs (v1.31.0):** release run 2026-10-05T16:39Z — **6/6
+PASS**, 815 timed cases, bootstrap CIs (`ciP50`/`ciP95`) on every published
+percentile, regression gate **PASS** vs `baselines/v1.30.0-unit.json`
+(quality identical in all 6 suites; fuzz p95 +40.4% allowed by Mann-Whitney
+p = 0.103 = machine noise). Independent re-run 2026-10-05T17:11Z, fresh
+session — **6/6 PASS, gate PASS**, fuzz p95 **−6.8%** and PII p95 −23.9% vs
+baseline: the release-run spike reproduces as noise, which is exactly the
+behaviour the MWU gate exists to handle. Adversarial e2e full run
+2026-10-05T16:48Z: **23/23 in one invocation** (context budget 8, 2
+rotations), per-case TTFA min/median/max 1711 / 3504 / 19388 ms
+(`results/adversarial-benchmark-1791219123275.json`).
+
 ### 3.2 BROWSER — REAL pixels (automated)
 
 ```bash
