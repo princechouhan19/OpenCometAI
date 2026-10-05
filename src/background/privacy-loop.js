@@ -94,6 +94,10 @@ function latencyProfile(t) {
   };
   return {
     steps: t.vlmMs.length,
+    // v1.31.0 TTFA — time to FIRST privacy decision of THIS run (capture +
+    // sanitize + gates + VLM transport). The headline "how fast is the first
+    // verdict" number for the SIH Scorecard; 0 = no decision was made yet.
+    firstDecisionMs: Math.round(t.firstDecisionMs || 0),
     sanitize: { p50: pct(t.sanitizeMs, 0.5), p90: pct(t.sanitizeMs, 0.9) },
     vlm: { p50: pct(t.vlmMs, 0.5), p90: pct(t.vlmMs, 0.9) },
     action: { p50: pct(t.actionMs, 0.5), p90: pct(t.actionMs, 0.9) },
@@ -128,6 +132,7 @@ export async function runPrivacyAgent(ctx) {
   const history = [];
   let stepCount = 0;
   const runT0 = Date.now();
+  runTiming.firstDecisionMs = 0;   // v1.31.0 TTFA — per-run (arrays below stay cumulative, unchanged)
   // SIH PER-TASK PRIVACY CENSUS (measured, never estimated)
   // Totals across the FRESH frames of THIS run only (memo-reused frames are
   // identical pixels — not re-counted). Emitted in the DONE summary so the
@@ -306,6 +311,12 @@ export async function runPrivacyAgent(ctx) {
       const decision = await decideViaServer(sanitized, task, history, settings, { strategyHint: pendingHint, userNotes: userContext, profileData: settings?.profileData || null });
       runTiming.sanitizeMs.push(sanitized.stats?.totalMs || 0);
       runTiming.vlmMs.push(decision.networkLatencyMs || 0);
+      // v1.31.0 TTFA: stamp the FIRST decision of this run once (covers
+      // capture + sanitize + firewall gates + VLM transport + inference).
+      if (!runTiming.firstDecisionMs) {
+        runTiming.firstDecisionMs = Date.now() - runT0;
+        console.log(`[Open Comet] TTFA (first privacy decision): ${(runTiming.firstDecisionMs / 1000).toFixed(2)}s`);
+      }
 
       onStep?.(STEP_TYPE.API, `VLM responded in ${decision.networkLatencyMs} ms (backend: ${decision.backend})`, {
         step: stepCount, phase: 'server-responded',

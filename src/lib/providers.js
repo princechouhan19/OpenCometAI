@@ -660,9 +660,47 @@ export function buildReasoningParam(baseUrl, effort) {
   return { reasoning_effort: String(effort) };
 }
 
-function buildCompatMessages(prompt, images) {
+// ── v1.31.0 PROMPT-CACHING SUPPORT (OpenRouter) ──────────────────────────────
+// OpenRouter exposes provider-side prompt caching + provider sticky routing:
+//  • a byte-stable system prompt may carry an Anthropic-style `cache_control`
+//    breakpoint — OpenRouter translates the marker per provider
+//    (prompt_cache_breakpoint on OpenAI-style endpoints) and drops it toward
+//    providers that ignore it, so the static policy prefix is cacheable;
+//  • a stable `session_id` body field makes sticky routing pin subsequent
+//    requests of the same conversation to the same provider endpoint,
+//    keeping that cache warm from the FIRST turn.
+// Both are gated to openrouter.ai hosts — generic OpenAI-compatible gateways
+// never see the extra fields (zero behavior change off OpenRouter). A strict
+// provider that somehow rejects the breakpoint shape gets ONE automatic
+// full-ladder retry without it (see the 400/422 handler below).
+/** Exported for unit tests. */
+export function openRouterCacheFeatures(baseUrl) {
+  let host = '';
+  try { host = new URL(String(baseUrl)).hostname || ''; } catch { return { stickySession: false, promptCache: false }; }
+  const or = /(^|\.)openrouter\.ai$/i.test(host);
+  return { stickySession: or, promptCache: or };
+}
+
+/** Normalize provider cache telemetry out of an OpenAI-style usage object. */
+export function cacheUsageFrom(usage) {
+  const d = usage?.prompt_tokens_details || {};
+  const cached = Number(d.cached_tokens ?? usage?.cache_read_tokens ?? 0) || 0;
+  const written = Number(d.cache_write_tokens ?? usage?.cache_write_tokens ?? 0) || 0;
+  const discount = Number(usage?.cache_discount ?? 0) || 0;
+  return { cachedTokens: cached, cacheWriteTokens: written, cacheDiscountPct: discount };
+}
+
+function buildCompatMessages(prompt, images, { cacheBreakpoint = false } = {}) {
+  // cacheBreakpoint: system prompt as a single text block carrying the
+  // Anthropic-style ephemeral marker. The system prompt is byte-stable by
+  // design (prompts.js SYSTEM_PROMPT has zero interpolation), so the entire
+  // policy prefix becomes cacheable while the per-turn dynamism stays in the
+  // user message (KV-cache-friendly ordering documented in privacy-agent.js).
+  const system = cacheBreakpoint
+    ? [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }]
+    : SYSTEM_PROMPT;
   return [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: system },
     {
       role: 'user',
       content: images?.length
@@ -724,7 +762,10 @@ function parseCreditAfford(text) {
 export async function callOpenAICompatible(settings, model, prompt, images, options = {}) {
   const base = resolveCompatibleBaseUrl(settings);
   const url = base + '/chat/completions';
-  const messages = buildCompatMessages(prompt, images);
+  // v1.31.0: prompt-cache support is host-gated; messages are now built PER
+  // ATTEMPT so a mid-ladder fallback can strip the cache breakpoint.
+  const cacheFeat = openRouterCacheFeatures(base);
+  let promptCacheOn = cacheFeat.promptCache;
   const maxTokens = Number.isFinite(Number(options.maxTokens)) && Number(options.maxTokens) >= 64
     ? Math.min(8000, Math.round(Number(options.maxTokens)))
     : 2500;
@@ -764,6 +805,7 @@ export async function callOpenAICompatible(settings, model, prompt, images, opti
       }
 
       const budget = Math.min(16000, Math.round(maxTokens * (esc?.budget ?? 1)), creditCap ?? Infinity);
+      const messages = buildCompatMessages(prompt, images, { cacheBreakpoint: promptCacheOn });
       const body = {
         model,
         messages,
@@ -771,6 +813,10 @@ export async function callOpenAICompatible(settings, model, prompt, images, opti
         max_tokens: budget,
         stream: a.stream,
       };
+      // v1.31.0: sticky-session routing — a stable per-conversation id so
+      // OpenRouter pins subsequent turns to the cache-warm provider endpoint.
+      // Only sent to openrouter.ai (see openRouterCacheFeatures above).
+      if (cacheFeat.stickySession && options.sessionId) body.session_id = String(options.sessionId);
       if (a.jsonMode) body.response_format = { type: 'json_object' };
       if (a.stream) body.stream_options = { include_usage: true };
       Object.assign(body, a.reasoning || {});
@@ -828,6 +874,13 @@ export async function callOpenAICompatible(settings, model, prompt, images, opti
           if (res.status === 402 && parseCreditAfford(errText) == null) {
             throw new Error(`${providerLabel(settings.provider)} 402 — out of credits. ${/openrouter/i.test(base) ? 'Add credits at https://openrouter.ai/settings/credits' : 'Top up the API account or switch provider'}.`);
           }
+          // v1.31.0: a strict provider that rejects the cache_control content
+          // shape gets ONE clean full-ladder retry without the breakpoint.
+          if ((res.status === 400 || res.status === 422) && promptCacheOn) {
+            promptCacheOn = false;
+            logAPI.warn(`${providerLabel(settings.provider)} ${res.status} with the prompt-cache breakpoint — retrying the ladder without it`);
+            i = -1; break;   // restart the attempt ladder, cache disabled
+          }
           if ((res.status === 400 || res.status === 422) && i < attempts.length - 1) {
             logAPI.warn(`${providerLabel(settings.provider)} ${res.status} (${describeHttpError(lastErr)}) on ${attemptTag(a, esc)} — retrying with ${attemptTag(attempts[i + 1], null)}`);
             break; // next rung
@@ -838,11 +891,14 @@ export async function callOpenAICompatible(settings, model, prompt, images, opti
         if (a.stream) {
           const out = await readCompatStream(res, { tag, attempt: attemptTag(a, esc), maxTokens: budget, idleMs });
           if (options.onUsage && out.usage) {
+            const cacheU = cacheUsageFrom(out.usage);   // v1.31.0 cache telemetry
+            if (cacheU.cachedTokens > 0) logAPI.info(`💰 ${tag} · prompt cache: ${cacheU.cachedTokens}tok read (${cacheU.cacheWriteTokens} written)${cacheU.cacheDiscountPct ? ` · −${cacheU.cacheDiscountPct}% input cost` : ''}`);
             options.onUsage({
               model,
               promptTokens: out.usage.prompt_tokens,
               completionTokens: out.usage.completion_tokens ?? out.usage.completionTokens,
               totalTokens: out.usage.total_tokens,
+              ...cacheU,
             });
           }
           if (!String(out.content || '').trim()) {
@@ -864,11 +920,14 @@ export async function callOpenAICompatible(settings, model, prompt, images, opti
         const data = await res.json();
         logAPI.info(`✓ ${tag} · non-stream · ${Date.now() - t1}ms${a.reasoning ? ' · reasoning' : ''}`);
         if (options.onUsage && data.usage) {
+          const cacheU = cacheUsageFrom(data.usage);   // v1.31.0 cache telemetry
+          if (cacheU.cachedTokens > 0) logAPI.info(`💰 ${tag} · prompt cache: ${cacheU.cachedTokens}tok read (${cacheU.cacheWriteTokens} written)${cacheU.cacheDiscountPct ? ` · −${cacheU.cacheDiscountPct}% input cost` : ''}`);
           options.onUsage({
             model,
             promptTokens: data.usage.prompt_tokens,
             completionTokens: data.usage.completion_tokens,
             totalTokens: data.usage.total_tokens,
+            ...cacheU,
           });
         }
         const rawContent = data.choices?.[0]?.message?.content;

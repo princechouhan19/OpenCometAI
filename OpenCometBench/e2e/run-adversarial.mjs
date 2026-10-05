@@ -50,6 +50,11 @@ const DECIDE_PORT = 8895;
 const argv = process.argv.slice(2);
 const suiteArg = (argv.find(a => a.startsWith('--suite=')) || '--suite=all').split('=')[1];
 const SUITES = new Set(suiteArg === 'all' ? ['privacy', 'injection'] : [suiteArg]);
+// v1.31.0 MEMORY GUARD: rotate to a fresh Chromium context every N cases
+// (default 8; 0 disables). One persistent context previously accumulated the
+// offscreen ML document + models + pages until the browser OOM-crashed around
+// case 16 of a full 23-case run.
+const CONTEXT_BUDGET = Math.max(0, Number((argv.find(a => a.startsWith('--context-budget=')) || '--context-budget=8').split('=')[1]) || 0);
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.tflite': 'application/octet-stream', '.gz': 'application/gzip', '.png': 'image/png' };
 function serve() {
@@ -191,64 +196,86 @@ async function main() {
   const rec = await startRecorder(DECIDE_PORT);
   mkdirSync(OUT_DIR, { recursive: true });
 
-  const context = await chromium.launchPersistentContext('', {
-    channel: 'chromium',
-    headless: true,
-    args: [
-      `--disable-extensions-except=${ROOT}`,
-      `--load-extension=${ROOT}`,
-      '--no-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--autoplay-policy=no-user-gesture-required',
-    ],
-  });
+  // v1.31.0: context/SW/helper live in `let` bindings so runCase's closures
+  // always see the CURRENT context after a memory-guard rotation.
+  let context = null;
+  let sw = null;
+  let helper = null;
+  let rotations = 0;
 
   const extId = crypto.createHash('sha256').update(ROOT).digest('hex').slice(0, 32)
     .split('').map(c => String.fromCharCode(97 + parseInt(c, 16))).join('');
 
-  // wake the worker
-  const wake = await context.newPage();
-  await wake.goto(`${BASE}/OpenCometBench/pages/login.html`).catch(() => {});
-  await wake.waitForTimeout(1200);
-  let sw = null;
-  for (let i = 0; i < 30 && !sw; i++) {
-    sw = context.serviceWorkers().find(w => w.url().includes(extId));
-    if (!sw) await new Promise(r => setTimeout(r, 500));
-  }
-  if (!sw) { console.error('service worker never appeared'); process.exit(1); }
-  console.log('extension SW online:', sw.url());
+  const launchContext = async () => {
+    const ctx = await chromium.launchPersistentContext('', {
+      channel: 'chromium',
+      headless: true,
+      args: [
+        `--disable-extensions-except=${ROOT}`,
+        `--load-extension=${ROOT}`,
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--autoplay-policy=no-user-gesture-required',
+      ],
+    });
 
-  // companion-server path (no BYO provider configured)
-  await sw.evaluate(async () => {
-    const key = 'opencometSettings';
-    const data = await chrome.storage.local.get(key);
-    const settings = { ...(data[key] || {}) };
-    delete settings.provider; delete settings.providerBaseUrl; delete settings.apiKey;
-    delete settings.allowServerKey; // default: keys are NOT shared
-    await chrome.storage.local.set({ [key]: settings });
-    return true;
-  }).catch((e) => { console.error('settings setup failed:', e.message); process.exit(1); });
+    // wake the worker
+    const wake = await ctx.newPage();
+    await wake.goto(`${BASE}/OpenCometBench/pages/login.html`).catch(() => {});
+    await wake.waitForTimeout(1200);
+    let worker = null;
+    for (let i = 0; i < 30 && !worker; i++) {
+      worker = ctx.serviceWorkers().find(w => w.url().includes(extId));
+      if (!worker) await new Promise(r => setTimeout(r, 500));
+    }
+    if (!worker) { console.error('service worker never appeared'); process.exit(1); }
+    console.log('extension SW online:', worker.url());
 
-  // Enable the OCR pass through the SAME user-facing toggle the Settings UI
-  // uses (PRIVACY_CONFIGURE) — canvas/SVG/PDF-like PII is invisible to the DOM
-  // scan and is exactly the documented OCR use case. Faces stay on (default).
-  const panel0 = await context.newPage();
-  await panel0.goto(`chrome-extension://${extId}/src/sidepanel/sidepanel.html`).catch(() => {});
-  await panel0.waitForTimeout(800);
-  const cfgResp = await panel0.evaluate(() => new Promise((res) => {
-    try {
-      chrome.runtime.sendMessage({ type: 'PRIVACY_CONFIGURE', settings: { enabled: true, blurFaces: true, redactDomPii: true, redactTextPii: true, ocrPii: true } }, (r) => {
-        res({ r: r || null, le: chrome.runtime.lastError ? chrome.runtime.lastError.message : null });
-      });
-    } catch (e) { res({ err: e.message }); }
-  }));
-  console.log('OCR enabled via PRIVACY_CONFIGURE:', cfgResp?.r?.ok ? 'ok' : JSON.stringify(cfgResp));
-  await panel0.close().catch(() => {});
+    // companion-server path (no BYO provider configured)
+    await worker.evaluate(async () => {
+      const key = 'opencometSettings';
+      const data = await chrome.storage.local.get(key);
+      const settings = { ...(data[key] || {}) };
+      delete settings.provider; delete settings.providerBaseUrl; delete settings.apiKey;
+      delete settings.allowServerKey; // default: keys are NOT shared
+      await chrome.storage.local.set({ [key]: settings });
+      return true;
+    }).catch((e) => { console.error('settings setup failed:', e.message); process.exit(1); });
 
-  // helper page for pixel verification (same origin as fixtures)
-  const helper = await context.newPage();
-  await helper.goto(`${BASE}/OpenCometBench/pages/login.html`, { waitUntil: 'load' });
+    // Enable the OCR pass through the SAME user-facing toggle the Settings UI
+    // uses (PRIVACY_CONFIGURE) — canvas/SVG/PDF-like PII is invisible to the DOM
+    // scan and is exactly the documented OCR use case. Faces stay on (default).
+    const panel0 = await ctx.newPage();
+    await panel0.goto(`chrome-extension://${extId}/src/sidepanel/sidepanel.html`).catch(() => {});
+    await panel0.waitForTimeout(800);
+    const cfgResp = await panel0.evaluate(() => new Promise((res) => {
+      try {
+        chrome.runtime.sendMessage({ type: 'PRIVACY_CONFIGURE', settings: { enabled: true, blurFaces: true, redactDomPii: true, redactTextPii: true, ocrPii: true } }, (r) => {
+          res({ r: r || null, le: chrome.runtime.lastError ? chrome.runtime.lastError.message : null });
+        });
+      } catch (e) { res({ err: e.message }); }
+    }));
+    console.log('OCR enabled via PRIVACY_CONFIGURE:', cfgResp?.r?.ok ? 'ok' : JSON.stringify(cfgResp));
+    await panel0.close().catch(() => {});
+
+    // helper page for pixel verification (same origin as fixtures)
+    helper = await ctx.newPage();
+    await helper.goto(`${BASE}/OpenCometBench/pages/login.html`, { waitUntil: 'load' });
+
+    context = ctx;
+    sw = worker;
+    return ctx;
+  };
+
+  const rotateContext = async (reason) => {
+    rotations++;
+    console.log(`\n[ctx] rotating to a fresh Chromium context (#${rotations + 1}) — ${reason}`);
+    await context.close().catch(() => {});
+    await launchContext();
+  };
+
+  await launchContext();
 
   /** v1.14 face-blur metric: mean per-block VARIANCE (8×8 blocks) of the GT
    *  rect in both images. Blur is a soft op — global mean-diff and gradient
@@ -367,6 +394,7 @@ async function main() {
     curSw().on('console', onConsole);
 
     const callsBefore = rec.calls.length;
+    const privacyStartWall = Date.now();   // v1.31.0: TTFA reference (task start → first decide arrival)
     await panel.evaluate(({ task, mockUrl }) => new Promise((res) => {
       try {
         chrome.runtime.sendMessage({ type: 'PRIVACY_START', task, privacy: { serverUrl: mockUrl } }, (r) => {
@@ -388,6 +416,9 @@ async function main() {
     const call = rec.calls[callsBefore] || null;
     const row = { id: c.id, channel: c.channel || 'dom', finished, decideSeen: Boolean(call), checks: {} };
     row.latencyMs = r3(performance.now() - caseT0);
+    // v1.31.0 TTFA — task start → FIRST recorded /agent/decide arrival at the
+    // decision server (covers capture + perception + sanitize + gates + wire).
+    if (call) row.ttfaMs = r3(Math.max(0, call.at - privacyStartWall));
 
     if (call && process.env.ADV_DEBUG) {
       const dbg = join(ROOT, 'adversarial-debug');
@@ -503,6 +534,10 @@ async function main() {
   };
 
   // ── run suites ─────────────────────────────────────────────────────────────
+  // v1.31.0 memory-guard rotation counters
+  const TOTAL_CASES = (SUITES.has('privacy') ? PRIVACY_CASES.length : 0)
+    + (SUITES.has('injection') ? INJECTION_CASES.length : 0);
+  let casesDone = 0;
   const report = {
     meta: {
       type: 'adversarial',
@@ -510,6 +545,10 @@ async function main() {
       generatedAt: new Date().toISOString(),
       note: 'REAL unpacked extension driven through capture → perception → sanitize → network gate → transmit while a recording decision server captures EVERY outbound byte. Suites are reported separately and never merged with UNIT/BROWSER/E2E numbers.',
       decisionEndpoint: rec.url,
+      // v1.31.0: memory guard + per-case TTFA now part of the report contract
+      contextBudget: CONTEXT_BUDGET || null,
+      contextRotations: rotations,
+      ttfaNote: 'ttfaMs per case = task start → first /agent/decide arrival at the decision server.',
     },
     privacy: null,
     injection: null,
@@ -522,7 +561,9 @@ async function main() {
       const t0 = performance.now();
       const row = await runCase(c).catch(e => ({ id: c.id, pass: false, latencyMs: r3(performance.now() - t0), error: String(e.message || e) }));
       rows.push(row);
-      console.log(`  ${row.id.padEnd(14)} pass=${row.pass}${row.regionMeanDiff != null ? ` regionDiff=${row.regionMeanDiff}` : ''}${row.faceRegions != null ? ` faceRegions=${row.faceRegions}` : ''}${row.latencyMs != null ? ` latency=${row.latencyMs}ms` : ''}${row.error ? ` ERROR: ${row.error}` : ''}`);
+      console.log(`  ${row.id.padEnd(14)} pass=${row.pass}${row.regionMeanDiff != null ? ` regionDiff=${row.regionMeanDiff}` : ''}${row.faceRegions != null ? ` faceRegions=${row.faceRegions}` : ''}${row.ttfaMs != null ? ` ttfa=${row.ttfaMs}ms` : ''}${row.latencyMs != null ? ` latency=${row.latencyMs}ms` : ''}${row.error ? ` ERROR: ${row.error}` : ''}`);
+      casesDone++;
+      if (CONTEXT_BUDGET > 0 && casesDone % CONTEXT_BUDGET === 0 && casesDone < TOTAL_CASES) await rotateContext(`memory guard after ${CONTEXT_BUDGET} cases`);
     }
     report.privacy = {
       meta: { type: 'adversarial', n: rows.length, note: 'Every case asserts: raw secret absent from ALL outbound fields, raw reference bytes absent from the outbound image, GT region pixel-verified altered pre-transmission, privacy envelope passed, no apiKey in settings.' },
@@ -539,7 +580,9 @@ async function main() {
       const t0 = performance.now();
       const row = await runCase(c).catch(e => ({ id: c.id, pass: false, latencyMs: r3(performance.now() - t0), error: String(e.message || e) }));
       rows.push(row);
-      console.log(`  ${row.id.padEnd(22)} pass=${row.pass}${row.invisibleCount != null ? ` invisible=${row.invisibleCount}` : ''}${row.latencyMs != null ? ` latency=${row.latencyMs}ms` : ''}${row.error ? ` ERROR: ${row.error}` : ''}`);
+      console.log(`  ${row.id.padEnd(22)} pass=${row.pass}${row.invisibleCount != null ? ` invisible=${row.invisibleCount}` : ''}${row.ttfaMs != null ? ` ttfa=${row.ttfaMs}ms` : ''}${row.latencyMs != null ? ` latency=${row.latencyMs}ms` : ''}${row.error ? ` ERROR: ${row.error}` : ''}`);
+      casesDone++;
+      if (CONTEXT_BUDGET > 0 && casesDone % CONTEXT_BUDGET === 0 && casesDone < TOTAL_CASES) await rotateContext(`memory guard after ${CONTEXT_BUDGET} cases`);
     }
     report.injection = {
       meta: { type: 'adversarial', n: rows.length, note: 'Six hostile families across DOM/title/URL/dialog/OCR-canvas/failed-target channels. Wire-level assertions: no invisible/bidi/control chars outbound; hostile text never in control fields; URL query payloads never leave; OCR-painted instructions never leave as text.' },
@@ -550,6 +593,7 @@ async function main() {
   }
 
   const out = join(OUT_DIR, `adversarial-benchmark-${Date.now()}.json`);
+  report.meta.contextRotations = rotations;   // stamped AFTER the loops (rotations happen during them)
   writeFileSync(out, JSON.stringify(report, null, 2));
   console.log(`\nwrote ${out}`);
   console.log(JSON.stringify({

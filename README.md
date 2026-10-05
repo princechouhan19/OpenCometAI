@@ -192,6 +192,7 @@ node OpenCometBench/e2e/run-e2e-real.mjs --warmup # real-VLM tier, steady-state 
 | Visual context accuracy | **12/12** DOM-fused, **12/12** ViT-fused (browser tier; unit harness: 11/11) | `browser/harness.mjs` (browser report) · `visual-context.bench.js` |
 | Security / fuzz / server-validation | 29/29 · 0 leaks in 216 · 25/25 | `security/fuzz/server-validation` |
 | **Per-test benchmark latency (v1.30.0)** | **815 cases individually timed** across all 6 Node suites + every adversarial case; p50/p90/p95 published per suite (unit-tier p50 0.014–0.093 ms; full sample arrays in the result JSON) | `OpenCometBench/latency.js` + every suite |
+| **Latency claims now carry 95% CIs (v1.31.0)** | every published p50/p95 gets a deterministic bootstrap CI (seeded, 1000 resamples) and the CI vs baseline gates releases with Mann-Whitney U — a +40% p95 wobble measured as noise (p=0.103) does NOT block; a real distribution shift does | `bootstrapCi`/`mannWhitneyU` + `regression-gate.mjs` + CI workflow |
 | **Changed-frame OCR (v1.30.0 ROI-rescan)** | partially-changed frames re-OCR **changed regions only** (fail-toward-full guards on first sight/URL/dims/ratio/periodic caps); ROI decision overhead measured **0.095 ms/frame**; quality metrics byte-identical v1.29.0→v1.30.0 | `src/lib/roi-diff.js` + `privacy-filter.js` |
 | Sanitize P50 **warm** (unchanged screen) | **1216 ms** (memo hit; OCR memo collapses the OCR leg; n=7) | browser report |
 | Changed frame (memo miss, full re-detect) | 12885 ms (YOLO 7841 + OCR 3402) — by design, scene-change-attack verified; v1.30.0 ROI-rescan narrows the OCR leg to **changed regions only** on partially-changed frames (full scan stays the floor for material scene changes) | browser report |
@@ -213,29 +214,43 @@ drag it onto `OpenCometBench/dashboard.html`. Full methodology:
 | Sensitive/PII detection P+R (20%) | 4-layer detector: tiled faces, DOM semantics, regex+checksums, contextual risk |
 | Redaction precision (20%) | Per-type styles, safe manifest (no raw selectors leave), fail-closed |
 | Client resource use (20%) | INT8 models, WebGPU-first/WASM fallback, lazy-load, ~50–150 MB RAM, heap Δ0 in browser run |
-| E2E latency (15%) | Memoized re-hits, session warm-up, speed profiles, shot-reuse on unchanged screens, ROI-rescan (changed regions only) on partially-changed frames |
+| E2E latency (15%) | Memoized re-hits, session warm-up, speed profiles, shot-reuse on unchanged screens, ROI-rescan (changed regions only) on partially-changed frames; OpenRouter prompt-cache stickiness keeps the provider-side prefix warm (v1.31.0) |
 
-## What's new in v1.30.0
+## What's new in v1.31.0
 
-- **Per-test latency in EVERY benchmark test** — 815 individually-timed cases
-  (was: tier-level wall time only): every corpus case, every analytic step,
-  every page classification, every test, every fuzz case's outbound path, and
-  every adversarial e2e case. `run-all.js` prints a p50/p90/p95 line per
-  suite and the result JSON carries the full per-case sample arrays. Shared
-  percentile method matches the browser/e2e tiers (floor-index).
-- **ROI-rescan activated** — `src/lib/roi-diff.js` (region-of-interest change
-  detection, previously complete-but-unwired) now drives the OCR stage:
-  on a memo miss the block fingerprints decide FULL vs region-only re-scan
-  (fail-toward-full on first sight / URL / dims / ratio cap / periodic cap /
-  coverage cap / any error), and partial changes re-OCR **only the changed
-  regions** as ×2 crops while unchanged-pixel regions are kept. Chain state
-  is fingerprints-only (no pixels retained); `cfg.roiRescan` is the fail-safe
-  switch. Decision overhead measured at 0.095 ms/frame.
-- **Quality unchanged, measured** — every v1.29.0 quality metric reproduces
-  identically on v1.30.0 (PII P/R/F1 = 1.00, redaction 0.983/0.938, security
-  29/29, fuzz 0 leaks, server 25/25) — the release adds measurement and a
-  reuse path, not detector changes. Full comparison:
-  [`docs/changelog/v1.30.0.md`](docs/changelog/v1.30.0.md).
+- **Benchmark rigor: error bars + an enforced regression gate** — every
+  published p50/p95 now carries a deterministic 95% bootstrap CI
+  (`bootstrapCi`, seeded mulberry32, 1000 resamples). The new
+  `OpenCometBench/regression-gate.mjs` compares any run against the committed
+  v1.30.0 baseline and **hard-blocks on any quality-metric change**, while
+  latency growth only blocks when Mann-Whitney U says the sample
+  distributions really shifted (p < 0.01) — measured on this release: the
+  fuzz suite's p95 grew +40% on the CI machine and the gate correctly called
+  it noise (p = 0.103). Wired into GitHub Actions
+  (`.github/workflows/bench-gate.yml`).
+- **OpenRouter prompt-cache stickiness** — decision turns now send a stable
+  per-task `session_id` (FNV-1a hash — no PII on the wire) and mark the
+  byte-stable system prompt with a `cache_control` breakpoint, so provider
+  sticky routing keeps the policy prefix warm from the first turn. Cache
+  reads/writes are logged and surfaced in usage telemetry. Host-gated to
+  openrouter.ai; other gateways see zero change; strict endpoints get one
+  automatic clean retry without the breakpoint.
+- **ORT-Web thread unlock (measured honest)** — the vendored threaded wasm no
+  longer runs pinned to 1 thread; threads are feature-detected (SAB +
+  isolation, ≤4, capped by cores). For yolos-tiny the measured effect is
+  **neutral** (2-core probe: 0.97–1.01×, box parity IDENTICAL — the model
+  computes at a fixed internal resolution), so the honest levers for the
+  changed-frame YOLO leg remain memo/warm-up (shipped) and a future detector
+  swap. Probe evidence committed under `OpenCometBench/results/`.
+- **Adversarial e2e: full runs no longer OOM + per-case TTFA** — the runner
+  rotates to a fresh Chromium context every N cases (`--context-budget=8`),
+  so the full 23-case suite completes in one invocation (previously OOM-crashed
+  around case 16). Every case reports `ttfaMs` — task start → first
+  `/agent/decide` arrival — and the report records the rotation count.
+- **Not included, by decision** — Chrome built-in AI (Gemini Nano) and
+  detector/OCR model swaps (YOLO26 / PP-OCRv5): the latter must first pass
+  the (now enforced) quality gate on a device matrix. Full details:
+  [`docs/changelog/v1.31.0.md`](docs/changelog/v1.31.0.md).
 
 Earlier rounds — dom-detector visual tagging + streaming failure ladder
 (v1.29.0), disambiguation (v1.19.0), Task Authorization Daemon (v1.18.0),
@@ -246,7 +261,7 @@ Firefox from one source tree (v1.17.0) — are summarised in
 
 | Folder | Contents |
 |---|---|
-| [`docs/changelog/`](docs/changelog/INDEX.md) | Release notes v1.14 → v1.30.0, one file per version |
+| [`docs/changelog/`](docs/changelog/INDEX.md) | Release notes v1.14 → v1.31.0, one file per version |
 | [`docs/guides/`](docs/guides/GETTING_STARTED.md) | Getting started, features, demo script, developer guide, FAQ, Gemma 4, diagnostics, DOM detector |
 | [`docs/sih/`](docs/sih/SIH_READINESS.md) | SIH readiness per version, claim-by-claim novelty, gap analysis, distribution |
 | [`docs/architecture/`](docs/architecture/PRIVACY_VISION.md) | Privacy architecture deep-dive + file-by-file guide |

@@ -9,6 +9,7 @@
 // real modules — nothing here is asserted or fabricated.
 // ─────────────────────────────────────────────────────────────────────────────
 import { suites } from './suites.js';
+import { bootstrapCi } from './latency.js';   // v1.31.0: CIs on published percentiles
 
 const args = process.argv.slice(2);
 const jsonOut = args.includes('--json');
@@ -21,6 +22,18 @@ for (const s of suites) {
   try {
     const r = await s.run();
     r.durationMs = Math.round(performance.now() - t0);
+    // v1.31.0: deterministic 95% bootstrap CI around p50 and p95 of THIS
+    // suite's per-case samples — published claims now carry error bars.
+    const lat = r.metrics?.latency;
+    if (lat && typeof lat.n === 'number' && lat.n > 0) {
+      const samples = Array.isArray(r.metrics?.samplesMs)
+        ? r.metrics.samplesMs
+        : (Array.isArray(r.metrics?.latency?.samplesMs) ? r.metrics.latency.samplesMs : null);
+      if (samples?.length) {
+        lat.ciP50 = bootstrapCi(samples, { q: 0.5 });
+        lat.ciP95 = bootstrapCi(samples, { q: 0.95 });
+      }
+    }
     results.push(r);
   } catch (err) {
     results.push({ name: s.name, pass: false, metrics: { error: err?.message || String(err) }, durationMs: Math.round(performance.now() - t0) });
@@ -52,7 +65,10 @@ if (jsonOut) {
     }
     if (m.latency) {
       // v1.30.0: per-test latency measured in EVERY suite (see latency.js)
-      console.log(`     latency: n=${m.latency.n} · min=${m.latency.minMs}ms · p50=${m.latency.p50Ms}ms · p90=${m.latency.p90Ms}ms · p95=${m.latency.p95Ms}ms · max=${m.latency.maxMs}ms`);
+      // v1.31.0: deterministic 95% bootstrap CIs printed beside p50/p95
+      const ci50 = m.latency.ciP50, ci95 = m.latency.ciP95;
+      const fmt = (ci) => (ci ? ` [CI95 ${ci.loMs}–${ci.hiMs}]` : '');
+      console.log(`     latency: n=${m.latency.n} · min=${m.latency.minMs}ms · p50=${m.latency.p50Ms}ms${fmt(ci50)} · p90=${m.latency.p90Ms}ms · p95=${m.latency.p95Ms}ms${fmt(ci95)} · max=${m.latency.maxMs}ms`);
     }
     if (m.passed !== undefined && m.results) {
       for (const t of m.results) console.log(`     ${t.ok ? '✓' : '✗'} ${t.name}`);

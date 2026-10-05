@@ -1,0 +1,38 @@
+# OpenCometAI — benchmark regression gate (v1.31.0)
+#
+# Runs the 6 offline unit suites and compares them against the committed
+# baseline (OpenCometBench/baselines/v1.30.0-unit.json):
+#   • ANY quality-metric change (P/R/F1, coverage/IoU, accuracy, leaks) → FAIL
+#   • p95 latency +25% AND Mann-Whitney-significant vs baseline samples → FAIL
+# Machine noise does not block (bootstrap CIs + MWU p-value decide).
+name: bench-regression-gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run unit benchmark suites (offline, no deps)
+        run: node OpenCometBench/run-all.js --json > /tmp/bench-current.json
+
+      - name: Regression gate vs committed baseline
+        run: node OpenCometBench/regression-gate.mjs --current /tmp/bench-current.json
+
+      - name: Upload bench artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: /tmp/bench-current.json

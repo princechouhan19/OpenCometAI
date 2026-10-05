@@ -51,7 +51,31 @@ let _stats = {
   totalMs: { objectDetection: 0, imageClassification: 0, ner: 0 },
   lastMs: { objectDetection: 0, imageClassification: 0, ner: 0 },
   backend: 'unknown',
+  threads: 1,
 };
+
+// ── v1.31.0 ORT-Web THREAD UNLOCK ────────────────────────────────────────────
+// The vendored wasm binary is the THREADED SIMD build
+// (ort-wasm-simd-threaded.asyncify.wasm), but numThreads was pinned to 1 out
+// of caution ("no crossOriginIsolated in extension pages" — stale: modern MV3
+// pages, offscreen doc included, report crossOriginIsolated === true). ORT-Web
+// worker threads share memory through SharedArrayBuffer, so threading is only
+// safe when SAB exists AND the page does not report being un-isolated.
+// Feature-detect instead of guessing: threads when available, else exactly 1
+// (byte-identical to v1.30.0 behavior). Tests can force a value via
+// setVisionThreadCount().
+let _threadOverride = 0;   // >0 forces a specific count (tests / tuning)
+export function setVisionThreadCount(n) {
+  _threadOverride = Math.max(0, Math.floor(Number(n)) || 0);
+}
+export function ortThreadCount() {
+  if (_threadOverride) return _threadOverride;
+  const sab = typeof SharedArrayBuffer !== 'undefined';
+  const isolated = (typeof self === 'undefined') || self.crossOriginIsolated !== false;
+  if (!sab || !isolated) return 1;
+  const cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1;
+  return Math.max(1, Math.min(4, cores));
+}
 
 const MODEL_ID = {
   objectDetection: 'Xenova/yolos-tiny',
@@ -77,7 +101,13 @@ async function loadTransformers() {
       mjs: ORT_BASE_URL + 'ort-wasm-simd-threaded.asyncify.mjs',
       wasm: ORT_BASE_URL + 'ort-wasm-simd-threaded.asyncify.wasm',
     };
-    _transformers.env.backends.onnx.wasm.numThreads = 1; // no crossOriginIsolated in extension pages
+    // v1.31.0 THREAD UNLOCK: the vendored wasm is the threaded SIMD build.
+    // ortThreadCount() feature-detects SAB + isolation — modern MV3 extension
+    // pages (offscreen doc included) get up to 4 ORT worker threads; any
+    // environment without SharedArrayBuffer stays at 1, byte-identical to
+    // v1.30.0. The chosen count is surfaced via getLocalVisionStats().threads.
+    _transformers.env.backends.onnx.wasm.numThreads = ortThreadCount();
+    _stats.threads = _transformers.env.backends.onnx.wasm.numThreads;
     // The vendored artifacts are local bundle files — nothing to cache (the
     // useWasmCache=false above is the operative override; see comment above).
   } catch {}
@@ -268,6 +298,7 @@ export async function runNer(text) {
 export function getLocalVisionStats() {
   return {
     backend: _stats.backend,
+    threads: _stats.threads,   // v1.31.0: ORT wasm worker-thread count in use
     initMs: { ..._stats.initMs },
     calls: { ..._stats.calls },
     lastMs: { ..._stats.lastMs },

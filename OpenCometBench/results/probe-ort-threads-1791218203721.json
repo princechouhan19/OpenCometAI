@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "type": "probe-ort-threads",
+    "generatedAt": "2026-10-05T16:36:43.721Z",
+    "model": "Xenova/yolos-tiny",
+    "dtype": "q8",
+    "device": "wasm",
+    "vendored": true,
+    "runs": 5,
+    "note": "Real vendored ort-wasm-simd-threaded build on a COOP/COEP isolated page. Quality gate: detections must be identical across thread counts."
+  },
+  "threads1": {
+    "threads": 1,
+    "initMs": 4205,
+    "times": [
+      9747,
+      9840,
+      9850,
+      10045,
+      12393
+    ],
+    "median": 9850.02999999933,
+    "isolated": true,
+    "sab": true,
+    "cores": 2
+  },
+  "threadsN": {
+    "threads": 2,
+    "initMs": 190,
+    "times": [
+      9642,
+      9657,
+      10106,
+      10126,
+      10337
+    ],
+    "median": 10105.929999999702,
+    "isolated": true,
+    "sab": true,
+    "cores": 2
+  },
+  "threadCount": 2,
+  "speedup": 0.97,
+  "boxParity": {
+    "refCount": 0,
+    "gotCount": 0,
+    "identical": true
+  }
+}

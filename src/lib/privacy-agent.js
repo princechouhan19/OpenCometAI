@@ -724,6 +724,24 @@ export function scrubOutboundDecisionText(payload, task, history) {
  *   3. provider NOT configured → companion-server fallback (server/server.js,
  *      redaction-aware) for deployments that run one.
  */
+
+/**
+ * v1.31.0: deterministic per-task OpenRouter session key (FNV-1a of the task
+ * text). Stable across every step of a run — and across re-runs of the same
+ * task — so provider sticky routing keeps the prompt cache warm. The id that
+ * goes on the wire is this hash alone: no task text, URL, or PII.
+ * Exported for unit tests.
+ */
+export function sessionIdForTask(task) {
+  const s = String(task || '');
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return `oc-${(h >>> 0).toString(36)}`;
+}
+
 export async function decideViaServer(payload, task, history = [], providerSettings = {}, extra = {}) {
   const settings = { ...providerSettings, serverUrl: _settings.serverUrl };
   const sp = resolveSpeedSettings(settings);
@@ -857,10 +875,18 @@ export async function decideViaServer(payload, task, history = [], providerSetti
     //     Moonshot/OpenAI reasoning_effort, unknown gateways get the
     //     de-facto field). '' → null → NOTHING is sent (strict endpoints);
     //     providers that reject the param get an automatic clean retry.
+    // v1.31.0 PROMPT-CACHE STICKINESS: stable per-conversation session id.
+    // Derived deterministically from the task text (FNV-1a hash — the id that
+    // leaves the device contains no PII, only this hash), so every step of a
+    // run shares one OpenRouter session and sticky routing keeps the prompt
+    // cache warm from the first turn. Gating to openrouter.ai happens in
+    // providers.js (openRouterCacheFeatures) — other providers never see it.
+    const sessionId = sessionIdForTask(task);
     const actionPlan = await callAI(settings, promptWithProfile, null, {
       images,
       maxTokens: sp.maxTokens,
       reasoningEffort: sp.reasoningEffort,
+      sessionId,
     });
     const latencyMs = Math.round(performance.now() - t0);
     return {

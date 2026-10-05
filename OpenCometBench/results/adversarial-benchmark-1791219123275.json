@@ -1,0 +1,519 @@
+{
+  "meta": {
+    "type": "adversarial",
+    "benchmark": "real-extension-adversarial",
+    "generatedAt": "2026-10-05T16:48:51.144Z",
+    "note": "REAL unpacked extension driven through capture → perception → sanitize → network gate → transmit while a recording decision server captures EVERY outbound byte. Suites are reported separately and never merged with UNIT/BROWSER/E2E numbers.",
+    "decisionEndpoint": "http://127.0.0.1:8895",
+    "contextBudget": 8,
+    "contextRotations": 2,
+    "ttfaNote": "ttfaMs per case = task start → first /agent/decide arrival at the decision server."
+  },
+  "privacy": {
+    "meta": {
+      "type": "adversarial",
+      "n": 12,
+      "note": "Every case asserts: raw secret absent from ALL outbound fields, raw reference bytes absent from the outbound image, GT region pixel-verified altered pre-transmission, privacy envelope passed, no apiKey in settings."
+    },
+    "cases": [
+      {
+        "id": "password",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 20491.451,
+        "ttfaMs": 17782,
+        "imageSha": "3a08a025a1c8",
+        "imageBytes": 20829,
+        "leakedIn": [],
+        "regionMeanDiff": 225.9,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "email",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 6046.204,
+        "ttfaMs": 3493,
+        "imageSha": "fe607a8e697c",
+        "imageBytes": 21087,
+        "leakedIn": [],
+        "regionMeanDiff": 161.6,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "phone",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 6469.4,
+        "ttfaMs": 3601,
+        "imageSha": "c44394fb100f",
+        "imageBytes": 18933,
+        "leakedIn": [],
+        "regionMeanDiff": 173.5,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "aadhaar",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 6575.88,
+        "ttfaMs": 3631,
+        "imageSha": "16a1d2db306d",
+        "imageBytes": 19152,
+        "leakedIn": [],
+        "regionMeanDiff": 201.2,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "pan",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 5942.219,
+        "ttfaMs": 3492,
+        "imageSha": "fdb783ddbd90",
+        "imageBytes": 20386,
+        "leakedIn": [],
+        "regionMeanDiff": 140.5,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "card",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 6456.886,
+        "ttfaMs": 3580,
+        "imageSha": "ff06f87f6c14",
+        "imageBytes": 21600,
+        "leakedIn": [],
+        "regionMeanDiff": 200.3,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "otp",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 6430.604,
+        "ttfaMs": 3686,
+        "imageSha": "28256eda645a",
+        "imageBytes": 18145,
+        "leakedIn": [],
+        "regionMeanDiff": 226.8,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "api-key",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 5953.792,
+        "ttfaMs": 3504,
+        "imageSha": "6f0636d0b17e",
+        "imageBytes": 18967,
+        "leakedIn": [],
+        "regionMeanDiff": 190.4,
+        "regionThresh": 20,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "canvas-email",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 21493.206,
+        "ttfaMs": 18668,
+        "imageSha": "1fbbbcf67f68",
+        "imageBytes": 20240,
+        "leakedIn": [],
+        "regionMeanDiff": 22.9,
+        "regionThresh": 15,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "svg-image",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 6436.317,
+        "ttfaMs": 3763,
+        "imageSha": "ce5be88136e9",
+        "imageBytes": 17847,
+        "leakedIn": [],
+        "regionMeanDiff": 17.4,
+        "regionThresh": 15,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "pdf-like",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true
+        },
+        "latencyMs": 5953.508,
+        "ttfaMs": 3460,
+        "imageSha": "6ae30a28cd31",
+        "imageBytes": 18735,
+        "leakedIn": [],
+        "regionMeanDiff": 238.6,
+        "regionThresh": 15,
+        "outboundImageSize": null,
+        "pass": true
+      },
+      {
+        "id": "face",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "secretAbsentFromAllFields": true,
+          "rawBytesAbsent": true,
+          "regionRedacted": true,
+          "privacyVerificationPassed": true,
+          "noApiKeyInSettings": true,
+          "faceDetectedAndBlurredStyle": true
+        },
+        "latencyMs": 4509.785,
+        "ttfaMs": 1711,
+        "imageSha": "13cd5d6f464b",
+        "imageBytes": 44833,
+        "leakedIn": [],
+        "blockVariance": {
+          "raw": 102.4,
+          "out": 6.3
+        },
+        "faceBox": {
+          "x": 330,
+          "y": 362,
+          "w": 244,
+          "h": 244
+        },
+        "outboundImageSize": null,
+        "faceRegions": 1,
+        "pass": true
+      }
+    ],
+    "passed": 12,
+    "n": 12
+  },
+  "injection": {
+    "meta": {
+      "type": "adversarial",
+      "n": 11,
+      "note": "Six hostile families across DOM/title/URL/dialog/OCR-canvas/failed-target channels. Wire-level assertions: no invisible/bidi/control chars outbound; hostile text never in control fields; URL query payloads never leave; OCR-painted instructions never leave as text."
+    },
+    "cases": [
+      {
+        "id": "dom-direct",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 5977.563,
+        "ttfaMs": 3495,
+        "imageSha": "68b715f7462c",
+        "imageBytes": 22332,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-closer",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 6503.08,
+        "ttfaMs": 3537,
+        "imageSha": "c13cf85cdf0b",
+        "imageBytes": 24985,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "dom-role",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 5926.024,
+        "ttfaMs": 3400,
+        "imageSha": "e4eb8f258e64",
+        "imageBytes": 26312,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-tool",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 6476.611,
+        "ttfaMs": 3549,
+        "imageSha": "c198dd28f05a",
+        "imageBytes": 26129,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-base64",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 21994.375,
+        "ttfaMs": 19388,
+        "imageSha": "9307ae48e36e",
+        "imageBytes": 30681,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "dom-bidi",
+        "channel": "dom",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 5919.078,
+        "ttfaMs": 3391,
+        "imageSha": "c4aca9935a84",
+        "imageBytes": 24047,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": null,
+        "pass": true
+      },
+      {
+        "id": "title-direct",
+        "channel": "title",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 5970.634,
+        "ttfaMs": 3452,
+        "imageSha": "d8c98eedffe2",
+        "imageBytes": 18301,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "url-direct",
+        "channel": "url",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "urlQueryNeverLeft": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 4470.149,
+        "ttfaMs": 1848,
+        "imageSha": "788a4d5f14fd",
+        "imageBytes": 13941,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "dialog-direct",
+        "channel": "dialog",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 6271.591,
+        "ttfaMs": 3462,
+        "imageSha": "70f2247fdda2",
+        "imageBytes": 21602,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": true,
+        "pass": true
+      },
+      {
+        "id": "ocr-direct",
+        "channel": "ocr-canvas",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "ocrTextNeverLeft": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 6469.281,
+        "ttfaMs": 3767,
+        "imageSha": "5133c0dac991",
+        "imageBytes": 21428,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      },
+      {
+        "id": "failed-target-direct",
+        "channel": "failed-target",
+        "finished": true,
+        "decideSeen": true,
+        "checks": {
+          "noInvisibleChars": true,
+          "hostileNotInControlFields": true,
+          "onlyDecideCalls": true
+        },
+        "latencyMs": 5969.021,
+        "ttfaMs": 3504,
+        "imageSha": "f039feafb5cb",
+        "imageBytes": 13680,
+        "invisibleCount": 0,
+        "hostileInControlFields": [],
+        "sanitizedTextContainsHostileAsData": false,
+        "pass": true
+      }
+    ],
+    "passed": 11,
+    "n": 11
+  }
+}
