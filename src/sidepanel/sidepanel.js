@@ -654,11 +654,12 @@ async function runDeepResearch() {
   autoResizeTA();
 
   const maxSites = parseInt($('drMaxSitesInput')?.value || settings.deepResearchMaxSites || 6, 10) || 6;
+  const searchProvider = $('drSearchProviderSelect')?.value ?? settings.deepResearchSearchProvider ?? 'browser';
   const searchEngine = $('drSearchEngineSelect')?.value || settings.deepResearchSearchEngine || 'google';
   const maxQueries = parseInt(settings.deepResearchMaxQueries || 4, 10) || 4;
   const useSubAgents = $('useSubAgentsInput')?.checked ?? settings.useSubAgents ?? true;
 
-  chrome.runtime.sendMessage({ type: 'DEEP_RESEARCH', task, maxSites, maxQueries, searchEngine, useSubAgents, sessionId: currentSessionId }, resp => {
+  chrome.runtime.sendMessage({ type: 'DEEP_RESEARCH', task, maxSites, maxQueries, searchProvider, searchEngine, useSubAgents, sessionId: currentSessionId }, resp => {
     if (chrome.runtime.lastError) {
       addStep('error', `❌ ${chrome.runtime.lastError.message}`);
       setRunning(false);
@@ -1713,6 +1714,8 @@ async function loadSettings() {
     if (settings.serperKey       && serperInput)    serperInput.value   = settings.serperKey;
     if (drMaxSitesInput) drMaxSitesInput.value = settings.deepResearchMaxSites || 6;
     if (drMaxQueriesInput) drMaxQueriesInput.value = settings.deepResearchMaxQueries || 4;
+    if ($('deepResearchSearchProviderInput')) $('deepResearchSearchProviderInput').value = settings.deepResearchSearchProvider ?? 'browser';
+    if ($('drSearchProviderSelect')) $('drSearchProviderSelect').value = settings.deepResearchSearchProvider ?? 'browser';
     if (drSearchEngineInput) drSearchEngineInput.value = settings.deepResearchSearchEngine || 'google';
     if (drPreferredHostsInput) drPreferredHostsInput.value = (settings.deepResearchPreferredHosts || []).join('\n');
     if (subAgentConcurrencyInput) subAgentConcurrencyInput.value = settings.subAgentConcurrency || 3;
@@ -1865,6 +1868,7 @@ async function saveSettings() {
       serperKey:       $('serperKeyInput')       ? $('serperKeyInput').value.trim()       : '',
       deepResearchMaxSites: $('deepResearchMaxSitesInput') ? (parseInt($('deepResearchMaxSitesInput').value, 10) || 6) : 6,
       deepResearchMaxQueries: $('deepResearchMaxQueriesInput') ? (parseInt($('deepResearchMaxQueriesInput').value, 10) || 4) : 4,
+      deepResearchSearchProvider: $('deepResearchSearchProviderInput')?.value ?? 'browser',
       deepResearchSearchEngine: $('deepResearchSearchEngineInput') ? $('deepResearchSearchEngineInput').value : 'google',
       deepResearchPreferredHosts: $('deepResearchPreferredHostsInput')
         ? $('deepResearchPreferredHostsInput').value.split('\n').map(v => v.trim()).filter(Boolean)

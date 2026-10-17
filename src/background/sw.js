@@ -15,6 +15,7 @@ import { getSettings, saveSettings as persistSettings, getHistory, appendHistory
 import { sleep, getHostFromUrl, normalizeHost, parseJSON } from '../lib/utils.js';
 import { MSG, STATUS, STEP_TYPE, PROTECTED_ACTION_LABELS, MODEL_PRICING } from '../lib/constants.js';
 import { buildSearchUrl, openResearchTab, scrapeSearchResults, scrapeReadablePage, closeTabs } from '../lib/browser-research.js';
+import { searchResearchSources } from '../lib/research-search.js';
 import { downloadExportFile } from '../lib/export.js';
 // TASK AUTHORIZATION DAEMON — purchase/deletion actions need the
 // user's own text to authorize them; fault-shutdown + 3-hit honest exit.
@@ -65,6 +66,7 @@ let agentState = createEmptyAgentState();
 // This synchronous flag closes the window between the check and the state
 // swap; it is released when the handler exits (success or failure).
 let _startBusy = false;
+let deepResearchController = null;
 
 function trackUsage(usage) {
   if (!usage) return;
@@ -2027,6 +2029,7 @@ async function groupTaskTabs(tabIds) {
 
 // STOP / RESET
 async function handleStop(respond) {
+  deepResearchController?.abort();
   const wasPaused  = agentState.paused;     // capture BEFORE clearing (v1.16.1)
   const wasRunning = agentState.running;
   agentState.stopRequested  = true;
@@ -2068,6 +2071,7 @@ async function handleStop(respond) {
 }
 
 async function handleReset(respond) {
+  deepResearchController?.abort();
   agentState.stopRequested  = true;
   agentState.running        = false;
   agentState.paused         = false;
@@ -2174,6 +2178,15 @@ async function handleDeepResearch(msg, respond) {
     return;
   }
 
+  if (deepResearchController) {
+    respond({ ok: false, error: 'Deep Research is already running.' });
+    return;
+  }
+  const controller = new AbortController();
+  deepResearchController = controller;
+  const { signal } = controller;
+  const researchSessionId = crypto.randomUUID();
+  const provider = msg.searchProvider ?? settings.deepResearchSearchProvider ?? 'browser';
   respond({ ok: true });
 
   const onProgress = text => broadcastMessage({ type: MSG.DEEP_RESEARCH_STEP, text });
@@ -2184,12 +2197,12 @@ async function handleDeepResearch(msg, respond) {
   const useSubAgents = msg.useSubAgents ?? settings.useSubAgents ?? true;
   const concurrency = useSubAgents ? clampNumber(settings.subAgentConcurrency, 1, 4, 3) : 1;
 
-  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const searchTabIds = [];
   const sourceTabIds = [];
 
   try {
-    onProgress(`Starting browser-powered deep research using ${engine}.`);
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    onProgress(`Starting deep research using ${provider === 'parallel' ? 'Parallel' : engine}.`);
     onProgress(`Collecting up to ${maxSites} sites${preferredHosts.length ? ` with preference for ${preferredHosts.join(', ')}` : ''}.`);
 
     const { subQueries: plannedQueries } = await deepResearch(
@@ -2199,6 +2212,7 @@ async function handleDeepResearch(msg, respond) {
       (aiSettings, prompt) => callAI(aiSettings, prompt, null, { onUsage: trackUsage }),
       settings
     );
+    signal.throwIfAborted();
     const subQueries = (plannedQueries || [task]).slice(0, maxQueries);
     onProgress(`Planner created ${subQueries.length} research queries.`);
 
@@ -2208,13 +2222,13 @@ async function handleDeepResearch(msg, respond) {
     for (let index = 0; index < subQueries.length; index++) {
       const query = subQueries[index];
       onProgress(`Searching query ${index + 1}/${subQueries.length}: ${query}`);
-      const searchTab = await openResearchTab(buildSearchUrl(engine, query), {
-        active: false,
-        openerTabId: activeTab?.id,
+      const results = await searchResearchSources(query, {
+        provider, engine, maxResults: Math.max(6, maxSites * 2), siteHints: preferredHosts,
+        tabOptions: { active: false, openerTabId: activeTab?.id },
+        onTab: id => searchTabIds.push(id), signal, sessionId: researchSessionId,
+        modelName: settings.model || undefined,
       });
-      searchTabIds.push(searchTab.id);
-
-      const results = await scrapeSearchResults(searchTab.id, engine, Math.max(6, maxSites * 2), preferredHosts);
+      signal.throwIfAborted();
       for (const result of results) {
         if (!result?.url || seenUrls.has(result.url)) continue;
         seenUrls.add(result.url);
@@ -2224,10 +2238,11 @@ async function handleDeepResearch(msg, respond) {
     }
 
     const sources = pickResearchSources(candidateSources, preferredHosts, maxSites);
-    if (!sources.length) throw new Error('No sources could be collected from browser search results.');
+    if (!sources.length) throw new Error('No sources could be collected from search results.');
 
     onProgress(`Opening ${sources.length} source tabs for review.`);
     for (const source of sources) {
+      signal.throwIfAborted();
       const tab = await openResearchTab(source.url, { active: false, openerTabId: activeTab?.id });
       source.tabId = tab.id;
       sourceTabIds.push(tab.id);
@@ -2239,7 +2254,9 @@ async function handleDeepResearch(msg, respond) {
     const analyzedSources = await runWithConcurrency(
       sources.map((source, index) => async () => {
         onProgress(`${useSubAgents ? `Sub-agent ${index + 1}` : 'Reviewer'} reading ${source.host || getHostFromUrl(source.url)}.`);
+        signal.throwIfAborted();
         const page = await scrapeReadablePage(source.tabId);
+        signal.throwIfAborted();
         const digest = await summarizeSourceWithAI(task, source, page, index, sources.length, settings);
         return {
           ...source,
@@ -2254,9 +2271,11 @@ async function handleDeepResearch(msg, respond) {
       concurrency
     );
 
+    signal.throwIfAborted();
     onProgress(`Synthesizer role: merging ${analyzedSources.length} reviewed sources.`);
     const report = await runSynthesizerRole(settings, buildSynthesisPrompt(task, subQueries, analyzedSources));
 
+    signal.throwIfAborted();
     broadcastMessage({
       type: MSG.DEEP_RESEARCH_DONE,
       task,
@@ -2280,7 +2299,11 @@ async function handleDeepResearch(msg, respond) {
       mode: 'deep_research',
     });
   } catch (err) {
-    broadcastMessage({ type: MSG.DEEP_RESEARCH_ERROR, error: err.message });
+    broadcastMessage({ type: MSG.DEEP_RESEARCH_ERROR, error: signal.aborted ? 'Research stopped.' : err.message });
+  } finally {
+    await closeTabs(searchTabIds);
+    if (signal.aborted) await closeTabs(sourceTabIds);
+    if (deepResearchController === controller) deepResearchController = null;
   }
 }
 

@@ -680,6 +680,7 @@ a:hover { color: var(--tx1); text-decoration: underline; }
 
 .research-options-bar {
   display: none;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 8px 12px 0;
   align-items: end;

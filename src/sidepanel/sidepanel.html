@@ -181,6 +181,13 @@
 
           <div class="research-options-bar" id="researchOptionsBar">
             <div class="research-option">
+              <label for="drSearchProviderSelect">Provider</label>
+              <select id="drSearchProviderSelect" title="Parallel sends research queries to Parallel; no API key needed.">
+                <option value="browser">Browser</option>
+                <option value="parallel">Parallel (cloud, keyless)</option>
+              </select>
+            </div>
+            <div class="research-option">
               <label for="drMaxSitesInput">Max sites</label>
               <input type="number" id="drMaxSitesInput" min="2" max="12" value="6" />
             </div>
@@ -868,6 +875,15 @@
         <div class="s-field">
           <label class="s-label">Default max queries <span class="s-hint">(1 â€“ 6)</span></label>
           <input type="number" class="s-input" id="deepResearchMaxQueriesInput" value="4" min="1" max="6"/>
+        </div>
+
+        <div class="s-field">
+          <label class="s-label" for="deepResearchSearchProviderInput">Deep Research search provider</label>
+          <select class="s-input" id="deepResearchSearchProviderInput">
+            <option value="browser">Browser (default)</option>
+            <option value="parallel">Parallel (cloud, no API key)</option>
+          </select>
+          <span class="s-hint">Parallel sends research queries to Parallel. Source pages are still read in browser tabs. AI provider settings stay the same.</span>
         </div>
 
         <div class="s-field">

@@ -17,7 +17,8 @@
     "bookmarks",
     "alarms",
     "pageCapture",
-    "readingList"
+    "readingList",
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "<all_urls>",
