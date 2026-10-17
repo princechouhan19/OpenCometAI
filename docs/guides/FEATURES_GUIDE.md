@@ -22,6 +22,27 @@ Extraction that works on any website, even without traditional table structures.
 ---
 
 ## 🔬 Deep Research
+
+Select **Parallel (cloud, keyless)** in the Deep Research **Provider** menu to
+search with [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp).
+Search uses Fast mode and needs no Parallel account or API key. To save this
+choice, select **Parallel (cloud, no API key)** under **Deep Research search
+provider** in Settings. Browser search remains the default; your saved browser
+engine and AI provider settings are preserved. The Provider menu overrides the
+saved provider for that run.
+
+Parallel receives the planned research queries. Screenshots and page contents
+are not sent to Parallel. Source pages are still opened and read in browser tabs,
+then summarized by your configured AI provider. Keep **Browser** selected for
+browser-only search. Search access follows the extension's site permissions;
+Parallel needs access to `https://search.parallel.ai/*`. The request-header
+permission identifies OpenComet's MCP requests and applies only to that endpoint.
+This provider requires a browser supporting declarative network request session
+rules. If access is denied, the service is unavailable or a request times out,
+the error appears in the research activity. It does not switch providers. Click
+**Stop** to cancel research, including an in-flight Parallel request. The anonymous
+service has usage limits; wait before trying again when rate limited.
+
 Handling complex retrieval tasks that span dozens of sources.
 -   **Multi-Tab Orchestration**: The agent spawns background tabs to explore multiple search results simultaneously.
 -   **Synthesis**: It reads through various articles and compiles a single, comprehensive report with cited sources.

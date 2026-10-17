@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS = {
   braveSearchKey:      '',
   serperKey:           '',
   deepResearchMode:    'browser',
+  deepResearchSearchProvider: 'browser',
   deepResearchMaxSites: 6,
   deepResearchMaxQueries: 4,
   deepResearchSearchEngine: 'google',

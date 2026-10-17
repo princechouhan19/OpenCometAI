@@ -45,7 +45,7 @@ model/project pages before redistribution.
 
 * **No telemetry. No analytics. No external servers.** All task history,
   screenshots, settings, and API keys stay in your browser's local
-  `chrome.storage`; outbound requests go only to the AI provider *you* configure,
+  `chrome.storage`; outbound requests go only to the AI provider and optional search provider *you* configure,
   and — in fully on-device mode — nowhere at all.
 * **Benchmarks use synthetic data only.** Every page, corpus entry, name, email,
   phone number, Aadhaar/PAN/card value, and face image in `OpenCometBench/` is
