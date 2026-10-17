@@ -15,6 +15,8 @@ let rules;
 let mode;
 let allowed;
 let plannedQueries;
+let releasePage;
+let pageReadStarted;
 const endpoint = 'https://search.parallel.ai/mcp';
 const ua = 'OpenCometAI/1.31.0 (https://github.com/princechouhan19/OpenCometAI)';
 const resultUrl = 'https://example.org/research';
@@ -23,7 +25,7 @@ const event = { addListener() {}, removeListener() {} };
 /** Start each case without saved credentials, provider settings or network state. */
 function reset(settings = {}) {
   state = { [STORAGE_KEYS.SETTINGS]: { provider: 'openai', apiKey: 'synthetic-model-key', ...settings } };
-  messages = []; requests = []; tabs = []; rules = []; mode = 'json'; allowed = true; plannedQueries = ['synthetic research query'];
+  messages = []; requests = []; tabs = []; rules = []; mode = 'json'; allowed = true; plannedQueries = ['synthetic research query']; releasePage = null; pageReadStarted = false;
 }
 reset();
 globalThis.chrome = {
@@ -45,9 +47,11 @@ globalThis.chrome = {
     group: async () => 1,
   },
   tabGroups: { update: async () => {} },
-  scripting: { executeScript: async ({ target, args }) => [{ result: args
+  scripting: { executeScript: async ({ target, args }) => {
+    if (!args && mode === 'holdPage') { pageReadStarted = true; await new Promise(resolve => { releasePage = resolve; }); }
+    return [{ result: args
     ? [{ url: resultUrl, title: 'Browser result', snippet: 'Synthetic search result' }]
-    : { url: resultUrl, title: 'Source page', readableText: 'Synthetic source fact: the result is blue.', headings: ['Synthetic source'], tables: [] } }] },
+    : { url: resultUrl, title: 'Source page', readableText: 'Synthetic source fact: the result is blue.', headings: ['Synthetic source'], tables: [] } }]; } },
   storage: {
     local: { get: async key => key ? { [key]: state[key] } : state, set: async value => Object.assign(state, value) },
     session: { get: async () => ({}), remove: async () => {} },
@@ -202,4 +206,16 @@ await test('missing header API and rejected header permission do not leak an una
   await assert.rejects(searchResearchSources('query', { provider: 'parallel' }), /Denied header rule/);
   chrome.declarativeNetRequest = api;
   assert.equal(requests.length, 0);
+});
+
+await test('Stop during a source read does not schedule another model request', async () => {
+  reset(); mode = 'holdPage';
+  const result = runResearch({ searchProvider: 'parallel' });
+  while (!pageReadStarted) await new Promise(resolve => setTimeout(resolve, 1));
+  await new Promise(resolve => router({ type: 'STOP_AGENT' }, {}, resolve));
+  releasePage();
+  const done = await result;
+  assert.equal(done.type, 'DEEP_RESEARCH_ERROR');
+  assert.equal(done.error, 'Research stopped.');
+  assert.equal(requests.filter(request => request.url === 'https://api.openai.com/v1/chat/completions').length, 1);
 });

@@ -2256,6 +2256,7 @@ async function handleDeepResearch(msg, respond) {
         onProgress(`${useSubAgents ? `Sub-agent ${index + 1}` : 'Reviewer'} reading ${source.host || getHostFromUrl(source.url)}.`);
         signal.throwIfAborted();
         const page = await scrapeReadablePage(source.tabId);
+        signal.throwIfAborted();
         const digest = await summarizeSourceWithAI(task, source, page, index, sources.length, settings);
         return {
           ...source,
