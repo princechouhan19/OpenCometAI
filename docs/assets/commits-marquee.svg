@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="34" viewBox="0 0 880 34" role="img" aria-label="Recent commits">
+  <title>Recent commits</title>
+  <desc>Scrolling list of the most recent commit subjects.</desc>
+  <style>
+    .bg { fill: #0B1220; }
+    .rail { fill: #1F2937; }
+    .t { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; fill: #9CA3AF; }
+    .track { animation: slide 103s linear infinite; }
+    @media (prefers-reduced-motion: reduce) { .track { animation: none; } }
+    @keyframes slide { from { transform: translateX(0); } to { transform: translateX(-8766px); } }
+  </style>
+  <defs><clipPath id="frame"><rect x="0" y="0" width="880" height="34" rx="6"/></clipPath></defs>
+  <g clip-path="url(#frame)">
+    <rect class="bg" width="880" height="34"/>
+    <rect class="rail" width="880" height="1"/>
+    <rect class="rail" y="33" width="880" height="1"/>
+    <g class="track">
+      <text class="t" x="14" y="21">b1c6a9a  evidence v1.31.0: commit the fresh-session re-run JSON cite...        |        a778d10  docs v1.31.0: benchmark results added to README/docs — fres...        |        e2bd4b9  v1.31.0: benchmark rigor (deterministic bootstrap CIs on ev...        |        859fcd0  docs v1.30.0: commit the verification harness scripts/test_...        |        4fb7cce  v1.30.0: per-test benchmark latency everywhere (815 individ...        |        01f26cd  docs v1.29.0: all docs updated to current release — interac...        |        3463ef4  v1.29.0: 402 credit-fit refit — max_tokens refitted to the...        |        ae5b22f  v1.29.0: DOM element detector with visual tagging — upgrade...        |        621ba61  v1.29.0: streaming failure ladder (idle watchdog, attempt/t...        |        ee95111  v1.19.0: disambiguation (repeated tags -&gt; exact controls) +...        |        28a07f3  v1.18.0: Task Authorization Daemon — purchase/deletion clic...        |        7fcb93a  v1.17.0: Firefox support from one source tree + byte-level...        |        19b2afc  v1.16.1: forensic fix pass — 22 fixes, all bench suites green        |        42fffcd  docs(readme): use real Open Comet logo and add branded arch...</text>
+      <text class="t" x="8780" y="21">b1c6a9a  evidence v1.31.0: commit the fresh-session re-run JSON cite...        |        a778d10  docs v1.31.0: benchmark results added to README/docs — fres...        |        e2bd4b9  v1.31.0: benchmark rigor (deterministic bootstrap CIs on ev...        |        859fcd0  docs v1.30.0: commit the verification harness scripts/test_...        |        4fb7cce  v1.30.0: per-test benchmark latency everywhere (815 individ...        |        01f26cd  docs v1.29.0: all docs updated to current release — interac...        |        3463ef4  v1.29.0: 402 credit-fit refit — max_tokens refitted to the...        |        ae5b22f  v1.29.0: DOM element detector with visual tagging — upgrade...        |        621ba61  v1.29.0: streaming failure ladder (idle watchdog, attempt/t...        |        ee95111  v1.19.0: disambiguation (repeated tags -&gt; exact controls) +...        |        28a07f3  v1.18.0: Task Authorization Daemon — purchase/deletion clic...        |        7fcb93a  v1.17.0: Firefox support from one source tree + byte-level...        |        19b2afc  v1.16.1: forensic fix pass — 22 fixes, all bench suites green        |        42fffcd  docs(readme): use real Open Comet logo and add branded arch...</text>
+    </g>
+  </g>
+</svg>

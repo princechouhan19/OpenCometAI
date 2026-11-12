@@ -1,7 +1,6 @@
 // src/lib/prompts.js
-// AI system prompt + plan/action prompt builders.
-// System prompt engineered by a senior prompt engineer for maximum reliability,
-// loop-resistance, selector precision, and clear completion criteria.
+// System prompt, planner and action prompt builders, and the untrusted-content
+// fencing applied to everything derived from the page.
 
 // prompt-injection defense. Page-derived content is fenced as
 // UNTRUSTED DATA with a fresh per-prompt nonce — a page can never elevate
@@ -65,6 +64,20 @@ DONE (task is fully and verifiably complete):
   "answer":  "Comprehensive, well-structured final answer. Include all data found — prices, comparisons, links, conclusions. Do NOT write 'Done' or 'Task completed' — write the actual result.",
   "data":    { "key": "structured data if applicable" }
 }
+
+GOAL CONTRACT (declare on your first action; checked against the live page):
+{
+  "goal_checks": [
+    { "check": "url_matches", "pattern": "#sent$" },
+    { "check": "text_contains", "value": "Message sent" }
+  ]
+}
+The run cannot close as verified without one. Describe the page, not your
+intentions, and keep the same contract for the whole task.
+  url_matches(pattern)            url_contains(value)        title_contains(value)
+  text_contains(value)            text_absent(value)         element_exists(selector)
+  count_at_least(selector, min)   count_equals(selector, n)  element_text_contains(selector, value)
+Omit it when the deliverable is text rather than a page change.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ACTION CATALOGUE

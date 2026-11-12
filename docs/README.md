@@ -1,77 +1,65 @@
-# OpenComet-SIH Documentation
+# Documentation
 
-Documentation for **OpenComet-SIH** — the privacy-preserving vision browser
-agent built for **Smart India Hackathon PS #26171** (ISRO). Start at the root
-[`README.md`](../README.md); the benchmark has its own home in
-[`OpenCometBench/`](../OpenCometBench/README.md).
+Everything about OpenComet-SIH, organised by what you are trying to do. Start
+with the [README](../README.md) if you have not installed it yet.
 
-## Folder map
+Release: **1.32.0**. Documentation for older releases is in
+[`changelog/`](changelog/INDEX.md).
 
-```
-docs/
-├── changelog/     ← per-version release notes (v1.14 → v1.31.0)
-├── guides/        ← install, features, demos, developer & debugging guides
-├── sih/           ← SIH-specific: readiness, novelty claims, gap analysis, distribution
-├── architecture/  ← privacy architecture deep-dive
-├── research/      ← measured latency research that shaped the speed profiles
-├── project/       ← roadmap & historical project notes
-└── assets/        ← brand logo + the demo page used in Quick Start
-```
+## Understand the system
 
-Guides carry interactive Mermaid diagrams (rendered natively on GitHub):
-architecture and the agent run loop live in the root README; the privacy
-pipeline, PII taxonomy and face-recall cascade in
-[`architecture/PRIVACY_VISION.md`](./architecture/PRIVACY_VISION.md); the VLM
-turn and streaming failure ladder in
-[`guides/DIAGNOSTICS_LOGGING.md`](./guides/DIAGNOSTICS_LOGGING.md); the DOM
-detector in [`guides/DOM_DETECTOR.md`](./guides/DOM_DETECTOR.md).
-
-## Start here
-
-| Document | What it covers |
+| Document | Contents |
 |---|---|
-| [Getting Started](./guides/GETTING_STARTED.md) | Installation, API keys, first task |
-| [Features Guide](./guides/FEATURES_GUIDE.md) | Auto Scraper, Deep Research, Skills, Privacy modes |
-| [Demo walkthrough](./guides/DEMO.md) | Step-by-step SIH finale demo script |
-| [FAQ & Troubleshooting](./guides/FAQ.md) | Common questions and fixes |
+| [`architecture/PRIVACY_VISION.md`](architecture/PRIVACY_VISION.md) | The redaction pipeline stage by stage: capture, detection, redaction, manifest, wire guard |
+| [`architecture/FILE_GUIDE.md`](architecture/FILE_GUIDE.md) | What each source file is responsible for |
+| [`research/vlm-speed-research.md`](research/vlm-speed-research.md) | Measured model latency behind the speed profiles |
+| [`../OpenCometBench/README.md`](../OpenCometBench/README.md) | Benchmark methodology, suites, fixtures and results |
 
-## Changelog
+## Use it
 
-Release notes live in **[`changelog/`](./changelog/INDEX.md)** — one file per
-version from v1.15.0 through v1.29.0, plus the v1.14 firewall note and a
-summary of earlier milestones. The root README no longer carries version
-narratives.
-
-## Development & debugging
-
-| Document | What it covers |
+| Document | Contents |
 |---|---|
-| [Developer Guide](./guides/DEVELOPER_GUIDE.md) | Architecture overview, environment, workflows |
-| [Diagnostics & Logging](./guides/DIAGNOSTICS_LOGGING.md) | Console channels, log capture, debugging the agent loop |
-| [DOM Detector](./guides/DOM_DETECTOR.md) | Element tagging with boxes + numeric badges, uid relocation chain |
-| [Gemma 4 Integration](./guides/GEMMA4_INTEGRATION.md) | On-device WebGPU intelligence and native tool calling |
-| [VLM Speed Research](./research/vlm-speed-research.md) | Measured provider latency notes behind the speed profiles |
+| [`guides/GETTING_STARTED.md`](guides/GETTING_STARTED.md) | Install, configure a backend, run a first task |
+| [`guides/FEATURES_GUIDE.md`](guides/FEATURES_GUIDE.md) | Every feature, with the setting that controls it |
+| [`guides/DEMO.md`](guides/DEMO.md) | A scripted demo path |
+| [`guides/FAQ.md`](guides/FAQ.md) | Common questions and failure modes |
+| [`guides/GEMMA4_INTEGRATION.md`](guides/GEMMA4_INTEGRATION.md) | On-device model setup |
+| [`guides/DOM_DETECTOR.md`](guides/DOM_DETECTOR.md) | How page elements are detected and tagged |
+| [`guides/DIAGNOSTICS_LOGGING.md`](guides/DIAGNOSTICS_LOGGING.md) | Reading logs across service worker, offscreen runtime and side panel |
 
-## SIH & architecture
+## Work on it
 
-| Document | What it covers |
+| Document | Contents |
 |---|---|
-| [SIH Readiness](./sih/SIH_READINESS.md) | Readiness vs the problem statement, per version |
-| [Novelty](./sih/NOVELTY.md) | Claim-by-claim novelty, each with evidence |
-| [BrowserOS Gap Analysis](./sih/BROWSEROS_GAP_ANALYSIS.md) | Comparison against the BrowserOS approach |
-| [Distribution Strategy](./sih/DISTRIBUTION_STRATEGY.md) | Rollout & adoption plan |
-| [Privacy Vision](./architecture/PRIVACY_VISION.md) | Redaction architecture deep-dive (pipeline stages, cascade, firewall) |
-| [File-by-File Guide](./architecture/FILE_GUIDE.md) | Developer map of privacy pipeline modules and background loop |
+| [`guides/DEVELOPER_GUIDE.md`](guides/DEVELOPER_GUIDE.md) | Architecture, conventions, testing |
+| [`ROADMAP.md`](ROADMAP.md) | Engineering roadmap with acceptance criteria |
+| [`PLAN-v1.32.md`](PLAN-v1.32.md) | Design review of the 1.32.0 work |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | How to contribute |
+| [`../CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md) | Community expectations |
 
-## Project
+## Release history
 
-| Document | What it covers |
+| Document | Contents |
 |---|---|
-| [Roadmap](./project/ROADMAP.md) | Where the project is heading |
-| [License Flow](./project/LICENSE_FLOW.md) | Historical note on the original account/license flow (auth was removed from the product; kept for reference) |
+| [`changelog/INDEX.md`](changelog/INDEX.md) | All release notes, one file per version |
+| [`changelog/v1.32.0.md`](changelog/v1.32.0.md) | Current release |
+| [`changelog/v1.31.1.md`](changelog/v1.31.1.md) | Goal verification, error taxonomy |
 
-## Assets
+## Project context
 
-- [`assets/logo.png`](./assets/logo.png) — project logo (comet + privacy shield)
-- [`assets/demo-page.html`](./assets/demo-page.html) — the demo page from README
-  §Quick Start (faces, PII form fields, credential inputs)
+| Document | Contents |
+|---|---|
+| [`sih/SIH_READINESS.md`](sih/SIH_READINESS.md) | Problem statement mapping and readiness by version |
+| [`sih/NOVELTY.md`](sih/NOVELTY.md) | Claim-by-claim novelty against comparable work |
+| [`sih/BROWSEROS_GAP_ANALYSIS.md`](sih/BROWSEROS_GAP_ANALYSIS.md) | Gap analysis |
+| [`sih/DISTRIBUTION_STRATEGY.md`](sih/DISTRIBUTION_STRATEGY.md) | Distribution plan |
+| [`project/ROADMAP.md`](project/ROADMAP.md) | Product roadmap |
+| [`project/LICENSE_FLOW.md`](project/LICENSE_FLOW.md) | Licensing of vendored code and weights |
+
+## Conventions
+
+- Documentation is written to be read once. No restating what the code already
+  says, no claims without a source file or a result JSON to point at.
+- Every measured number names the artefact it came from.
+- Version numbers in prose refer to the release that introduced the behaviour,
+  not the current one.

@@ -1,60 +1,74 @@
-# Developer Guide
+# Developer guide
 
-This document provides a high-level overview of the Open Comet architecture and instructions for local development.
+How the extension is put together, and how to work on it.
 
-## Architectural Overview
+## Architecture
 
-Open Comet is built as a **Manifest V3** Chrome extension. Its architecture is divided into three primary layers that communicate via standard browser Messaging APIs:
+Open Comet is a Manifest V3 extension in three layers that talk over the
+extension messaging APIs.
 
-### 1. The Interaction Layer (UI)
--   **Side Panel**: The primary user interface where tasks are entered and history is viewed.
--   **Settings**: Secure management of API keys and model configurations.
--   **Skills**: Management of reusable agent macros.
+### Interaction layer
 
-### 2. The Intelligence Layer (Background)
-The "Brain" of the project runs as a persistent Service Worker. It handles:
--   **Task Decomposition**: Breaking a high-level goal into a sequence of atomic browser actions.
--   **Visual Grounding**: Combining screenshots and accessibility trees (DOM) to understand page layout.
--   **Orchestration**: Managing the loop between the AI model and the browser tab.
--   **Storage**: Securely persisting history and usage data in `chrome.storage.local`.
+- **Side panel**: task input, history, settings, skills.
 
-### 3. The Visual Layer (Content)
-A lightweight script injected into active tabs to provide real-time feedback:
--   **Status Overlay**: Shows what the agent is currently thinking or doing.
--   **Approval Guards**: Pauses execution on sensitive elements (e.g., checkout buttons) to wait for user confirmation.
+### Intelligence layer
 
----
+The service worker runs the loop:
 
-## Technical Stack
+- **Task decomposition**: turns a goal into a sequence of browser actions.
+- **Grounding**: combines screenshots with the DOM to locate elements.
+- **Orchestration**: drives the loop between the model and the tab.
+- **Storage**: history and usage data in `chrome.storage.local`.
 
--   **Core**: JavaScript (ES6+), HTML, CSS.
--   **AI Interaction**: Provider-agnostic adapters for OpenAI, Anthropic, Google, and more.
--   **Storage**: Chrome Local Storage (IndexedDB based).
--   **Security**: Manifest V3 compliant, strict Content Security Policy (CSP).
+### Page layer
 
----
+A content script injected into the active tab:
 
-## Local Development Setup
+- Renders the status overlay.
+- Pauses on sensitive elements when approval is required.
+- Reports page state back to the service worker.
 
-### 1. Build Requirements
--   **Node.js**: Recommended for running local tools or build scripts (if applicable).
--   **Browser**: A Chromium-based browser with Developer Mode enabled.
+## Stack
 
-### 2. Installation & Reloading
--   Open `chrome://extensions`.
--   Click **Load unpacked** and select the extension source directory.
--   After making changes to the source code, click the **Reload** icon on the extension card to apply updates.
+- JavaScript (ES2022), HTML, CSS. No build step and no runtime dependencies.
+- Provider adapters for OpenAI, Anthropic, Google, and OpenAI-compatible
+  gateways.
+- Chrome storage for persistence.
+- Manifest V3 with a strict content security policy.
 
-### 3. Debugging
--   **Background Logic**: Right-click the extension icon and select "Inspect background page" (or click "service worker" on the extensions page).
--   **UI Logic**: Right-click anywhere in the side panel and select "Inspect".
--   **Tab Logic**: Use the standard browser DevTools (F12) in the tab where Open Comet is acting.
+## Setup
 
----
+- Node 20 or newer for the test and packaging scripts.
+- A Chromium browser with Developer mode enabled.
 
-## Repository Secrecy & Security
+Open `chrome://extensions`, choose **Load unpacked**, and select the source
+directory. After a source change, click **Reload** on the extension card.
 
-Open Comet uses a proprietary visual grounding and reasoning engine. When contributing or documenting:
--   **Do not** expose raw internal prompt structures.
--   **Do not** reference internal architecture file paths in public-facing documentation.
--   **Ensure** all API keys are handled via the secure settings UI and never hardcoded.
+## Debugging
+
+| What | Where |
+|---|---|
+| Service worker | `chrome://extensions`, click **service worker** |
+| Side panel | Right-click inside the panel, choose **Inspect** |
+| Page | DevTools in the tab the agent is driving |
+
+Logging is unified across all three contexts; see
+[Diagnostics](./DIAGNOSTICS_LOGGING.md).
+
+## Testing
+
+```bash
+npm test                       # unit tests
+npm run check                  # unit tests and benchmark suites
+bash scripts/check-style.sh    # comment-style gate
+npm run package                # gated build
+```
+
+Browser regression suites live in `scripts/`; the ones that do not need a
+browser run in CI.
+
+## Contributing
+
+- Do not hardcode API keys. They belong in the settings UI and storage.
+- Do not expose raw prompt text in public documentation.
+- A behaviour change needs a test that fails without it.

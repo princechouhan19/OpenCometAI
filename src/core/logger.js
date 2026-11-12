@@ -1,18 +1,14 @@
 // src/core/logger.js
-// Unified diagnostics logger for EVERY extension context (service worker /
-// offscreen ML runtime / sidepanel).
-//
-//   • Namespaced, levelled, timestamped, colourised console output
-//   • In-memory ring buffer (getRecentLogs) for diagnostics dumps
-//   • describeHttpError() — classifies API / model-request failures into
-//     human-readable kinds (auth / rate-limit / network / server / …)
-//   • installGlobalErrorTraps() — uncaught errors + unhandled rejections
-//     never vanish silently
-//   • Optional relay: background contexts forward warn/error lines to the
-//     sidepanel console (DIAG_LOG) and page contexts relay crashes back to
-//     the service-worker console (DIAG_LOG_RELAY) — one console sees all.
+// Diagnostics for every context (service worker, offscreen runtime, sidepanel):
+// namespaced console output, an in-memory ring buffer for dumps,
+// describeHttpError() for classifying request failures, and error traps that
+// relay an uncaught error into another context's console.
 
-const IS_DEV = true; // flip to false for production builds
+// Derived, not hardcoded (was `const IS_DEV = true;` with a comment telling a
+// human to flip it, which no build step ever did). Production builds set
+// NODE_ENV=production; browser contexts have no `process`, so they keep the
+// previous always-on behaviour exactly.
+const IS_DEV = typeof process === 'undefined' || process.env?.NODE_ENV !== 'production';
 
 const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 const COLORS = {

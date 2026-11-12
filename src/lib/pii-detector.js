@@ -120,19 +120,12 @@ const REGEX_PATTERNS = [
     re: /\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})\b/g,
     confidence: 0.65,
   },
-  // — PASSWORD / TOKEN assignments in TEXT (incl. OCR output).
-  // A rendered screen that shows "Password: hunter2" or "token=eyJ…" must be
-  // redacted even though the DOM saw nothing. Requires a secret-LIKE value
-  // (contains a digit, or is a quoted string) so prose such as
-  // "Password: required" never matches (same rule as the firewall sweep).
-  // the lookaheads are BOUNDED TO THE VALUE RUN. (?=.*\d) anchored
-  // at the value start but scanned to END OF the scanned string, and the OCR
-  // full-page reconstruction is ONE newline-free blob — so mere prose mentions
-  // ("three literal token formats", "four surviving secret families:",
-  // "Google key contiguity,") matched whenever ANY digit appeared later on
-  // the page (field report: black boxes over safe chat prose). The digit (and
-  // letter, where specified) must now sit INSIDE the candidate value; every
-  // real assignment still fires (v1158 TP controls + fuzz + PII corpus).
+  // Password and token assignments in text, including OCR output: a screen
+  // showing "Password: hunter2" must be redacted even when the DOM saw nothing.
+  // The value must look secret-like (contains a digit or is quoted), so
+  // "Password: required" never matches. The lookaheads are bounded to the value
+  // run: the OCR reconstruction is one newline-free blob, so an unbounded
+  // lookahead matched prose whenever any digit appeared later on the page.
   {
     type: 'password',
     re: /\b(?:password|passwd|pwd|pass)\s*(?:[:=]\s*|\s+)(?:['"][^'"]{4,}['"]|(?=[^\s'"]*\d)[^\s'"]{5,})/gi,

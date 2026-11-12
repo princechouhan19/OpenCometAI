@@ -1,318 +1,330 @@
 <div align="center">
 
-<img src="assets/icons/icon128.png" alt="OpenComet logo" width="128"/>
+<img src="assets/icons/icon128.png" alt="OpenComet" width="96"/>
 
 # OpenComet-SIH
 
-**A privacy-preserving vision agent for browsers — the screen the AI sees is never the screen you keep.**
+**A browser agent that removes sensitive content from the screen before any model sees it.**
 
-*Smart India Hackathon PS #26171 — On-device Visual Perception for Light-weight Browser Agents*
-*Organisation: Indian Space Research Organisation (ISRO), Department of Space*
+[![version](https://img.shields.io/badge/version-1.32.0-F0883E?style=flat-square&labelColor=0B1220)](docs/changelog/INDEX.md)
+[![ci](https://github.com/princechouhan19/OpenCometAI/actions/workflows/ci.yml/badge.svg)](https://github.com/princechouhan19/OpenCometAI/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-3FB950?style=flat-square&labelColor=0B1220)](LICENSE)
+[![chrome](https://img.shields.io/badge/Chrome-MV3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](manifest.json)
+[![tests](https://img.shields.io/badge/tests-55%20passing-3FB950?style=flat-square&labelColor=0B1220)](test)
+[![runtime](https://img.shields.io/badge/inference-on--device-8A2BE2?style=flat-square&labelColor=0B1220)](#how-the-privacy-contract-works)
 
-![version](https://img.shields.io/badge/version-1.29.0-FF6B35?style=for-the-badge&labelColor=0B1220)
-![SIH](https://img.shields.io/badge/SIH-PS%20%2326171%20%C2%B7%20ISRO-0B1220?style=for-the-badge)
-![license](https://img.shields.io/badge/license-MIT-3FB950?style=for-the-badge&labelColor=0B1220)
-![privacy](https://img.shields.io/badge/privacy-fail%E2%80%93closed-D93F3F?style=for-the-badge&labelColor=0B1220)
-
-<br>
-
-**Tech stack**
-
-![JavaScript](https://img.shields.io/badge/JavaScript-ES2022-F7DF1E?style=flat-square&logo=javascript&logoColor=0B1220&labelColor=F7DF1E)
-![Chrome MV3](https://img.shields.io/badge/Chrome-Extension%20MV3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)
-![WebGPU](https://img.shields.io/badge/WebGPU-WASM%20fallback-8A2BE2?style=flat-square)
-![Transformers.js](https://img.shields.io/badge/Transformers.js-v4-F9D107?style=flat-square&logo=huggingface&logoColor=0B1220&labelColor=F9D107)
-![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-Web-005CED?style=flat-square&logo=onnx&logoColor=white)
-![MediaPipe](https://img.shields.io/badge/MediaPipe-Tasks%20Vision-4285F4?style=flat-square&logo=google&logoColor=white)
-![Tesseract](https://img.shields.io/badge/Tesseract-OCR-1B73E8?style=flat-square)
-![Node.js](https://img.shields.io/badge/Node.js-20+-339933?style=flat-square&logo=nodedotjs&logoColor=white)
-![Express](https://img.shields.io/badge/Express-server-000000?style=flat-square&logo=express&logoColor=white)
-![Ollama](https://img.shields.io/badge/Ollama-offline%20VLM-6D5C9E?style=flat-square)
-![Playwright](https://img.shields.io/badge/Playwright-test%20suites-2EAD33?style=flat-square&logo=playwright&logoColor=white)
+Smart India Hackathon 2026 · Problem Statement #26171 · On-device visual perception for light-weight browser agents
 
 </div>
 
----
-
-OpenComet-SIH turns a Chrome MV3 side-panel agent into a **privacy-preserving
-vision agent**: a local face detector + YOLO + ViT + PII scanner run entirely
-in the browser (Transformers.js + MediaPipe on WebGPU/WASM, Tesseract for
-pixels-only text). Sensitive content is redacted **on-device, before any
-network request is made** — only the sanitised screenshot, sanitised DOM text
-and a redaction manifest ever leave the browser. Since v1.5.0 the on-device
-brain is **Gemma 4** (native tool calling, screenshot understanding, live
-streaming) with page-RAG and semantic history search; cloud brains
-(GPT-4o / Claude / Gemini / OpenRouter free models) and fully-offline Ollama
-are equally first-class.
-
-<p align="center">
-  <img src="docs/assets/architecture-diagram.jpg" alt="OpenComet-SIH Architecture Diagram" width="900"/>
-</p>
-
-**Interactive architecture diagram** (Mermaid — rendered natively on GitHub):
-
-```mermaid
-flowchart LR
-  subgraph browser["Browser (client) — everything local"]
-    UI["Side panel UI<br/>task input · approvals · history"]
-    SW["Service worker — sw.js<br/>run loop · tab-group sandbox · guardian"]
-    CS["Content scripts<br/>agent.js · dom-detector.js"]
-    ML["Offscreen ML runtime<br/>MediaPipe · YOLO · ViT · OCR · PII regex"]
-    PROV["providers.js<br/>provider ladder · streaming guards · credit-fit"]
-    ACT["actions.js<br/>click · type · scroll · navigate"]
-  end
-  subgraph brain["AI backend — pick one"]
-    LOCAL["Gemma 4 on-device<br/>Chrome nano / WebGPU"]
-    GATEWAY["OpenAI-compatible gateway<br/>OpenRouter · Ollama · custom"]
-  end
-  UI -->|"START / PRIVACY_START"| SW
-  SW -->|"inject + query"| CS
-  CS -->|"page state + tagged elements"| SW
-  SW -->|"RPC: sanitize frame"| ML
-  ML -->|"redacted frame · regions · manifest"| SW
-  SW -->|"decision request"| PROV
-  PROV --> LOCAL
-  PROV --> GATEWAY
-  GATEWAY -->|"JSON action plan"| SW
-  LOCAL -->|"JSON action plan"| SW
-  SW --> ACT
-  ACT -->|"verified click / type / scroll"| CS
-```
-
-**How a task runs** — every pass through the loop is sanitized, authorized and
-verified:
-
-```mermaid
-flowchart TD
-  START["Task submitted"] --> GUARD["Task authorization daemon<br/>task-guardian.js"]
-  GUARD -->|"authorized"| SANDBOX["Tab-group sandbox<br/>agent acts only inside the group"]
-  GUARD -->|"not authorized"| BLOCK["Honest stop + reason shown"]
-  SANDBOX --> CAPTURE["Capture tab frame"]
-  CAPTURE --> SAN["On-device sanitize<br/>faces · PII · DOM scan"]
-  SAN -->|"pipeline error — fail-closed"| BLANK["Blank 1×1 frame + visible error"]
-  SAN -->|"clean"| DECIDE["VLM decision turn<br/>sanitised frame + redaction manifest"]
-  DECIDE --> APPROVE["Approval gate<br/>approval mode gates every action"]
-  APPROVE --> EXEC["Execute action<br/>click · type · scroll · navigate"]
-  EXEC --> VERIFY["Verify result<br/>page fingerprint + disambiguation receipt"]
-  VERIFY -->|"more steps"| CAPTURE
-  VERIFY -->|"done · max steps · stopped"| DONE["History + honest summary"]
-```
+<img src="docs/assets/commits-marquee.svg" alt="Recent commits" width="880"/>
 
 ---
 
-## Highlights
+OpenComet-SIH is a Chrome extension that drives a browser from a task description
+and never transmits the raw screen. Faces, credential fields, and text PII are
+detected and redacted locally, in the offscreen document, before a single byte
+leaves the device. The model receives a sanitised screenshot, sanitised DOM text,
+and a manifest describing what was hidden and why.
 
-- **Fail-closed privacy firewall** — every network-bound screen context passes one
-  boundary (`privacy-firewall.js`); if the pipeline throws, the agent sends a blank
-  1×1 frame, never raw pixels.
-- **Three-layer redaction** — MediaPipe faces (tiled sweep + DOM-guided rescue) →
-  canvas redaction of credential fields (black / pixelate / blur) → text PII tokens
-  (`[REDACTED:type]`) with checksum validation (Luhn, Verhoeff, mod-97).
-- **Indian ID families** — Aadhaar (+VID), PAN (incl. mid-entry), Voter ID, passport,
-  DL, IFSC, UPI VPA, GSTIN, bank account — pattern + context-gated.
-- **On-device brains** — Gemma 4 (MoE multimodal) as the default agent brain, fully
-  client-side; model catalog with checkpoint-resume downloads.
-- **Honest autonomy** — every click is verified against a page fingerprint; every
-  task runs inside a visible tab-group sandbox; approval mode gates every action.
-- **Measured, never fabricated** — OpenCometBench: unit + adversarial + browser +
-  mock/real-VLM E2E tiers; every number in this repo traces to a results JSON.
+It runs with three interchangeable backends: a local multimodal model, any
+OpenAI-compatible gateway with your own key, or a companion Ollama server. The
+model choice does not change the privacy contract, because the redaction happens
+before the request is built.
+
+- **Latest release:** 1.32.0 · [changelog](docs/changelog/INDEX.md) · [release notes](docs/changelog/v1.32.0.md)
+- **Requirements:** Chrome 116+ (WebGPU recommended), Node 20+ for development
+- **License:** MIT · **Status:** hackathon submission, actively developed
+
+## Contents
+
+- [Features](#features)
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [How the privacy contract works](#how-the-privacy-contract-works)
+- [Reliability](#reliability)
+- [Benchmarks](#benchmarks)
+- [Development](#development)
+- [Project structure](#project-structure)
+- [Documentation](#documentation)
+- [Roadmap](#roadmap)
+- [Known limitations](#known-limitations)
+- [Contributing](#contributing)
+- [Credits](#credits)
+
+## Features
+
+**Privacy**
+
+- Fail-closed boundary. Every network-bound screen context passes a single gate
+  (`src/lib/privacy-firewall.js`). If the pipeline throws, a blank 1×1 frame is
+  sent; raw pixels are never the fallback.
+- Four detection layers: MediaPipe face detection (tiled sweep plus DOM-guided
+  rescue for small avatars), DOM semantic scan of credential fields, regex plus
+  checksum validation (Luhn, Verhoeff, mod-97), and optional BERT NER.
+- Indian identity formats: Aadhaar and VID, PAN, Voter ID, passport, driving
+  licence, IFSC, UPI VPA, GSTIN, bank accounts. Context-gated so prose does not
+  match.
+- Byte-level wire guard. The serialised payload is re-scanned for known values
+  and secret shapes after redaction, before transmission.
+- No telemetry. Nothing is sent anywhere unless you configure a provider.
+
+**Agent**
+
+- Goal contracts. The model declares what "done" looks like as a predicate over
+  page state, and the run is verified against the live DOM before it can close.
+- Verified actions. Every click is checked against a page fingerprint (URL,
+  title, scroll, dialogs, focus, content signature).
+- Task authorization. Purchase and deletion clicks require authorization from
+  your own task text, not from page content.
+- Tab-group sandbox. The agent can only act inside the tab group it created.
+- Approval mode. Optional gate on every action, with per-session host approval.
 
 ## Quick start
 
-**1 · Load the extension** — `chrome://extensions` → Developer mode → **Load unpacked**
-→ select `OpenCometAI-SIH/`. Pin the icon, open the side panel.
+**1. Load the extension.** Open `chrome://extensions`, enable Developer mode,
+choose **Load unpacked**, and select this folder. Pin the icon and open the side
+panel.
 
-**2 · Pick a brain** — everything works out of the box in three configurations:
+**2. Choose a backend.**
 
 ```bash
-# (a) On-device, zero server:      Settings → AI & Models → Local → download Gemma 4 E2B
-# (b) Cloud, BYO key:              Settings → provider + key (OpenAI / Claude / Gemini / OpenRouter free tier)
-# (c) Companion server, offline:   cd server && OLLAMA_BASE_URL=http://localhost:11434 npm start
+# On-device, no server (recommended)
+# Side panel -> Settings -> AI & Models -> Local -> download a model
+
+# Cloud provider with your own key
+# Side panel -> Settings -> Provider -> paste key (OpenAI, Anthropic, Gemini, OpenRouter)
+
+# Companion server, fully offline
+cd server && OLLAMA_BASE_URL=http://localhost:11434 npm start
 ```
 
-**3 · See privacy work instantly** — open `docs/assets/demo-page.html`, click
-**Test capture + redact**: passwords go solid black, free-form PII pixelates,
-faces blur. The preview shows exactly what would leave the browser.
+**3. See redaction without a task.** Open [`docs/assets/demo-page.html`](docs/assets/demo-page.html),
+click **Test capture + redact**, and compare the capture with the sanitised
+output.
 
-**4 · Run a task** — Privacy Mode is ON by default. Type
-*"Find the cheapest flight from Bengaluru to Delhi next Friday"* and hit Send.
+**4. Run a task.** Privacy mode is on by default. Try
+*"Find the cheapest flight from Bengaluru to Delhi next Friday."*
 
-## How the privacy contract works
-
-| Layer | Tool | Catches | Latency |
-|---|---|---|---:|
-| Pixel | MediaPipe FaceDetector (tiled + DOM-crop sweeps) | faces → blur + eye-bar | 15–40 ms |
-| Pixel | Canvas redactor | password / card / OTP fields → black | 3–8 ms |
-| Text | Regex + checksums + optional BERT NER | emails, phones, Aadhaar, PAN, SSN, IBAN, API keys… | 2–5 ms |
-| Pixel | Canvas pixelate | free-form PII text → pixelated | 3–8 ms |
-
-Every redacted region ships in a JSON **manifest** next to the sanitised image, so
-the VLM knows *what it cannot see and why*. DOM text is tokenised
-(`[REDACTED:email]`) before transmission. **Fail-closed:** pipeline error ⇒ blank
-1×1 PNG + visible error — sending raw pixels is never the failure mode. Deep dive:
-[`docs/architecture/PRIVACY_VISION.md`](docs/architecture/PRIVACY_VISION.md).
-
-<p align="center">
-  <img src="docs/assets/privacy-pipeline-diagram.jpg" alt="OpenComet-SIH Privacy Pipeline Diagram" width="900"/>
-</p>
-
-**Interactive privacy-pipeline diagram** — what happens between a raw frame and
-the network:
+## How it works
 
 ```mermaid
 flowchart LR
-  CAP["Tab capture"] --> DOM["DOM PII scan<br/>credential fields · uploads"]
-  CAP --> FACE["Face detect<br/>tiled sweep + DOM-guided rescue"]
-  CAP --> VIS["Visual context<br/>ViT labels + YOLO"]
-  DOM --> RED["Canvas redaction<br/>black · pixelate · blur"]
-  FACE --> RED
-  RED --> TXT["Text PII tokenize<br/>REDACTED tokens + checksums"]
-  VIS --> CTX["Page-type context<br/>fused into the prompt"]
-  TXT --> WG["Wire-guard byte scan<br/>known-value + secret-shape sweep"]
-  WG --> OUT["Sanitised frame + manifest + redacted text"]
-  CTX --> OUT
-  OUT -->|"only this leaves the browser"| VLM["VLM"]
+  subgraph browser["Browser — all inference is local"]
+    UI["Side panel<br/>task input · approvals · history"]
+    SW["Service worker<br/>run loop · sandbox · authorization"]
+    CS["Content scripts<br/>agent · DOM detector"]
+    ML["Offscreen runtime<br/>faces · YOLO · OCR · PII"]
+    PROV["Provider layer<br/>ladder · streaming · credit fit"]
+  end
+  subgraph brain["Model backend — pick one"]
+    LOCAL["Local multimodal model"]
+    GATEWAY["OpenAI-compatible gateway"]
+  end
+  UI -->|"start"| SW
+  SW -->|"inject and query"| CS
+  SW -->|"sanitize frame"| ML
+  ML -->|"redacted frame · manifest"| SW
+  SW -->|"decision request"| PROV
+  PROV --> LOCAL
+  PROV --> GATEWAY
+  LOCAL -->|"JSON action"| SW
+  GATEWAY -->|"JSON action"| SW
+  SW -->|"verified action"| CS
 ```
 
-Per-stage diagrams (PII taxonomy, face-recall cascade, coordinate spaces) live
-in [`docs/architecture/PRIVACY_VISION.md`](docs/architecture/PRIVACY_VISION.md).
+Each pass through the loop is sanitised, authorized, and verified:
 
-## Measured results (OpenCometBench)
+```mermaid
+flowchart TD
+  START["Task submitted"] --> GUARD["Task authorization"]
+  GUARD -->|"authorized"| SANDBOX["Tab-group sandbox"]
+  GUARD -->|"blocked"| STOP["Stopped with a reason"]
+  SANDBOX --> CAPTURE["Capture frame"]
+  CAPTURE --> SAN["On-device sanitize"]
+  SAN -->|"pipeline error"| BLANK["Blank frame + visible error"]
+  SAN -->|"clean"| DECIDE["Model decision"]
+  DECIDE --> APPROVE["Approval gate"]
+  APPROVE --> EXEC["Execute action"]
+  EXEC --> VERIFY["Verify against page fingerprint"]
+  VERIFY -->|"more steps"| CAPTURE
+  VERIFY -->|"done or limit"| DONE["Goal check, history, summary"]
+```
+
+## How the privacy contract works
+
+| Layer | Implementation | Catches | Cost |
+|---|---|---|---:|
+| Pixel | MediaPipe FaceDetector, tiled and DOM-crop sweeps | faces, blurred with an eye bar | 15–40 ms |
+| Pixel | Canvas redactor | password, card, OTP fields, solid black | 3–8 ms |
+| Text | Regex, checksums, optional BERT NER | emails, phones, Aadhaar, PAN, IBAN, API keys | 2–5 ms |
+| Pixel | Canvas pixelate | free-form PII text | 3–8 ms |
+
+Every redacted region is described in a JSON manifest sent alongside the image,
+so the model knows what it cannot see. DOM text is tokenised
+(`[REDACTED:email]`) before transmission.
+
+Deep dive: [`docs/architecture/PRIVACY_VISION.md`](docs/architecture/PRIVACY_VISION.md).
+
+## Reliability
+
+Agent failures are usually belief failures: the model thinks an action worked
+when it did not. Three mechanisms address that.
+
+- **Goal contracts** (`src/lib/goal-verifier.js`). The planner declares
+  `goal_checks` over observable page state (`url_matches`, `text_contains`,
+  `element_exists`, counts). Before a run may close, the checks are evaluated
+  against the live page. A failed check returns the observation to the agent and
+  the loop continues. A run that never declares a contract closes as
+  `completed_unverified`, never as verified.
+- **Error classification** (`src/lib/error-taxonomy.js`). Transport faults are
+  retried with exponential backoff and a server-supplied `Retry-After` is
+  honoured exactly; auth and policy failures are terminal on the first attempt;
+  a stale DOM re-probes immediately. A provider 502 is no longer counted as a
+  task failure.
+- **Loop reflection** (`src/lib/loop-reflection.js`). Repeated actions,
+  oscillation, and dead waits are detected over the action history and produce a
+  strategy-change prompt, capped at three per run.
+
+## Benchmarks
+
+All numbers below come from committed result JSON. The benchmark is in
+[`OpenCometBench/`](OpenCometBench/README.md); methodology is documented there.
 
 ```bash
-node OpenCometBench/run-all.js                    # all Node suites, exit 0 = targets met
-node OpenCometBench/run-opencomet-bench.mjs --all # + E2E (real extension) + adversarial tiers
-node OpenCometBench/e2e/run-e2e-real.mjs --warmup # real-VLM tier, steady-state (BYO key via env)
+node OpenCometBench/run-all.js                     # six offline suites, exit 0 = targets met
+node OpenCometBench/run-opencomet-bench.mjs --all  # adds browser and adversarial tiers
+node OpenCometBench/regression-gate.mjs --current <run.json>   # compare against baseline
 ```
 
 | Metric | Measured | Source |
 |---|---|---|
-| PII precision / recall | **1.00 / 1.00** (366+ corpus, checksum-validated; synthetic corpus built from the detector's own checksum/label rules) | `privacy.bench.js` |
-| Redaction coverage / mean IoU | **1.000 / 0.987**, pixel leakage 0/340, over-redaction 0% (real-browser pixel tier) — unit harness on the same build: 0.983 / 0.938 / 5.9% over-redaction | `browser/harness.mjs` (browser report) · `redaction.bench.js` |
-| Visual context accuracy | **12/12** DOM-fused, **12/12** ViT-fused (browser tier; unit harness: 11/11) | `browser/harness.mjs` (browser report) · `visual-context.bench.js` |
-| Security / fuzz / server-validation | 29/29 · 0 leaks in 216 · 25/25 | `security/fuzz/server-validation` |
-| **Per-test benchmark latency (v1.30.0)** | **815 cases individually timed** across all 6 Node suites + every adversarial case; p50/p90/p95 published per suite (unit-tier p50 0.014–0.093 ms; full sample arrays in the result JSON) | `OpenCometBench/latency.js` + every suite |
-| **Latency claims now carry 95% CIs (v1.31.0)** | every published p50/p95 gets a deterministic bootstrap CI (seeded, 1000 resamples) and the CI vs baseline gates releases with Mann-Whitney U — a +40% p95 wobble measured as noise (p=0.103) does NOT block; a real distribution shift does | `bootstrapCi`/`mannWhitneyU` + `regression-gate.mjs` + CI workflow |
-| **Changed-frame OCR (v1.30.0 ROI-rescan)** | partially-changed frames re-OCR **changed regions only** (fail-toward-full guards on first sight/URL/dims/ratio/periodic caps); ROI decision overhead measured **0.095 ms/frame**; quality metrics byte-identical v1.29.0→v1.30.0 | `src/lib/roi-diff.js` + `privacy-filter.js` |
-| Sanitize P50 **warm** (unchanged screen) | **1216 ms** (memo hit; OCR memo collapses the OCR leg; n=7) | browser report |
-| Changed frame (memo miss, full re-detect) | 12885 ms (YOLO 7841 + OCR 3402) — by design, scene-change-attack verified; v1.30.0 ROI-rescan narrows the OCR leg to **changed regions only** on partially-changed frames (full scan stays the floor for material scene changes) | browser report |
-| Real-VLM step (OpenRouter free model) | VLM 4679 ms · action 777 ms · **0 privacy blocks** · verified 1/1 (single-step reference run) | `e2e-real` report |
-| Cold first step (one-time model load) | ViT load 37873 ms — a session warm-up (`--warmup`) collapses subsequent turns; a committed warm-up results artifact is still pending | `e2e-real` + warm-up probe |
+| PII precision / recall | 1.00 / 1.00 on a 366-case synthetic corpus built from the detector's own rules | `privacy.bench.js` |
+| Redaction coverage / mean IoU | 1.000 / 0.987, 0 pixel leakage in 340, 0% over-redaction (browser tier) | `browser/harness.mjs` |
+| Visual context accuracy | 12/12 DOM-fused, 12/12 ViT-fused (browser tier) | `browser/harness.mjs` |
+| Security, fuzz, server validation | 29/29, 0 leaks in 216, 25/25 | three suites |
+| Sanitize p50, warm unchanged screen | 1216 ms (memo hit) | browser report |
+| Changed frame, full re-detect | 12885 ms (YOLO 7841 + OCR 3402) | browser report |
+| Real-VLM step | 4679 ms model, 777 ms action, 0 privacy blocks | `e2e-real` |
 
-**Latest measured run (v1.31.0 unit tier, sandbox):** independent re-run
-2026-10-05T17:11Z, fresh session — **6/6 PASS · 815 timed cases · regression
-gate PASS** vs the committed v1.30.0 baseline (quality metrics identical in
-all 6 suites). Per-suite p95 with this run's bootstrap CI95:
+Conditions are never merged: cold start, warm unchanged screen, and changed
+frame are three different measurements. The synthetic PII corpus is
+self-consistent rather than externally validated; building an independent corpus
+is on the roadmap.
 
-| Suite (n) | v1.30.0 baseline p95 | v1.31.0 p95 [CI95] | Δ p95 | Quality |
-|---|---|---|---|---|
-| PII detection (n=514) | 0.109 ms | 0.083 ms [0.048–0.120] | −23.9% | identical |
-| Redaction regions (n=20) | 0.153 ms | 0.149 ms [0.048–0.149] | −2.6% | identical |
-| Visual context (n=11) | 2.383 ms | 2.408 ms [0.611–2.408] | +1.0% | identical |
-| Security & privacy leakage (n=29) | 1.505 ms | 1.588 ms [0.330–3.166] | +5.5% | identical |
-| Privacy leakage fuzz (n=216) | 0.161 ms | 0.150 ms [0.125–0.166] | −6.8% | identical |
-| Server inbound validation (n=25) | 0.160 ms | 0.165 ms [0.033–0.363] | +3.1% | identical |
+**Note on version.** These figures were measured at 1.31.0. The perception
+pipeline is unchanged in 1.32.0.
 
-The gate's noise tolerance is measured, not theoretical: the release run
-(2026-10-05T16:39Z) saw the fuzz suite's p95 spike **+40.4%** on the same
-machine — over the 25% budget — and the Mann-Whitney gate correctly allowed
-it (p = 0.103); this independent re-run lands **−6.8%**, reproducing the
-spike as machine noise, exactly the behaviour the gate exists to handle.
-Adversarial e2e evidence (2026-10-05T16:48Z): **23/23 PASS in one
-invocation** (context budget 8, 2 rotations) with per-case TTFA
-min/median/max = **1711 / 3504 / 19388 ms**. Artifacts:
-`OpenCometBench/results/unit-v1310-release.json`,
-`OpenCometBench/results/adversarial-benchmark-1791219123275.json`, baseline
-`OpenCometBench/baselines/v1.30.0-unit.json`.
+## Development
 
-**Honesty rule:** cold-start, warm-unchanged-screen and changed-frame numbers are
-different conditions and are never merged. OCR geometric coverage is honestly
-0.75 (4/4 pixel regions altered, zero observed leakage — fail-closed verified).
-Import any report JSON into Settings → Privacy & Vision → **SIH Scorecard**, or
-drag it onto `OpenCometBench/dashboard.html`. Full methodology:
-[`OpenCometBench/README.md`](OpenCometBench/README.md).
+The extension has no runtime dependencies. There is nothing to install.
 
-## SIH evaluation mapping
+```bash
+npm test                 # 55 unit tests, node:test
+npm run check            # unit tests plus the six benchmark suites
+npm run package          # gates, then dist/opencomet-<version>.zip
+bash scripts/check-style.sh   # comment-style gate
+```
 
-| Criterion (weight) | Approach |
-|---|---:|
-| Visual context accuracy (25%) | Page classifier + ViT scene labels, adaptive gate, fused into every decision |
-| Sensitive/PII detection P+R (20%) | 4-layer detector: tiled faces, DOM semantics, regex+checksums, contextual risk |
-| Redaction precision (20%) | Per-type styles, safe manifest (no raw selectors leave), fail-closed |
-| Client resource use (20%) | INT8 models, WebGPU-first/WASM fallback, lazy-load, ~50–150 MB RAM, heap Δ0 in browser run |
-| E2E latency (15%) | Memoized re-hits, session warm-up, speed profiles, shot-reuse on unchanged screens, ROI-rescan (changed regions only) on partially-changed frames; OpenRouter prompt-cache stickiness keeps the provider-side prefix warm (v1.31.0) |
+The packaging script refuses to build when the manifest and package versions
+disagree, when a placeholder or credential-shaped string is present, when the
+style gate fails, or when any test or benchmark fails.
 
-## What's new in v1.31.0
+Development-time browser harnesses live in `scripts/` and run without
+Playwright:
 
-- **Benchmark rigor: error bars + an enforced regression gate** — every
-  published p50/p95 now carries a deterministic 95% bootstrap CI
-  (`bootstrapCi`, seeded mulberry32, 1000 resamples). The new
-  `OpenCometBench/regression-gate.mjs` compares any run against the committed
-  v1.30.0 baseline and **hard-blocks on any quality-metric change**, while
-  latency growth only blocks when Mann-Whitney U says the sample
-  distributions really shifted (p < 0.01) — measured on this release: the
-  fuzz suite's p95 grew +40% on the CI machine and the gate correctly called
-  it noise (p = 0.103). Wired into GitHub Actions
-  (`.github/workflows/bench-gate.yml`).
-- **OpenRouter prompt-cache stickiness** — decision turns now send a stable
-  per-task `session_id` (FNV-1a hash — no PII on the wire) and mark the
-  byte-stable system prompt with a `cache_control` breakpoint, so provider
-  sticky routing keeps the policy prefix warm from the first turn. Cache
-  reads/writes are logged and surfaced in usage telemetry. Host-gated to
-  openrouter.ai; other gateways see zero change; strict endpoints get one
-  automatic clean retry without the breakpoint.
-- **ORT-Web thread unlock (measured honest)** — the vendored threaded wasm no
-  longer runs pinned to 1 thread; threads are feature-detected (SAB +
-  isolation, ≤4, capped by cores). For yolos-tiny the measured effect is
-  **neutral** (2-core probe: 0.97–1.01×, box parity IDENTICAL — the model
-  computes at a fixed internal resolution), so the honest levers for the
-  changed-frame YOLO leg remain memo/warm-up (shipped) and a future detector
-  swap. Probe evidence committed under `OpenCometBench/results/`.
-- **Adversarial e2e: full runs no longer OOM + per-case TTFA** — the runner
-  rotates to a fresh Chromium context every N cases (`--context-budget=8`),
-  so the full 23-case suite completes in one invocation (previously OOM-crashed
-  around case 16). Every case reports `ttfaMs` — task start → first
-  `/agent/decide` arrival — and the report records the rotation count.
-- **Not included, by decision** — Chrome built-in AI (Gemini Nano) and
-  detector/OCR model swaps (YOLO26 / PP-OCRv5): the latter must first pass
-  the (now enforced) quality gate on a device matrix. Full details:
-  [`docs/changelog/v1.31.0.md`](docs/changelog/v1.31.0.md).
+```bash
+node scripts/test_v1180_guardian.mjs
+node scripts/test_v1190_disambiguation.mjs
+node scripts/test_v1300_latency_roi.mjs
+node scripts/test_v1310_verify.mjs
+node scripts/test_scene_change_attack.mjs
+node scripts/test_tab_sandbox.mjs
+node scripts/test_creditfit_402.mjs
+```
 
-Earlier rounds — dom-detector visual tagging + streaming failure ladder
-(v1.29.0), disambiguation (v1.19.0), Task Authorization Daemon (v1.18.0),
-Firefox from one source tree (v1.17.0) — are summarised in
-**[`docs/changelog/`](docs/changelog/INDEX.md)**, one file per version.
+Continuous integration runs the tests on Node 20 and 22, the benchmark suites,
+the style gate, the no-browser harnesses, and a full package build
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). A tag matching the
+manifest version builds and attaches the release zip
+([`.github/workflows/release.yml`](.github/workflows/release.yml)).
+
+## Project structure
+
+```
+src/
+  background/     service worker, agent loop, action execution, privacy loop
+  content/        DOM detection and page instrumentation
+  lib/            providers, prompts, privacy pipeline, PII detection, goal contracts
+  offscreen/      ML runtime: MediaPipe, ONNX, OCR
+  sidepanel/      UI
+  core/           logging and shared utilities
+OpenCometBench/   six offline suites, browser and adversarial tiers, dashboard
+docs/             architecture, guides, changelog, roadmap, research
+scripts/          packaging, style gate, regression harnesses
+server/           optional companion server
+test/             node:test suites
+```
 
 ## Documentation
 
-| Folder | Contents |
+| Document | Contents |
 |---|---|
-| [`docs/changelog/`](docs/changelog/INDEX.md) | Release notes v1.14 → v1.31.0, one file per version |
-| [`docs/guides/`](docs/guides/GETTING_STARTED.md) | Getting started, features, demo script, developer guide, FAQ, Gemma 4, diagnostics, DOM detector |
-| [`docs/sih/`](docs/sih/SIH_READINESS.md) | SIH readiness per version, claim-by-claim novelty, gap analysis, distribution |
-| [`docs/architecture/`](docs/architecture/PRIVACY_VISION.md) | Privacy architecture deep-dive + file-by-file guide |
-| [`docs/research/`](docs/research/vlm-speed-research.md) | Measured VLM latency research behind the speed profiles |
-| [`OpenCometBench/`](OpenCometBench/README.md) | The benchmark: harnesses, fixtures, results, dashboard |
+| [`docs/README.md`](docs/README.md) | Index of all documentation |
+| [`docs/architecture/PRIVACY_VISION.md`](docs/architecture/PRIVACY_VISION.md) | How redaction works, stage by stage |
+| [`docs/architecture/FILE_GUIDE.md`](docs/architecture/FILE_GUIDE.md) | What each source file does |
+| [`docs/guides/GETTING_STARTED.md`](docs/guides/GETTING_STARTED.md) | Installation and first task |
+| [`docs/guides/FEATURES_GUIDE.md`](docs/guides/FEATURES_GUIDE.md) | Feature reference |
+| [`docs/guides/DEVELOPER_GUIDE.md`](docs/guides/DEVELOPER_GUIDE.md) | Architecture and conventions |
+| [`docs/guides/DIAGNOSTICS_LOGGING.md`](docs/guides/DIAGNOSTICS_LOGGING.md) | Reading the logs |
+| [`docs/changelog/INDEX.md`](docs/changelog/INDEX.md) | Release notes, one file per version |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Engineering roadmap, measurement-first |
+| [`OpenCometBench/README.md`](OpenCometBench/README.md) | Benchmark methodology |
 
-Full docs index: **[`docs/README.md`](docs/README.md)**
+## Roadmap
+
+Priorities, in order:
+
+1. Make goal contracts universal: the planner should always emit one, with a
+   single re-ask before accepting an unverified close.
+2. Perception latency. Detection dominates a changed frame at 12.9 s. Candidate
+   work: detector input resolution, per-model backend selection, OCR
+   detect-then-recognise, batching, phase parallelism, prewarming.
+3. An independent PII corpus, so precision and recall are externally validated
+   rather than self-consistent.
+4. Move the `debugger` permission to optional, with a documented degraded path.
+5. Extract the loop's decision core from `sw.js` so the agent loop is testable
+   without a browser.
+
+Details, including what would count as evidence for each item:
+[`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Known limitations
 
-- Firefox stable has no WebGPU → pipeline falls back to WASM (~2× slower, still real-time).
-- BERT NER (~110 MB) is opt-in; the regex pass covers most tasks.
-- Cross-origin iframe DOM text is not scannable (browser security) — faces inside
-  iframes are still blurred at the pixel level.
-- Changed-frame re-detection cost is deliberate (privacy semantics); region-of-interest
-  re-detection is future work.
+- Firefox has no WebGPU on stable, so the pipeline falls back to WASM. It works,
+  it is slower.
+- Cross-origin iframe DOM text cannot be scanned. Faces inside them are still
+  blurred at the pixel level.
+- Full re-detection on a materially changed screen is deliberate; the cost buys
+  the guarantee that a changed screen is never served from a cache.
+- BERT NER is opt-in at roughly 110 MB; the regex pass covers most tasks.
+- The extension has not been published to the Chrome Web Store; load it unpacked.
 
-## Credits & license
+## Contributing
 
-Built on [OpenCometAI](https://github.com/) (MIT). Libraries: Transformers.js
-(Apache-2.0), MediaPipe Tasks-Vision (Apache-2.0), ONNX Runtime Web (MIT),
-Tesseract.js (Apache-2.0), OpenAI/Anthropic/Gemini/Ollama SDKs. Model weights:
-Gemma 4, Granite 4.0, LFM2-VL, all-MiniLM — per their model cards (see
-[`LEGAL.md`](LEGAL.md)). Code: MIT — see [`LICENSE`](LICENSE).
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) first. Run `npm run check` before
+opening a pull request. Behaviour changes need a test that fails without the
+change. The project follows [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
-*Diagnostics: every context (service worker · offscreen ML runtime · sidepanel)
-logs through one unified system — see
-[`docs/guides/DIAGNOSTICS_LOGGING.md`](docs/guides/DIAGNOSTICS_LOGGING.md).*
+## Credits
+
+Built on the OpenCometAI codebase. Libraries: Transformers.js (Apache-2.0),
+MediaPipe Tasks-Vision (Apache-2.0), ONNX Runtime Web (MIT), Tesseract.js
+(Apache-2.0). Model weights are used under their own model cards; see
+[`LEGAL.md`](LEGAL.md). Code is MIT licensed; see [`LICENSE`](LICENSE).
+
+## Star history
+
+[![Star History Chart](https://api.star-history.com/svg?repos=princechouhan19/OpenCometAI&type=Date)](https://star-history.com/#princechouhan19/OpenCometAI&Date)
+
+<div align="center"><sub><a href="#opencomet-sih">Back to top</a></sub></div>

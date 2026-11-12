@@ -1,52 +1,56 @@
-# Features & Capabilities
+# Features
 
-Open Comet is more than just a chatbot—it is a comprehensive browser operating system for AI. This guide explores its most powerful features.
+## Browser automation
 
----
+The agent runs multi-step tasks without step-by-step instruction.
 
-## 🚀 Autonomous Browser Agents
-The core of Open Comet is its ability to perform multi-step browser tasks without constant human intervention.
--   **Visual Perceptiveness**: The agent "sees" the page through internal screenshots and DOM mapping.
--   **Element Tagging (upgraded dom-detector)**: Every interactive control is boxed on-screen with a numeric badge; the element list carries the same `uid:nx-N` identity, so the model's pick is relocated to the exact element — not a look-alike. Cursor-first detection reaches shadow DOM, same-origin iframes and custom `<div>` widgets. Deep dive: [DOM Detector](./DOM_DETECTOR.md).
--   **Native Interactions**: It can click, type, scroll, and navigate exactly as a human would.
--   **Continuous Reasoning**: After every action, it re-evaluates the page to ensure it is on the right track.
+- **Visual grounding.** It reads the page from a screenshot and the DOM
+  together.
+- **Element tagging.** Every interactive control gets a box and a numeric badge
+  on screen, and the element list carries the same `uid:nx-N` identity, so the
+  model's choice is relocated to that exact element rather than a look-alike.
+  Detection follows the cursor first and reaches shadow DOM, same-origin
+  iframes and custom `<div>` widgets. See [DOM Detector](./DOM_DETECTOR.md).
+- **Native interactions.** Click, type, scroll, navigate, switch tabs.
+- **Verification.** After every action it re-reads the page to confirm the
+  action had an effect.
 
----
+## Extraction
 
-## 📊 Auto Scraper (Vision-Powered)
-Extraction that works on any website, even without traditional table structures.
--   **Site-Agnostic**: No CSS selectors or manual training required. If a human can see the data, the agent can extract it.
--   **Multiple Formats**: Export extracted data to **JSON**, **CSV**, or **Markdown**.
--   **Semantic Extraction**: Ask for specific data points like "Extract all contact emails" or "List all product prices."
+- **Site-agnostic.** No selectors and no training. If a person can read the
+  data, the agent can extract it.
+- **Formats.** JSON, CSV or Markdown.
+- **Targeted.** "Extract all contact emails" or "list all product prices".
 
----
+## Research
 
-## 🔬 Deep Research
-Handling complex retrieval tasks that span dozens of sources.
--   **Multi-Tab Orchestration**: The agent spawns background tabs to explore multiple search results simultaneously.
--   **Synthesis**: It reads through various articles and compiles a single, comprehensive report with cited sources.
--   **Recursive Search**: If initial results are insufficient, the agent will naturally refine its search queries.
+- **Multiple tabs.** The agent opens background tabs for several results at
+  once.
+- **Synthesis.** It reads them and writes one report with sources.
+- **Refinement.** If the results are thin it changes the query.
 
----
+## Skills
 
-## 🧩 The Skill System
-Create reusable agent macros for your recurring workflows.
--   **Save & Trigger**: Define a complex task once (e.g., "Summarize the top 3 AI news on TechCrunch") and save it as a "Skill."
--   **Dynamic Variables**: Use `{{variables}}` to create flexible skills that ask for input (e.g., "Find the price of {{product}} on Amazon").
--   **Efficiency**: One-click execution for routine browser chores.
+Reusable task templates.
 
----
+- Define a task once and save it as a skill.
+- Use `{{variables}}` for inputs, for example "find the price of {{product}} on
+  Amazon".
+- Run it again with one click.
 
-## 🛡️ Approval Guards & Privacy
-Safety is built into every layer of the architecture.
--   **Approval Hub**: The agent will always pause and ask for confirmation before high-risk actions like payments, account deletions, or form submissions.
--   **Protected Domains**: Hardcoded guards for banking and financial websites ensure the agent never acts without explicit intent.
--   **Local First**: All history, settings, and API keys are stored **100% locally** in your browser. We never see your data.
+## Approval and privacy
 
----
+- **Approval hub.** Purchases, deletions and form submissions pause for
+  confirmation.
+- **Task authorization.** Destructive actions are authorized only by the words
+  of your own task, never by page content.
+- **Local storage.** History, settings and keys stay in the browser.
 
-## 🦙 Local AI (Ollama)
-Run your agent 100% privately on your own hardware.
--   **Privacy**: No data ever leaves your machine.
--   -   **Cost**: Free to run (no API fees).
--   -   **Setup**: Requires [Ollama](https://ollama.com/) running locally with supported models (e.g., `qwen2.5-vl`).
+## Local models
+
+- **Privacy.** No request leaves the machine.
+- **Cost.** None per request.
+- **Setup.** [Ollama](https://ollama.com/) running locally with a vision model,
+  such as `qwen2.5-vl`.
+
+The privacy pipeline applies in every mode: cloud, local or companion server.

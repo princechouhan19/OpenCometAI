@@ -1,215 +1,222 @@
-# VLM Latency Optimization — Research & Implementation (v1.9.0)
+# Model latency: research and implementation (v1.9.0)
 
-Field log that triggered this work: **"play a song on yt music"** completed in
-12 steps / 666.8 s — of which **~571 s (85%) was waiting on the VLM**
-(12 decision calls at 26.8–93.3 s each, provider `custom/moonshotai/kimi-k3`).
-The actions themselves took <10 s combined. This document records what the
-research found, what we implemented, and what to tune next.
+The field run behind this work: "play a song on yt music" took 12 steps and
+666.8 s, of which about 571 s (85%) was waiting on the model across 12 decision
+calls of 26.8 to 93.3 s each, on
+`custom/moonshotai/kimi-k3`. The actions themselves took under 10 s in total.
 
----
+This document records the research, what was implemented, and what to tune next.
 
-## 1. Root-cause analysis of the field run
+## Where the time went
 
-| # | Cause found in the log | Cost |
-|---|------------------------|------|
-| 1 | **kimi-k3 always reasons.** Kimi's own docs: *"kimi-k3 always reasons and does not support the thinking parameter. Adjust reasoning effort with the top-level `reasoning_effort` field"* (`low`/`high`/`max`). We sent NO effort field, and OpenRouter-routed providers (e.g. Novita) document *"Reasoning is always on… efforts low, high, max; **max is the default**"*. Every turn burned long hidden reasoning before the tiny JSON answer. | 20–70 s/turn — the single biggest cost |
-| 2 | **Privacy-off path blinded the agent**: `captureAndSanitize` returned `page=undefined` → prompt said `url=?`, `no <video> elements` while the fingerprint saw `videos=1`. The VLM contradicted its own context, re-navigated to a page it was already on, and hesitated. | ~2 turns (~2 min) |
-| 3 | **`media` action was blind to hidden videos**: `domMediaControl` filtered `area > 0`, but YouTube Music keeps its `<video>` mounted at 0×0 until playback starts → "No <video> or <audio> element" while `videos=1` existed. The VLM tried the media action 3 times, failed 3 times. | 3 turns (~3 min) |
-| 4 | **Fuzzy click matching**: needle `text:play` first-partial-matched the sidebar button **"New playlist"** (`"new playlist".includes("play")`), opening a dialog that blocked the page for two more rounds. | 2–3 turns |
-| 5 | **Raw PNG upload** in the privacy-off path (no 1280px/JPEG normalization like the privacy-on path) → 5–10× more upload bytes and vision tokens per turn. | seconds/turn + tokens |
-| 6 | **activeTab revocation mid-run** (Chrome "Site access" restriction): run #1 died at step 2 right after the youtube.com → music.youtube.com cross-origin navigation. | 1 full run |
-| 7 | **Start-URL coarse**: "yt music" opened www.youtube.com; the VLM then spent a turn navigating to music.youtube.com. | ~1 turn (~1.5 min) |
+| Cause found in the log | Cost |
+|---|---|
+| **kimi-k3 always reasons.** Kimi's documentation states that kimi-k3 does not support a thinking parameter and that effort is set with the top-level `reasoning_effort` field (`low`, `high`, `max`). We sent no effort field, and OpenRouter-routed providers such as Novita document reasoning as always on with `max` as the default. Every turn spent long hidden reasoning before the small JSON answer. | 20-70 s per turn, the largest single cost |
+| **The privacy-off path blinded the agent.** `captureAndSanitize` returned `page=undefined`, so the prompt said `url=?` and "no video elements" while the fingerprint reported one video. The model contradicted its own context, re-navigated to the page it was already on, and hesitated. | about 2 turns |
+| **The media action ignored hidden videos.** `domMediaControl` filtered on `area > 0`, but YouTube Music keeps its video element mounted at 0x0 until playback starts, so the action reported no media element while one existed. It was tried three times and failed three times. | 3 turns |
+| **Fuzzy click matching.** The needle `text:play` matched the sidebar button "New playlist" on the first partial match, opening a dialog that blocked the page for two more rounds. | 2-3 turns |
+| **Raw PNG upload** in the privacy-off path, with no 1280 px or JPEG normalization as on the privacy-on path, so each turn uploaded 5-10x more bytes and vision tokens. | seconds per turn plus tokens |
+| **activeTab revocation mid-run.** The first run died at step 2, immediately after the cross-origin navigation to music.youtube.com, because of Chrome site-access restrictions. | one full run |
+| **A coarse start URL.** "yt music" opened www.youtube.com, costing a turn to navigate to music.youtube.com. | about 1 turn |
 
-## 2. Research survey (papers · repos · vendor docs · threads)
+## Research
 
-### Vendor documentation (directly actionable for API agents)
-- **Kimi "Thinking Models"** — kimi-k3 always reasons; control via top-level
-  `reasoning_effort` (`low`/`high`/`max`): <https://platform.kimi.ai/docs/guide/use-thinking-models>
-  Kimi platform pricing also shows **automatic context caching** (cache-hit
-  input ≈ 10× cheaper than uncached), rewarding stable prompt prefixes:
+### Vendor documentation
+
+- Kimi thinking models: kimi-k3 always reasons, controlled through top-level
+  `reasoning_effort`: <https://platform.kimi.ai/docs/guide/use-thinking-models>.
+  Kimi pricing also shows automatic context caching, with cache hits costing
+  roughly a tenth of uncached input, which rewards a stable prompt prefix:
   <https://platform.kimi.ai>
-- **OpenRouter — Reasoning Tokens guide**: unified `reasoning: { effort,
-  exclude }` parameter across providers: <https://openrouter.ai/docs/guides/best-practices/reasoning-tokens>
-  Provider page example (Novita, a Kimi router): reasoning always on, default
-  max: <https://openrouter.ai/provider/novita>. Fast routed variants
-  (`:nitro`) trade price for throughput.
-- **DeepInfra Kimi K2.5 latency benchmarks** — measured TTFT/throughput per
-  provider tier (Turbo vs budget): <https://deepinfra.com/blog/kimi-k2-5-api-benchmarks>
+- OpenRouter reasoning tokens: a unified `reasoning: { effort, exclude }`
+  parameter across providers:
+  <https://openrouter.ai/docs/guides/best-practices/reasoning-tokens>.
+  A provider page example (Novita, a Kimi router) documents reasoning as always
+  on with max as the default: <https://openrouter.ai/provider/novita>. Faster
+  routed variants (`:nitro`) trade price for throughput.
+- DeepInfra Kimi K2.5 latency benchmarks, with TTFT and throughput per provider
+  tier: <https://deepinfra.com/blog/kimi-k2-5-api-benchmarks>
 
-### Systems / agent-engineering references
-- **"How Browser Use Achieves the Fastest Agent Execution"** (browser-use
-  blog, *Speed Matters*) — the four production levers we mirror:
-  ① exploit the KV cache (stable prompt prefix), ② screenshots only when
-  needed (each screenshot ≈ +0.8 s encoder time), ③ smart text extraction
-  alongside pixels, ④ minimize output tokens:
-  <https://browser-use.com/posts/speed-matters>
-- **"Efficient GUI Agents: A Systems Survey"** — formalizes agent latency as
-  TTFT + TPOT × output tokens and surveys observation/action optimizations:
-  <https://arxiv.org/html/2609.02309v1>
-- **"Building Browser Agents: Architecture, Security, and Trust"** —
-  screenshot-vs-DOM hybrid perception trade-offs: <https://arxiv.org/html/2511.19477v1>
+### Agent engineering
 
-### GUI-grounding papers (fewer mis-clicks ⇒ fewer turns)
-- **OmniParser (Microsoft)** — parse the screen into structured interactable
-  elements, then Set-of-Marks label overlay so the model clicks "element 12"
+- "How Browser Use Achieves the Fastest Agent Execution" (browser-use, Speed
+  Matters), which lists four production levers: exploit the KV cache with a
+  stable prefix; screenshot only when needed, since each screenshot costs about
+  0.8 s of encoder time; combine text extraction with pixels; minimize output
+  tokens: <https://browser-use.com/posts/speed-matters>
+- "Efficient GUI Agents: A Systems Survey", which models agent latency as
+  TTFT plus TPOT times output tokens and surveys observation and action
+  optimizations: <https://arxiv.org/html/2609.02309v1>
+- "Building Browser Agents: Architecture, Security, and Trust", on the
+  trade-offs of screenshot versus DOM perception: <https://arxiv.org/html/2511.19477v1>
+
+### Grounding
+
+- OmniParser (Microsoft): parse the screen into structured interactable
+  elements, then label them with Set-of-Marks so the model selects an element
   instead of guessing labels: <https://arxiv.org/abs/2408.00203>,
-  repo: <https://github.com/microsoft/OmniParser>
-- **Set-of-Mark prompting (SoM)** — visual overlays beat coordinate
-  grounding for GPT-4V-class models: <https://arxiv.org/abs/2310.11441>
-- Process-reward guidance for VLM agents at inference time:
+  repository <https://github.com/microsoft/OmniParser>
+- Set-of-Mark prompting: visual overlays outperform coordinate grounding for
+  GPT-4V-class models: <https://arxiv.org/abs/2310.11441>
+- Process-reward guidance for vision-language agents at inference time:
   <https://arxiv.org/abs/2504.16073>
 
-### Vision-token reduction (matters most for self-hosted models)
-- **FastV** — prune ~50% of visual tokens after shallow LLM layers:
+### Vision-token reduction
+
+- FastV, pruning about half the visual tokens after shallow layers:
   <https://arxiv.org/abs/2403.06764>
-- **PyramidDrop** — visual redundancy drops with negligible loss:
+- PyramidDrop, dropping redundant visual tokens with negligible loss:
   <https://openreview.net/forum?id=5ncdKonxd4>
-- **VScan** (training-free two-stage token reduction):
+- VScan, a training-free two-stage reduction:
   <https://arxiv.org/abs/2505.22654>
-- Curated list (FastV/SparseVLM/VTW/TopV…): <https://github.com/daixiangzi/awesome-token-compress>
-- For API agents the practical equivalent is **downscale + JPEG before
-  upload** (what the privacy path already did at 1280px, and what the
-  privacy-off path now does too).
+- A curated list (FastV, SparseVLM, VTW, TopV and others):
+  <https://github.com/daixiangzi/awesome-token-compress>
+- For API agents the practical equivalent is downscaling and JPEG encoding
+  before upload, which the privacy path already did at 1280 px and the
+  privacy-off path now does too.
 
-## 3. What v1.9.0 implements (research → code)
+## What v1.9.0 implemented
 
-| Lever (from research) | Implementation | File |
+| Lever | Implementation | File |
 |---|---|---|
-| Reasoning effort control (Kimi docs + OpenRouter) | Decision turns send `reasoning_effort: "low"` to Moonshot-family hosts, `reasoning:{effort:"low",exclude:true}` on OpenRouter; unknown gateways get the de-facto `reasoning_effort`. Strict endpoints that 400/422 automatically retry without the params. Default `low`, overridable via `settings.vlmReasoningEffort`. | providers.js |
-| Output-token minimization (browser-use ④) | `max_tokens: 800` for decision turns (was 2500) + prompt now demands `"thought": "max 14 words"`, JSON-only, no prose. Overridable via `settings.vlmMaxTokens`. | providers.js, privacy-agent.js |
-| TTFT attribution (systems survey) | Streaming is now the default for kimi/deepseek/glm/custom, with `stream_options.include_usage`; logs `TTFT xms · gen yms · ~z c/s · out=ntok` per turn and warns when TTFT > 30 s (server queue/reasoning burn vs low throughput — now distinguishable in the console). | providers.js |
-| KV/context-cache hits (browser-use ①, Kimi caching) | Prompt reordered STABLE-first (role/task/rules) VARIABLE-last (page/DOM/manifest/history); history compacted to last-3-full + one-liners so the prefix stays byte-stable across steps. | privacy-agent.js, agent-context.js |
-| Screenshots only when needed / image diet (browser-use ②, token-pruning analog) | Privacy-off path now normalizes to ≤1280px JPEG q0.85 in the SW (OffscreenCanvas) — same as the privacy path; ~5–10× smaller upload per turn. | privacy-agent.js |
-| Multi-action planning (WebDreamer-style lookahead, SoM-family pipelines) | Decision JSON accepts an optional `"queue"` of up to 2 pre-authorized follow-up actions; the loop executes them with full verification and **zero VLM calls**, aborting at the first surprise. Validated by `planQueueActions()` (click/type/scroll/wait/media/press_key only). | agent-context.js, privacy-loop.js |
-| Closed-loop recovery without re-asking the model | On a verified-ineffective *playback* click with a `<video>` present (even hidden), the loop auto-runs the direct `media` command and writes the honest result to history. | privacy-loop.js, agent-context.js (`detectPlaybackIntent`) |
-| Failed-target memory | Verification-proven dead click targets are listed in the next prompt as forbidden repeats. | agent-context.js (`extractFailedTargets`) |
-| Grounding hygiene (OmniParser/SoM motivation) | `domClick` text matching is now SCORED (exact 100 > word-boundary 70 > prefix 55 > substring 35, short-label bonus) — "play" can no longer click "New playlist". | actions.js |
-| Media action truthfulness | `domMediaControl` accepts hidden/zero-area videos (visible preferred) — YouTube Music's invisible player is drivable again. | actions.js |
-| Start-URL fast-path | "yt music / youtube music" opens music.youtube.com directly — no VLM navigation turn. | sw.js |
-| Capture resilience | `captureVisibleTab` activeTab-denial now falls back to `chrome.debugger` Page.captureScreenshot with a clear fix-it hint (chrome://extensions → Site access → On all sites). | privacy-agent.js |
-| Runtime warmth | Privacy-ON runs ping the offscreen runtime each step (`ML_TOUCH`) so its 5-min idle teardown can't fire mid-run after long VLM turns. | privacy-loop.js, offscreen.js |
+| Reasoning effort | Decision turns send `reasoning_effort: "low"` to Moonshot-family hosts, `reasoning: {effort:"low", exclude:true}` on OpenRouter, and the de-facto `reasoning_effort` elsewhere. Strict endpoints that return 400 or 422 retry without it. Default `low`, overridable with `settings.vlmReasoningEffort`. | providers.js |
+| Output-token minimization | `max_tokens: 800` for decisions, down from 2500, and the prompt requires a `thought` of at most 14 words and JSON only. Overridable with `settings.vlmMaxTokens`. | providers.js, privacy-agent.js |
+| TTFT attribution | Streaming by default for kimi, deepseek, glm and custom endpoints, with `stream_options.include_usage`. Each turn logs TTFT, generation time, characters per second and output tokens, and warns when TTFT exceeds 30 s, which separates queue and reasoning burn from low throughput. | providers.js |
+| Cache-friendly ordering | Prompt reordered so stable blocks (role, task, rules) come first and variable blocks (page, DOM, manifest, history) last. History is compacted to the last three full entries plus one-liners so the prefix stays byte-stable across steps. | privacy-agent.js, agent-context.js |
+| Image diet | The privacy-off path now normalizes to a 1280 px JPEG at quality 0.85 in the service worker with OffscreenCanvas, matching the privacy path and cutting upload size by 5-10x. | privacy-agent.js |
+| Multi-action planning | The decision JSON accepts an optional `queue` of up to two pre-authorized follow-up actions, executed with full verification and no further model calls, aborting at the first surprise. Validated by `planQueueActions()` for click, type, scroll, wait, media and press_key only. | agent-context.js, privacy-loop.js |
+| Recovery without re-asking | When a playback click verifies as ineffective and a video element exists, even hidden, the loop runs the direct media command and records the result. | privacy-loop.js, agent-context.js |
+| Failed-target memory | Dead click targets proven by verification are listed in the next prompt as forbidden repeats. | agent-context.js |
+| Grounding hygiene | `domClick` text matching is scored: exact 100, word boundary 70, prefix 55, substring 35, with a short-label bonus. "play" can no longer select "New playlist". | actions.js |
+| Media truthfulness | `domMediaControl` accepts hidden and zero-area videos, preferring visible ones. | actions.js |
+| Start-URL fast path | "yt music" and "youtube music" open music.youtube.com directly. | sw.js |
+| Capture resilience | An activeTab denial falls back to `chrome.debugger` `Page.captureScreenshot` with a fix-it hint. | privacy-agent.js |
+| Runtime warmth | Privacy-on runs ping the offscreen runtime each step (`ML_TOUCH`) so its five-minute idle teardown cannot fire mid-run after a long model turn. | privacy-loop.js, offscreen.js |
 
-### Expected impact on the exact field task (12 steps, 571 s VLM)
-- reasoning `low` + 800-token cap + shorter prompt: **each remaining turn
-  drops from 27–93 s to roughly 8–25 s** on the same provider (provider-
-  dependent; TTFT logs will show it).
-- music fast-path (−1 turn), working media action (−3 turns), scored click
-  matching (−2 turns), auto-recovery (−1 turn): **12 steps → ~5–7 steps**.
-- Combined expectation for this task class: **11 min → ~2–4 min**, and the
-  console now attributes any remaining slowness (TTFT vs throughput).
+### Expected effect on that field task
 
-## 4. Tuning knobs & next steps
-- `settings.vlmSpeedProfile` (`fast` / `balanced` / `quality`), `settings.vlmReasoningEffort`
-  (`low` default), `settings.vlmMaxTokens` (0 = follow profile) — all three are exposed in
-  **Settings → AI & Models → Behaviour** since v1.10.0.
-- If turns are still slow, the TTFT log tells you which fix applies:
-  high TTFT → switch model/route (e.g. OpenRouter `:nitro`, Moonshot direct,
-  or a faster model class: kimi-k2-turbo / gemini-flash / glm-4.5v-lite);
-  low TTFT but low c/s → provider throughput; switch route, not model.
-- Set-of-Marks overlay (numbered element labels from the DOM scan we already
-  run) is the highest-ceiling follow-up: it converts grounding from
-  label-guessing to ID selection, cuts mis-clicks further, and lets the
-  screenshot drop to ~896px (fewer vision tokens).
-- ~~Screenshots-optional turns~~ → **shipped in v1.10.0** as automatic shot
-  reuse (see §5, lever #1).
+- With low reasoning, an 800-token cap and a shorter prompt, each remaining turn
+  drops from 27-93 s to roughly 8-25 s on the same provider; the TTFT logs show
+  it.
+- The music fast path removes a turn, the working media action three, scored
+  click matching two, and automatic recovery one: 12 steps become roughly 5 to
+  7.
+- Combined expectation for this class of task: 11 minutes down to 2-4 minutes,
+  with any remaining slowness attributed in the console.
 
-## 5. v1.10.0 — the GENERALIZED (any-provider) speed solution
+## Tuning
 
-v1.9.0's tuning was validated against one endpoint (kimi-k3). v1.10.0 turns
-every lever from §3 into a **provider-agnostic speed system**: the same three
-knobs work identically on OpenAI, OpenRouter, Moonshot/Kimi, DeepSeek, GLM,
-Qwen/DashScope, Together, Groq, Fireworks, vLLM, Ollama and the on-device
-path. Nothing below requires a vendor-specific API, a vendor account, or a
-specific model family.
+Settings, AI & Models, Behaviour, since v1.10.0:
 
-### 5.1 The universal levers (tiered by portability)
+- `settings.vlmSpeedProfile`: `fast`, `balanced` or `quality`.
+- `settings.vlmReasoningEffort`: defaults to `low`.
+- `settings.vlmMaxTokens`: 0 follows the profile.
 
-**Tier 0 — works on EVERY endpoint, zero provider support (pure client-side):**
-1. **Screenshot reuse on unchanged pages** (NEW in v1.10) — before every
-   capture the loop fingerprints the page (url + title + scroll + media
-   states + text hash). If nothing changed since the previous step, the
-   previous (sanitized) screenshot is reused: no capture, no sanitize, no
-   upload, no extra image tokens, and the prompt stays byte-identical →
-   automatic prompt-cache hits wherever the provider has them. Safety rails:
-   any PLAYING video forces a fresh shot; privacy-mode changes invalidate;
-   age cap (45–60 s) and a consecutive-reuse cap force periodic refresh.
-   *(browser-use lever ②, generalized — no provider feature required.)*
-2. **Image diet** — ≤896/1280/1536px JPEG (profile-dependent) on BOTH paths
-   (privacy-on via the redaction pipeline `maxWidth`, privacy-off via
-   OffscreenCanvas). The API-side equivalent of FastV/PyramidDrop token
-   pruning: fewer vision tokens = faster prefill on every provider.
-3. **Constant-size prompt** — history compacted to last-N-full + one-liners
-   (N from profile); DOM text capped; manifest capped. The prompt no longer
-   grows with run length.
-4. **Output-token minimization** — terse JSON contract (`thought` ≤ 14 words)
-   + profile max_tokens cap (600/800/1400). Output tokens are pure
-   TPOT × n seconds on every provider (systems-survey framing).
-5. **Fewer turns, not just faster turns** — speculative 2-action queue,
-   auto-media recovery, scored click matching, failed-target memory,
-   site fast-path. Each avoided turn saves the WHOLE turn latency.
+If turns are still slow, the TTFT log says which fix applies. High TTFT means
+switch model or route, for example an OpenRouter `:nitro` route, Moonshot
+direct, or a faster model class such as kimi-k2-turbo, gemini-flash or
+glm-4.5v-lite. Low TTFT with low characters per second means provider
+throughput, so switch route rather than model.
 
-**Tier 1 — auto-detected, works on almost every endpoint (graceful fallback):**
-6. **Stable prompt prefix for automatic context/KV caching** — rules/role
-   blocks first, variable page/DOM/history blocks last, byte-stable across
-   steps. Moonshot (auto caching), DeepSeek (automatic context caching),
-   OpenAI (automatic prompt caching), Gemini (implicit caching),
-   Anthropic (explicit `cache_control`), OpenRouter (passthrough) all bill
-   cached prefixes ~10× cheaper and prefill them faster. We just stop
-   mutating the prefix. *(No API call needed — ordering only.)*
-7. **Reasoning-effort hint with auto-mapping** — one setting (`low` default)
-   mapped per endpoint family by hostname: OpenRouter → `reasoning:{effort,
-   exclude:true}`; Moonshot/Kimi + OpenAI o-series + most OpenAI-compatible
-   gateways → `reasoning_effort`; unknown gateways → the de-facto
-   `reasoning_effort`; '' → send nothing. A 400/422 automatically retries
-   without the params, so strict endpoints degrade cleanly instead of
-   failing. (Research: Kimi Thinking-Models docs, OpenRouter reasoning guide,
-   DeepInfra benchmarks — reasoning burn was the single biggest field cost.)
-8. **Streaming + TTFT/throughput attribution** — SSE everywhere with
-   `stream_options.include_usage`; every turn logs TTFT and chars/sec so a
-   slow turn is attributable (queue/reasoning vs throughput) on any provider.
+The highest-ceiling follow-up is the Set-of-Marks overlay from the DOM scan
+already running: it turns grounding from label guessing into ID selection, cuts
+mis-clicks further, and lets the screenshot drop to about 896 px.
 
-**Tier 2 — provider-specific opt-ins (documented, not required):**
+Screenshots-optional turns shipped in v1.10.0 as automatic shot reuse, below.
+
+## v1.10.0: the same levers for every provider
+
+v1.9.0 was validated against one endpoint. v1.10.0 makes each lever
+provider-agnostic: the same three settings work on OpenAI, OpenRouter,
+Moonshot/Kimi, DeepSeek, GLM, Qwen/DashScope, Together, Groq, Fireworks, vLLM,
+Ollama and the on-device path, with no vendor-specific API or model family
+required.
+
+### Levers, by how portable they are
+
+**Works everywhere, client-side only**
+
+1. **Screenshot reuse on unchanged pages.** Before each capture the loop
+   fingerprints the page (URL, title, scroll, media states, text hash). If
+   nothing changed, the previous sanitized screenshot is reused: no capture, no
+   sanitize, no upload, no extra image tokens, and the prompt stays
+   byte-identical, so provider prompt caches hit. A playing video forces a fresh
+   shot, privacy-mode changes invalidate the cache, and an age cap of 45-60 s
+   plus a consecutive-reuse cap force periodic refresh.
+2. **Image diet.** A JPEG at 896, 1280 or 1536 px longest edge depending on
+   profile, on both paths: privacy-on through the pipeline `maxWidth`,
+   privacy-off through OffscreenCanvas. Fewer vision tokens means faster
+   prefill on every provider.
+3. **Constant-size prompt.** History compacted to the last N full entries plus
+   one-liners, DOM text capped, manifest capped. The prompt no longer grows with
+   run length.
+4. **Output-token minimization.** A terse JSON contract with a `thought` of at
+   most 14 words, and a profile cap of 600, 800 or 1400 tokens.
+5. **Fewer turns.** A speculative two-action queue, automatic media recovery,
+   scored click matching, failed-target memory and site fast paths. Each avoided
+   turn saves the whole turn.
+
+**Auto-detected, with graceful fallback**
+
+6. **A stable prompt prefix** for automatic context and KV caching. Rules and
+   role first, variable page, DOM and history blocks last, byte-stable across
+   steps. Moonshot, DeepSeek, OpenAI, Gemini through implicit caching, Anthropic
+   through explicit `cache_control` and OpenRouter passthrough all bill cached
+   prefixes cheaper and prefill them faster. Only ordering changes.
+7. **A reasoning-effort hint, mapped per endpoint.** OpenRouter gets
+   `reasoning: {effort, exclude:true}`; Moonshot/Kimi, OpenAI o-series and most
+   OpenAI-compatible gateways get `reasoning_effort`; unknown gateways get the
+   de-facto field; an empty value sends nothing. A 400 or 422 retries without
+   the parameter, so strict endpoints degrade cleanly.
+8. **Streaming with TTFT and throughput attribution.** SSE everywhere with
+   `stream_options.include_usage`, and every turn logs TTFT and characters per
+   second.
+
+**Provider-specific, optional**
+
 - OpenRouter: append `:nitro` to the model slug for a faster route.
-- Moonshot direct: `platform.kimi.ai` auto context caching (no API change).
-- DeepInfra/Together/Groq: pick the turbo/flash variant of the same model.
-- Anthropic-native: add `cache_control` breakpoints (only if you route
-  Anthropic natively; the OpenAI-compatible layer doesn't expose it).
-- On-device (Gemma): profiles also apply — smaller image = fewer vision
-  tokens on YOUR GPU.
+- Moonshot direct: automatic context caching at `platform.kimi.ai`, no API
+  change.
+- DeepInfra, Together, Groq: pick the turbo or flash variant of the same model.
+- Anthropic native: add `cache_control` breakpoints if routing Anthropic
+  directly.
+- On-device Gemma: profiles apply, and a smaller image means fewer vision tokens
+  on your own GPU.
 
-### 5.2 Speed profiles (Settings → AI & Models → Behaviour)
+### Speed profiles
 
-| Knob | fast | balanced (default) | quality |
+| Setting | fast | balanced (default) | quality |
 |---|---|---|---|
 | Screenshot long edge | 896 px | 1280 px | 1536 px |
 | JPEG quality | 0.80 | 0.85 | 0.90 |
-| DOM text cap | 2 200 chars | 3 500 chars | 6 000 chars |
+| DOM text cap | 2200 chars | 3500 chars | 6000 chars |
 | Full-detail history entries | 2 | 3 | 5 |
-| Decision max tokens | 600 | 800 | 1 400 |
+| Decision max tokens | 600 | 800 | 1400 |
 | Reasoning effort hint | low | low | medium |
 | Manifest lines | 20 | 40 | 60 |
-| Screenshot reuse | ✓ (45 s, streak 3) | ✓ (60 s, streak 2) | — |
+| Screenshot reuse | 45 s, streak 3 | 60 s, streak 2 | off |
 
-Expected impact of `fast` vs the v1.8 field run on ANY provider: image tokens
-≈ halved, prompt ≈ constant at ~2 k chars, output capped at 600, no capture
-at all on unchanged steps, plus fewer turns from the v1.9 loop fixes — i.e.
-the same 12-step task class should land in the **2–4 min** range regardless
-of vendor, and the console will attribute whatever remains.
+Against the v1.8 field run on any provider, `fast` roughly halves image tokens,
+holds the prompt near 2k characters, caps output at 600, captures nothing on
+unchanged steps, and combines with the v1.9 loop fixes to bring the same
+12-step task class into the 2-4 minute range.
 
-### 5.3 Provider cheat-sheet (all OpenAI-compatible unless noted)
+### Provider notes
+
+All are OpenAI-compatible unless stated.
 
 | Provider | Reasoning control | Prompt caching | Fast-route tips |
 |---|---|---|---|
-| OpenAI | `reasoning_effort` (auto-mapped) | automatic prompt caching (≥1024 tok) | `gpt-4o-mini` class for speed |
-| OpenRouter | `reasoning{effort,exclude}` (auto-mapped) | varies by backend | `:nitro` route suffix |
-| Moonshot / Kimi | `reasoning_effort` (auto-mapped) | automatic context caching | kimi-k2-turbo class |
-| DeepSeek | no effort knob (reasoner always thinks) | automatic context caching | use non-reasoner chat model |
-| GLM (Zhipu) | thinking toggle | prefix caching on GLM-4.5+ | glm-4.5v-lite / flash tier |
-| Qwen (DashScope) | `enable_thinking:false` tolerated (ignored, clean retry) | implicit prefix cache | qwen-vl-flash |
-| Gemini (OpenAI-compat) | ignores effort (clean retry) | implicit caching | gemini-flash class |
-| Groq / Cerebras / SambaNova | N/A (speed hosts) | N/A | pick the fastest vision host |
-| vLLM / Ollama / llama.cpp | model-dependent (ignored cleanly) | vLLM automatic prefix caching ✓ | smaller quant + 896px shots |
-| On-device (Gemma E2B) | N/A | N/A (local) | `fast` profile + 4-bit q4f16 |
+| OpenAI | `reasoning_effort`, auto-mapped | Automatic, from 1024 tokens | A mini class model for speed |
+| OpenRouter | `reasoning {effort, exclude}`, auto-mapped | Varies by backend | `:nitro` route suffix |
+| Moonshot / Kimi | `reasoning_effort`, auto-mapped | Automatic context caching | kimi-k2-turbo class |
+| DeepSeek | No effort setting; the reasoner always thinks | Automatic context caching | Use the non-reasoner chat model |
+| GLM (Zhipu) | Thinking toggle | Prefix caching on GLM-4.5 and later | glm-4.5v-lite or the flash tier |
+| Qwen (DashScope) | `enable_thinking: false` tolerated, ignored with a clean retry | Implicit prefix cache | qwen-vl-flash |
+| Gemini (OpenAI-compatible) | Ignores effort with a clean retry | Implicit caching | gemini-flash class |
+| Groq, Cerebras, SambaNova | Not applicable | Not applicable | Pick the fastest vision host |
+| vLLM, Ollama, llama.cpp | Model-dependent, ignored cleanly | vLLM automatic prefix caching | Smaller quantisation and 896 px shots |
+| On-device Gemma E2B | Not applicable | Not applicable | `fast` profile with q4f16 |
 
-Every row is safe with the default settings: unknown fields are either
-ignored or get the automatic 400/422 clean retry from the attempt ladder.
+Every row is safe with default settings: unknown fields are either ignored or
+hit the automatic 400/422 clean retry in the attempt ladder.

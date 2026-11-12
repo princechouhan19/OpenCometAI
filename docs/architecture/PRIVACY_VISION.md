@@ -1,10 +1,9 @@
-# Privacy Vision Architecture — Deep Dive
+# Privacy pipeline architecture
 
-This document describes the internal architecture of the OpenComet-SIH
-privacy-preserving vision pipeline. It's intended for developers who want
-to extend, debug, or replace parts of the system.
+How the privacy-preserving vision pipeline is built. Written for developers who
+need to extend, debug or replace parts of it.
 
-## 1. Module dependency graph
+## Module graph
 
 ```mermaid
 flowchart TD
@@ -25,7 +24,7 @@ flowchart TD
   RED --> OUT
 ```
 
-### 1.1 PII detection taxonomy — what catches what
+### What catches what
 
 ```mermaid
 flowchart LR
@@ -39,7 +38,7 @@ flowchart LR
   PIX --> OCR["OCR — full-page + targeted ROI crops<br/>canvas / img text, never propagated raw"]
   OCR --> BAT["Structural battery<br/>longest-span-wins · labelled ocr-roi"]
   SEM --> CRED["Credential-field redaction<br/>password · card · OTP inputs → black"]
-  PIX --> FC["Face-recall cascade<br/>§5.1"]
+  PIX --> FC["Face-recall cascade"]
   NER --> MAN
   BAT --> MAN
   CRED --> MAN
@@ -47,23 +46,23 @@ flowchart LR
   MAN --> OUT2["Pixel redaction + REDACTED tokens"]
 ```
 
-Indian ID families (Aadhaar + VID, PAN including mid-entry, Voter ID/EPIC,
-passport, driving licence, GSTIN, bank account, IFSC, UPI VPA) are
-pattern + context-gated; a Luhn-valid card wins arbitration over an
-Aadhaar-shape match so hyphenated card numbers cannot double-fire.
+Indian identity families (Aadhaar and VID, PAN including mid-entry, Voter ID or
+EPIC, passport, driving licence, GSTIN, bank account, IFSC, UPI VPA) are
+pattern and context gated. A Luhn-valid card wins arbitration over an
+Aadhaar-shaped match, so hyphenated card numbers cannot fire twice.
 
-## 2. The data contract between client and server
+## The client-server contract
 
 The client sends a multipart form to `POST /agent/decide`:
 
-| Field           | Type     | Description                                                          |
-|-----------------|----------|----------------------------------------------------------------------|
-| `image`         | file     | JPEG/PNG screenshot, **already redacted**. ≤ ~500 KB after redaction.|
-| `sanitizedText` | string   | DOM text with `[REDACTED:<type>]` tokens in place of PII. ≤ 12 KB.   |
-| `manifest`      | JSON str | Array of redacted regions: `{type, bounds, selector?, label?, reason, confidence}` |
-| `task`          | string   | The user's high-level goal.                                          |
-| `history`       | JSON str | Last 6 `{action, result}` entries.                                   |
-| `settings`      | JSON str | `{provider, model, apiKey, providerBaseUrl, ollamaBaseUrl}`          |
+| Field | Type | Description |
+|---|---|---|
+| `image` | file | JPEG or PNG screenshot, already redacted. At most about 500 KB after redaction |
+| `sanitizedText` | string | DOM text with `[REDACTED:<type>]` tokens in place of PII. At most 12 KB |
+| `manifest` | JSON string | Array of redacted regions: `{type, bounds, selector?, label?, reason, confidence}` |
+| `task` | string | The user's goal |
+| `history` | JSON string | Last six `{action, result}` entries |
+| `settings` | JSON string | `{provider, model, apiKey, providerBaseUrl, ollamaBaseUrl}` |
 
 The server responds with:
 
@@ -83,48 +82,48 @@ The server responds with:
 }
 ```
 
-## 3. Per-redaction-type strategy
+## Treatment by type
 
-Each PII type gets a different pixel-level treatment. This isn't just
-cosmetic — it tells the VLM something useful about what was underneath.
+Each PII type gets a different pixel treatment, because the result also tells
+the model something about what was underneath.
 
-| Type             | Visual treatment        | Why this treatment                                                          |
-|------------------|-------------------------|------------------------------------------------------------------------------|
-| `face`           | Blur + black eye-bar    | Preserves "there is a person here" signal while destroying identity.         |
-| `password`       | Solid black             | Unambiguous "this is a credential" signal.                                  |
-| `credit_card`    | Solid black             | Same as password.                                                           |
-| `aadhaar` / `pan`| Solid black             | Same.                                                                       |
-| `voter_id` / `passport` / `driving_license` / `gstin` / `bank_account` / `ifsc` / `upi` | Solid black | Same — SIH v1.15.2 Indian ID family (EPIC, passport, DL, GSTIN, bank a/c, IFSC, UPI VPA). Context-gated formats (partial PAN, passport, DL) only fire when their label sits within ±40 chars. |
-| `api_key`        | Solid black             | Same.                                                                       |
-| `email` / `phone`| Pixelate (large blocks) | Preserves "there is contact info here" while destroying the value.          |
-| `person` / `org` | Pixelate                | Same.                                                                       |
-| `address`        | Pixelate                | Same.                                                                       |
-| `dob` / `ip`     | Pixelate                | Same.                                                                       |
+| Type | Treatment | Reason |
+|---|---|---|
+| `face` | Blur and a black bar across the eyes | Keeps "a person is here" while destroying identity |
+| `password` | Solid black | Unambiguous credential signal |
+| `credit_card` | Solid black | Same |
+| `aadhaar`, `pan` | Solid black | Same |
+| `voter_id`, `passport`, `driving_license`, `gstin`, `bank_account`, `ifsc`, `upi` | Solid black | The Indian ID family from v1.15.2. Context-gated formats such as partial PAN, passport and DL fire only when their label is within ±40 characters |
+| `api_key` | Solid black | Same |
+| `email`, `phone` | Pixelated in large blocks | Keeps "contact information is here" without the value |
+| `person`, `org` | Pixelated | Same |
+| `address` | Pixelated | Same |
+| `dob`, `ip` | Pixelated | Same |
 
-**Pixel-only sources (OCR, v1.15.4):** text baked into canvases/images is
-covered by two OCR passes — the full-page recognize (word conf ≥ 60, with the
-v1.14 low-confidence line rescue at ×2.5) plus a TARGETED crop pass: the DOM
-hands over every visible `<canvas>` ≥60px (`pixelTextRects`, area-sorted,
-cap 12) and larger `<img>` candidates; each ROI is re-read as an isolated
-×2-upscaled crop where Tesseract's segmentation sees one small document
-instead of a noisy page. ROI text runs through the shared PII detector (both
-space-joined and line-fused variants) AND a structural battery that mirrors
-the DOM text battery (email / Aadhaar-shape 4-4-4 / PAN / api-key /
-13–19-digit card / ≥10-digit plausible phone; longest-span-wins). Findings
-map back through the crop's own word spans; raw OCR text never propagates.
-The shared detector's checksum semantics are untouched — battery hits are
-structural, bounded to ≤12 crops, and labelled `ocr-roi` / `ocr-roi-battery`
-in the manifest.
+**Pixel-only sources (OCR, v1.15.4).** Text baked into canvases and images is
+covered by two OCR passes. The first is a full-page recognition with a word
+confidence threshold of 60, including the v1.14 low-confidence line rescue at
+×2.5. The second is a targeted crop pass: the DOM hands over every visible
+`<canvas>` at 60 px or larger (`pixelTextRects`, sorted by area, capped at 12)
+plus larger `<img>` candidates, and each region is re-read as an isolated
+×2 upscaled crop, where Tesseract segments one small document instead of a
+noisy page.
 
-## 4. Coordinate-space handling
+ROI text runs through the shared PII detector in both space-joined and
+line-fused forms, and through a structural battery mirroring the DOM text rules:
+email, Aadhaar-shaped 4-4-4, PAN, API key, 13 to 19 digit cards, and plausible
+phones of 10 digits or more, with longest span winning. Findings map back
+through the crop's own word spans, and raw OCR text never propagates. Battery
+hits are structural, bounded to 12 crops, and labelled `ocr-roi` or
+`ocr-roi-battery` in the manifest.
 
-A common bug in canvas-based redaction is mixing CSS pixels (from
-`getBoundingClientRect()`) with device pixels (from
-`chrome.tabs.captureVisibleTab()`).
+## Coordinate spaces
 
-We solve this by passing `scaleX = scaleY = window.devicePixelRatio` from
-the content script to the redactor. The redactor multiplies every box
-coordinate by the scale before drawing.
+The common bug in canvas redaction is mixing CSS pixels from
+`getBoundingClientRect()` with device pixels from
+`chrome.tabs.captureVisibleTab()`. The content script passes
+`scaleX = scaleY = window.devicePixelRatio` to the redactor, which multiplies
+every box coordinate before drawing.
 
 ```js
 // privacy-agent.js
@@ -139,62 +138,62 @@ const result = await runPrivacyPipeline(
 );
 ```
 
-## 5. Failure modes & mitigation
+## Failure modes
 
-| Failure                            | Mitigation                                                                              |
-|------------------------------------|------------------------------------------------------------------------------------------|
-| WebGPU not available               | `local-vision.js` falls back to WASM SIMD automatically.                                 |
-| Transformers.js fails to load      | YOLO / ViT / NER are all opt-in. Face detection + DOM scan + regex still work.           |
-| MediaPipe fails to load            | `privacy-filter.js` catches the error and continues without face redaction. Logs warning.|
-| Canvas redaction throws            | `privacy-filter.js` returns a 1×1 blank PNG. **The raw screenshot is never sent.**       |
-| Server unreachable                 | `decideViaServer()` throws; the agent loop surfaces the error to the user.               |
-| Server returns non-JSON            | `parseActionPlan()` returns `{action: {type: 'ask_user'}, parseError: true}`.            |
-| VLM tries to "guess" redacted value| The system prompt explicitly forbids this: *"NEVER try to fill in or guess redacted values. Treat them as opaque."* |
+| Failure | Mitigation |
+|---|---|
+| No WebGPU | `local-vision.js` falls back to WASM SIMD |
+| Transformers.js fails to load | YOLO, ViT and NER are opt-in; face detection, DOM scan and regex still run |
+| MediaPipe fails to load | `privacy-filter.js` catches it and continues without face redaction, logging a warning |
+| Canvas redaction throws | `privacy-filter.js` returns a 1×1 blank PNG; the raw screenshot is never sent |
+| Server unreachable | `decideViaServer()` throws and the loop surfaces the error |
+| Server returns non-JSON | `parseActionPlan()` returns `{action: {type: 'ask_user'}, parseError: true}` |
+| The model tries to guess a redacted value | The system prompt forbids it: *"NEVER try to fill in or guess redacted values. Treat them as opaque."* |
 
-### 5.1 Face-recall cascade (v1.15.3 DOM sweep + v1.15.4 avatar guard)
+### Face-recall cascade
 
-Face detection runs as a recall-ordered cascade in `privacy-filter.js` —
-every stage must be model-confirmed before a pixel is blurred, except the
-final avatar guard, which trades a slice of precision for closure of a
-thrice-field-reported leak:
+Face detection runs in recall order in `privacy-filter.js`. Every stage except
+the last must be model-confirmed before a pixel is blurred. The final avatar
+guard trades a little precision to close a leak reported three times from the
+field.
 
-1. **Full-frame pass** (downscaled ≤1280px long edge, conf ≥ 0.35) — big faces.
-2. **512px tile sweep** (conf ≥ 0.30) — medium/small faces on large captures.
-3. **256px fine sweep** (conf ≥ 0.28, risk-adaptive cap 16/48 tiles) —
-   avatars, webcam-overlay-sized faces.
-4. **YOLO person-guided crop sweep** — when YOLO boxed a PERSON but no face
-   fired, each person crop is upscaled (min edge ≈ 256px, ×4 cap) and
-   re-scanned.
-5. **DOM-guided image sweep (v1.15.3)** — the stage that fixed the
-   user-reported "small profile photos stay visible" gap. `pageContextScan`
-   now collects the rects of every visible `<img>` (≥24px, on-screen,
-   decoded; avatar-likeness is a SORT key, not a gate; 32-region cap). Each
-   region NOT already covered by a detected face is cropped from the capture,
-   upscaled, and re-scanned by the same detector (`source:
-   mediapipe-dom-crop`, conf ≥ 0.30, ~5–85ms per region). Deterministic: no
-   tile-sampling lottery, no dependence on YOLO person boxes. Model-confirmed
-   only — an image with no detectable face (logo, icon, illustration) is left
-   untouched, never blanket-redacted.
-6. **Avatar guard (v1.15.4, heuristic, privacy-first).** Field round two
-   proved the model-gated sweep still leaks in two cases: avatars painted as
-   CSS `background-image` (the collector only knew `<img>` — now collected
-   too, `hint: bg-avatar-hint`) and portraits the detector refuses at every
-   scale. An image the page ITSELF names as an avatar/profile photo
-   (`avatar-hint` / `bg-avatar-hint` tokens; 24–180 CSS px min edge) that no
-   confirmed face covers (stand-down test: a confirmed face box CENTER inside
-   the element rect, or ≥25% intersection — measured face-box coverage spans
-   33–52% across portraits, so ratio-only thresholds mis-fire) is redacted on
-   its element rect with `source: dom-avatar-guard` and honest confidence
-   0.5. Deliberate asymmetry: a wrongly guarded small hinted img costs a
-   black square; a missed face ships identity. Un-hinted icons/logos are
-   still scanned-never-redacted (negative control enforced by test).
+1. **Full-frame pass.** Downscaled to a 1280 px long edge, confidence 0.35 and
+   above. Catches large faces.
+2. **512 px tile sweep.** Confidence 0.30 and above. Catches medium and small
+   faces on large captures.
+3. **256 px fine sweep.** Confidence 0.28 and above, with a risk-adaptive cap of
+   16 or 48 tiles. Catches avatars and webcam-overlay faces.
+4. **YOLO person-guided crops.** When YOLO boxes a person but no face fires,
+   each person crop is upscaled to a 256 px minimum edge, capped at ×4, and
+   rescanned.
+5. **DOM-guided image sweep (v1.15.3).** This stage fixed the reported gap where
+   small profile photos stayed visible. `pageContextScan` collects the rects of
+   every visible `<img>` at 24 px or larger that is on screen and decoded, with
+   avatar-likeness as a sort key rather than a gate, capped at 32 regions. Every
+   region not already covered by a detected face is cropped, upscaled and
+   rescanned by the same detector (`source: mediapipe-dom-crop`, confidence
+   0.30, about 5 to 85 ms per region). It is deterministic: no tile sampling
+   lottery and no dependence on YOLO person boxes. Only model-confirmed faces
+   are redacted, so logos, icons and illustrations are left alone.
+6. **Avatar guard (v1.15.4), heuristic.** The second field round showed the
+   model-gated sweep still leaking in two cases: avatars painted as CSS
+   `background-image`, which the collector now includes as
+   `hint: bg-avatar-hint`, and portraits the detector refuses at every scale. An
+   image the page itself names as an avatar or profile photo (`avatar-hint` or
+   `bg-avatar-hint`, minimum edge 24 to 180 CSS px) that no confirmed face
+   covers is redacted on its element rect with `source: dom-avatar-guard` and
+   confidence 0.5. The stand-down test is a confirmed face box centred inside
+   the rect, or at least 25% intersection, because measured face-box coverage
+   across portraits spans 33% to 52% and ratio-only thresholds mis-fire. A
+   wrongly guarded hinted image costs a black square; a missed face ships
+   identity. Un-hinted icons and logos are still scanned and never
+   blanket-redacted.
 
-Stages 1–3 pass candidates through a **verification rescan** (re-detect on an
-upscaled margin crop, threshold 0.75) so page-layout textures cannot
-hallucinate into face blurs; stages 4–5 already produce their hits by exactly
-that upscaled-crop protocol; stage 6 is heuristic BY DESIGN and labelled as
-such in telemetry (`stats.avatarGuard`) and console lines
-(`Faces(avatar-guard): …`).
+Stages 1 to 3 send candidates through a verification rescan on an upscaled
+margin crop with a 0.75 threshold, so page textures cannot hallucinate into face
+blurs. Stages 4 and 5 produce their hits by that same crop protocol. Stage 6 is
+heuristic by design and labelled as such in telemetry (`stats.avatarGuard`) and
+in the console (`Faces(avatar-guard): …`).
 
 ```mermaid
 flowchart TD
@@ -213,27 +212,29 @@ flowchart TD
   S6 --> GUARD["Redact element rect · confidence 0.5<br/>labelled dom-avatar-guard"]
 ```
 
-## 6. Performance budget
+## Performance budget
 
 Measured on a 2023 MacBook Pro M2, Chrome 120, 1280×800 viewport:
 
-| Phase                          | Time (ms) | Notes                                        |
-|--------------------------------|----------:|----------------------------------------------|
-| `chrome.tabs.captureVisibleTab`|        15 | PNG encode on service worker                 |
-| DOM scan (content script)      |         3 | Synchronous, ~4000 text nodes                |
-| MediaPipe face detect (WebGPU) |        24 | First call has ~600 ms init; cached after    |
-| YOLO object detect (opt-in)    |        62 | First call has ~1.5 s init; cached after     |
-| Regex PII scan                 |         2 | Trivial                                      |
-| BERT NER (opt-in)              |       180 | First call has ~3 s init; cached after       |
-| Canvas redaction               |         8 | 5–20 regions typical                         |
-| **Total client pipeline**      |   **~50** | Without YOLO/NER                             |
-| Network upload (sanitised PNG) |        40 | ~80 KB                                       |
-| Server-side VLM (Ollama llava) |       720 | Local                                        |
-| **Total end-to-end per step**  |  **~810** |                                               |
+| Phase | Time (ms) | Notes |
+|---|---:|---|
+| `chrome.tabs.captureVisibleTab` | 15 | PNG encode on the service worker |
+| DOM scan (content script) | 3 | Synchronous, about 4000 text nodes |
+| MediaPipe face detect (WebGPU) | 24 | About 600 ms init on first call, then cached |
+| YOLO object detect (opt-in) | 62 | About 1.5 s init on first call, then cached |
+| Regex PII scan | 2 | Trivial |
+| BERT NER (opt-in) | 180 | About 3 s init on first call, then cached |
+| Canvas redaction | 8 | Typically 5 to 20 regions |
+| **Client pipeline** | **~50** | Without YOLO and NER |
+| Network upload (sanitized PNG) | 40 | About 80 KB |
+| Server-side model (Ollama llava) | 720 | Local |
+| **End to end per step** | **~810** | |
 
-For comparison: a non-private pipeline (raw screenshot + raw DOM upload → cloud GPT-4o) typically takes ~1200 ms end-to-end. The privacy pipeline adds <100 ms client-side and actually *saves* time on the upload (smaller payload).
+A non-private pipeline uploading a raw screenshot and raw DOM to a cloud model
+typically takes about 1200 ms end to end. The privacy pipeline adds under 100 ms
+on the client and saves time on upload, because the payload is smaller.
 
-## 7. CSP & permissions
+## CSP and permissions
 
 `manifest.json` declares:
 
@@ -243,17 +244,22 @@ For comparison: a non-private pipeline (raw screenshot + raw DOM upload → clou
 }
 ```
 
-- `'wasm-unsafe-eval'` — required by ONNX Runtime Web / Transformers.js / MediaPipe WASM.
-- `'unsafe-inline'` — needed because Transformers.js and MediaPipe inject inline styles.
-- `connect-src https:` — allows fetching models from `huggingface.co` and `storage.googleapis.com`.
-- `connect-src http://127.0.0.1:*` — allows talking to a local Ollama / companion server.
-- `worker-src 'self' blob:` — Transformers.js spawns blob: workers for WebGPU.
+- `'wasm-unsafe-eval'` is required by ONNX Runtime Web, Transformers.js and the
+  MediaPipe WASM builds.
+- `'unsafe-inline'` is needed because Transformers.js and MediaPipe inject
+  inline styles.
+- `connect-src https:` allows model downloads from `huggingface.co` and
+  `storage.googleapis.com`.
+- `connect-src http://127.0.0.1:*` allows a local Ollama or companion server.
+- `worker-src 'self' blob:` allows the blob workers Transformers.js spawns for
+  WebGPU.
 
-`host_permissions` includes the three CDN domains so the user doesn't get a permission prompt on first model load.
+`host_permissions` includes the three CDN domains, so the first model load does
+not trigger a permission prompt.
 
-## 8. Extending the pipeline
+## Extending the pipeline
 
-### Add a new PII regex
+### Add a PII pattern
 
 Edit `src/lib/pii-detector.js`:
 
@@ -268,9 +274,10 @@ const REGEX_PATTERNS = [
 ];
 ```
 
-Add a corresponding case to `maskForType()` and `canvas-redactor.js`'s switch statement if you want a custom pixel treatment.
+Add a case to `maskForType()` and to the switch in `canvas-redactor.js` if the
+type needs its own pixel treatment.
 
-### Add a new local model
+### Add a local model
 
 Edit `src/lib/local-vision.js`:
 
@@ -291,13 +298,15 @@ export async function getMyPipeline() {
 }
 ```
 
-### Add a new VLM backend
+### Add a server backend
 
 Edit `server/server.js`:
 
 1. Add the backend name to `detectBackend()`.
 2. Add a `defaultModelFor()` case.
-3. Add a `callXxx()` function (use `callOllama()` or `callOpenAICompatible()` as templates).
-4. Add a case in `callModel()`'s switch.
+3. Add a `callXxx()` function, using `callOllama()` or
+   `callOpenAICompatible()` as templates.
+4. Add a case to the switch in `callModel()`.
 
-That's it — the extension doesn't need any changes; the backend is selected server-side based on the `settings` JSON the extension sends.
+The extension needs no changes; the backend is selected server side from the
+`settings` JSON it sends.

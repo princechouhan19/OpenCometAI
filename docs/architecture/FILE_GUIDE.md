@@ -1,63 +1,108 @@
 # File-by-file guide
 
-Developer map of the modules that make up the privacy pipeline and the agent
-loop (preserved from the README's §6; see also
-[PRIVACY_VISION.md](./PRIVACY_VISION.md) for the architecture narrative and
-[Developer Guide](../guides/DEVELOPER_GUIDE.md) for setup and workflows).
+Map of the modules behind the privacy pipeline and the agent loop. For the
+architecture narrative see [PRIVACY_VISION.md](./PRIVACY_VISION.md); for setup
+and workflows see the [Developer guide](../guides/DEVELOPER_GUIDE.md).
 
-### `src/lib/pii-detector.js`
-Pure-JS PII scanner. Zero dependencies. Combines 11 high-precision regex patterns (with Luhn validation for credit cards) + DOM-sensitive-field detection (`type=password`, sensitive autocomplete tokens, name/placeholder hints). Optionally accepts a pre-loaded Transformers.js NER pipeline for catching person/org/address entities that don't follow a pattern.
+## `src/lib/pii-detector.js`
 
-### `src/lib/mediapipe-face.js`
-Wraps `@mediapipe/tasks-vision` `FaceDetector`. Loads the BlazeFace Short Range model (INT8, ~1MB) **fully vendored from the extension bundle** (`src/vendor/mediapipe/` — no network needed). WebGPU delegate preferred, WASM/CPU fallback automatic. Tiled sweep (512px → 256px fine tiles) + verify-rescan for small faces; YOLO person-crop re-sweep as a recall backstop. Caches the pipeline singleton.
+Pure-JS PII scanner with no dependencies. Combines eleven high-precision regex
+patterns, with Luhn validation for card numbers, and DOM-sensitive-field
+detection: `type=password`, sensitive autocomplete tokens, and name or
+placeholder hints. Optionally accepts a pre-loaded Transformers.js NER pipeline
+for person, organisation and address entities that do not follow a pattern.
 
-### `src/lib/local-vision.js`
-Wraps `@huggingface/transformers`. Exposes three lazy-loaded pipelines: object detection (YOLO), image classification (ViT), and NER (BERT). Backend auto-selected (`webgpu` if `navigator.gpu` exists, else `wasm`). All models quantised INT8. Also exposes `preloadLocalVision()` — the warm-up hook used by the v1.16.0 session warm-up.
+## `src/lib/mediapipe-face.js`
 
-### `src/lib/canvas-redactor.js`
-Pixel-level redactor. Takes a PNG data-URL + region list, returns a new JPEG data-URL where every region has been:
-- **faces** → Gaussian blur + opaque black bar across eyes
-- **credentials** (password / API key / card / Aadhaar / PAN / SSN / IBAN) → solid black fill
-- **free-form text PII** (email / phone / DOB / person / org / address) → pixelate
+Wraps `@mediapipe/tasks-vision` `FaceDetector` around the BlazeFace Short Range
+model (INT8, about 1 MB), vendored in `src/vendor/mediapipe/` so no network is
+needed. WebGPU delegate preferred, WASM fallback automatic. Runs a tiled sweep
+(512 px down to 256 px fine tiles) with a verify-rescan for small faces, and a
+YOLO person-crop re-sweep as a recall backstop. Caches the pipeline singleton.
 
-Optional badge label on each region.
+## `src/lib/local-vision.js`
 
-### `src/lib/privacy-filter.js`
-Orchestrator. Calls the four modules above in parallel where possible and produces:
-- `sanitizedDataUrl` — the only image allowed to leave the client
-- `manifest` — array of redacted regions with type/bounds/reason/confidence
-- `sanitizedDomText` — DOM text with `[REDACTED:<type>]` tokens
-- `stats` — per-phase latency + counts + backend info (including `ocrMemoHit` and detector-memo telemetry)
+Wraps `@huggingface/transformers` and exposes three lazy-loaded pipelines:
+object detection (YOLO), image classification (ViT) and NER (BERT). The backend
+is chosen automatically: `webgpu` when `navigator.gpu` exists, otherwise
+`wasm`. All models are INT8. Also exposes `preloadLocalVision()`, the warm-up
+hook used by the v1.16.0 session warm-up.
 
-### `src/lib/privacy-agent.js`
-Bridges the pipeline to the OpenComet background. Exposes:
-- `captureAndSanitize(tabId)` — capture + DOM scan + pipeline run
-- `decideViaServer(payload, task, history)` — multipart POST to `/agent/decide`
-- `configurePrivacy(settings)` / `getPrivacySettings()` — runtime config
-- `getLastPrivacyRun()` / `getCumulativePrivacyStats()` — for the side panel UI
+## `src/lib/canvas-redactor.js`
 
-### `src/background/privacy-loop.js`
-The privacy-aware agent loop. Implements the standard `capture → decide → execute → repeat` cycle but routes every capture through `captureAndSanitize()` first.
+Pixel-level redactor. Takes a PNG data URL and a region list, returns a JPEG
+data URL with each region treated by type:
 
-### `src/background/sw.js`
-The OpenComet service worker. The privacy surface adds message routes:
-- `PRIVACY_START` — start a privacy-aware agent run
-- `PRIVACY_CONFIGURE` — update pipeline config at runtime
-- `PRIVACY_CAPTURE` — one-shot capture + sanitize (used by the "Test capture" button)
-- `PRIVACY_GET_STATS` — fetch cumulative stats for the UI
-- `VISION_WARMUP` (v1.16.0) — fire-and-forget offscreen vision-model warm-up when a privacy session starts
+- **Faces**: Gaussian blur plus an opaque bar across the eyes.
+- **Credentials** (password, API key, card, Aadhaar, PAN, SSN, IBAN): solid
+  black.
+- **Free-form text PII** (email, phone, date of birth, person, organisation,
+  address): pixelated.
 
-### `server/server.js`
-Express server. Single main endpoint `POST /agent/decide` accepts a multipart form (sanitised image + sanitised text + manifest + task + history + settings), forwards to the chosen VLM, parses the JSON response, returns an action plan. Provider implementations for OpenAI, Anthropic, Gemini, and Ollama (and OpenAI-compatible: Mistral / Groq / DeepSeek / Kimi / GLM).
+Each region can carry an optional badge label.
 
-### `src/sidepanel/sidepanel.html` + `.css` + `.js`
-- A **Privacy Mode** toggle bar directly below the model selector
-- A **gear button** that opens the Privacy & Vision settings page (pipeline toggles, SIH Scorecard, Live Firewall Inspector, About)
-- A 4-cell stats strip showing last-capture latency, faces redacted, PII regions redacted, and active backend
-- A message interceptor that rewrites `START_AGENT` → `PRIVACY_START` when Privacy Mode is on
+## `src/lib/privacy-filter.js`
 
-### `src/content/agent.js`
-An on-page "Privacy pipeline" card that pops up in the bottom-right of the page during a privacy run, showing what was redacted on the most recent capture + a small preview of the sanitised screenshot.
+The orchestrator. Calls the modules above in parallel where possible and
+produces:
 
-### `src/lib/privacy-firewall.js`
-The single outbound boundary (v1.14): `sanitizeScreenContext()` → `validateSanitizedPayload()`; pass ships sanitized-only, fail throws `PrivacyBlockedError`. Includes the redact-and-verify secret-sweep masking introduced in v1.15.7.
+- `sanitizedDataUrl`: the only image allowed to leave the client.
+- `manifest`: redacted regions with type, bounds, reason and confidence.
+- `sanitizedDomText`: DOM text with `[REDACTED:<type>]` tokens.
+- `stats`: per-phase latency, counts, backend, and memo telemetry
+  (`ocrMemoHit`, detector memos).
+
+## `src/lib/privacy-agent.js`
+
+Bridges the pipeline to the background worker. Exposes:
+
+- `captureAndSanitize(tabId)`: capture, DOM scan, pipeline run.
+- `decideViaServer(payload, task, history)`: multipart POST to `/agent/decide`.
+- `configurePrivacy(settings)` and `getPrivacySettings()`: runtime config.
+- `getLastPrivacyRun()` and `getCumulativePrivacyStats()`: side panel data.
+
+## `src/background/privacy-loop.js`
+
+The privacy-aware agent loop. Runs the same capture, decide, execute cycle as
+the standard loop, but every capture goes through `captureAndSanitize()` first.
+
+## `src/background/sw.js`
+
+The service worker. The privacy surface adds these message routes:
+
+- `PRIVACY_START`: start a privacy-aware run.
+- `PRIVACY_CONFIGURE`: update pipeline config at runtime.
+- `PRIVACY_CAPTURE`: one-shot capture and sanitize, used by the test button.
+- `PRIVACY_GET_STATS`: cumulative stats for the UI.
+- `VISION_WARMUP` (v1.16.0): fire-and-forget offscreen warm-up when a privacy
+  session starts.
+
+## `server/server.js`
+
+Express server. `POST /agent/decide` accepts a multipart form (sanitized image,
+sanitized text, manifest, task, history, settings), forwards it to the chosen
+model, parses the JSON response and returns an action plan. Providers: OpenAI,
+Anthropic, Gemini, Ollama, and OpenAI-compatible gateways (Mistral, Groq,
+DeepSeek, Kimi, GLM).
+
+## `src/sidepanel/sidepanel.html`, `.css`, `.js`
+
+- A Privacy Mode toggle bar below the model selector.
+- A gear button opening Privacy & Vision settings: pipeline toggles, SIH
+  scorecard, live firewall inspector, About.
+- A four-cell stats strip: last capture latency, faces redacted, PII regions
+  redacted, active backend.
+- A message interceptor that rewrites `START_AGENT` to `PRIVACY_START` when
+  Privacy Mode is on.
+
+## `src/content/agent.js`
+
+The on-page Privacy pipeline card. Appears bottom right during a run and shows
+what was redacted on the most recent capture, with a thumbnail of the sanitized
+screenshot.
+
+## `src/lib/privacy-firewall.js`
+
+The single outbound boundary (v1.14): `sanitizeScreenContext()` then
+`validateSanitizedPayload()`. A pass ships sanitized data only; a failure throws
+`PrivacyBlockedError`. Contains the redact-and-verify masking from v1.15.7.

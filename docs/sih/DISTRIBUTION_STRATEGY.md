@@ -1,31 +1,30 @@
-# Distribution Strategy
+# Distribution strategy
 
-## What is now protected better
+Where the code lives, and what that does and does not protect.
 
-- License generation and validation now live on the backend.
-- Browser-agent planning/action prompts now live on the website backend.
-- The extension no longer needs to ship the strongest browser-agent system prompt.
+## Protected by moving logic server side
 
-## What still cannot be hidden fully
+- License generation and validation.
+- Browser-agent planning and action prompts.
 
-- Content scripts, DOM action code, UI logic, and message routing must still run in the browser.
-- Anything shipped in the extension package can still be inspected eventually.
+## Not protectable
 
-## Practical launch strategy
+- Content scripts, DOM action code, UI logic and message routing must run in the
+  browser.
+- Anything shipped in the extension package can eventually be read.
 
-1. Keep premium logic, prompt logic, and provider API keys on the backend.
-2. Ship the extension as a bundled production build instead of raw source files.
-3. Minify and obfuscate the built bundle before uploading to the Chrome Web Store.
-4. Disable source maps for the store package.
-5. Gate browser-agent API access by active license key and rate limits.
+## Launch approach
 
-## Best next implementation step
+1. Keep premium logic, prompt logic and provider keys on the backend.
+2. Ship a bundled production build rather than the raw source tree.
+3. Minify and obfuscate the bundle before uploading to the Chrome Web Store.
+4. Disable source maps in the store package.
+5. Gate agent API access by license key and rate limit.
 
-Add a build pipeline that:
+## Next step
 
-- bundles `src/` into `dist/`
-- minifies all JavaScript
-- obfuscates the final bundle
-- packages only `dist/`, assets, and `manifest.json`
+Add a build pipeline that bundles `src/` into `dist/`, minifies the JavaScript,
+obfuscates the bundle, and packages only `dist/`, assets and `manifest.json`.
 
-This is the same broad pattern used by commercial extensions: keep the valuable logic server-side, then obfuscate the unavoidable client-side layer.
+This is the same shape commercial extensions use: valuable logic server side,
+then obfuscation for the client layer that cannot be hidden.

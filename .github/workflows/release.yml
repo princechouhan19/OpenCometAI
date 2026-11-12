@@ -1,0 +1,42 @@
+name: release
+
+# Tag v1.31.1 builds dist/opencomet-1.31.1.zip and attaches it to the GitHub
+# release. Nothing is published to the Chrome Web Store from here; that upload
+# stays manual.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Tag matches the manifest version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          MANIFEST="$(node -p "require('./manifest.json').version")"
+          if [ "$TAG" != "$MANIFEST" ]; then
+            echo "tag $GITHUB_REF_NAME does not match manifest version $MANIFEST"
+            exit 1
+          fi
+
+      - name: Build and gate the package
+        run: bash scripts/package.sh
+
+      - name: Attach the zip to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/opencomet-*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

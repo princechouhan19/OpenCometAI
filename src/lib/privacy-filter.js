@@ -1,23 +1,11 @@
 // src/lib/privacy-filter.js
-// The heart of the privacy-preserving vision pipeline. Orchestrates:
+// The sanitize pipeline, run in the offscreen document:
 //
-//   ┌──────────────────────────────────────────────────────────────────────┐
-//   │  CAPTURE  →  DOM PII scan  →  Face detect  →  Object detect (YOLO)  │
-//   │                                                                       │
-//   │      ↓                                                                │
-//   │                                                                       │
-//   │  REDACT (canvas)  →  build "redaction manifest"                       │
-//   │                                                                       │
-//   │      ↓                                                                │
-//   │                                                                       │
-//   │  RETURN:  { sanitizedDataUrl, manifest, sanitizedDomText, stats }     │
-//   │           (this — and ONLY this — may be sent to the server)          │
-//   └──────────────────────────────────────────────────────────────────────┘
+//   capture -> DOM PII scan -> face detect -> YOLO -> OCR
+//              -> canvas redaction -> redaction manifest
 //
-// The "redaction manifest" is the contract with the server: it tells the
-// server-side VLM exactly what kind of redaction was applied to each region
-// so the model can reason about the page (e.g. "there's a password field
-// here, so I should not type a value into it").
+// Returns { sanitizedDataUrl, manifest, sanitizedDomText, stats }. Only the
+// sanitized image, the manifest and the sanitized text may leave the device.
 
 import { detectFaces, getFaceDetectorStats, detectFacesTiled, detectFacesInPersonBoxes } from './mediapipe-face.js';
 import { detectObjects, getLocalVisionStats, getNerPipeline, classifyPage } from './local-vision.js';
@@ -162,31 +150,15 @@ export async function runPrivacyPipeline(input, opts = {}) {
     log('Faces: skipped (blurFaces=false)');
   }
 
-  // 3) YOLO object detection (opt-in — adds latency)
-  // The data-URL is passed straight to the pipeline — Transformers.js RawImage
-  // decodes it natively inside the offscreen document.
-  // PRIVACY FILTER: only PERSON-class boxes are redacted. Generic objects
-  // (sports balls, furniture…) black-boxed on the user's screen read as
-  // broken/misaligned redaction (user-reported: gameplay areas covered by
-  // black squares while the actual face stayed visible).
+  // 3) YOLO object detection (opt-in
+  // 3) YOLO object detection (opt-in, adds latency). Only PERSON-class boxes
+  // are redacted: boxing generic objects reads as broken redaction, and users
+  // reported gameplay areas covered while their face stayed visible.
   //
-  // UNCHANGED-SCREEN YOLO MEMO (the dominant sanitize cost):
-  // objectDetect is the #1 sanitize phase on real hardware (P50 6766 ms of the
-  // 8014 ms total — OpenCometBench/results/browser-benchmark-1788724999257.json).
-  // The memo reuses the RAW detection set ONLY when the capture is
-  // BYTE-IDENTICAL to the capture that produced it (the exact data-URL string
-  // is the memo key — JS string equality, zero hash collisions possible), so
-  // a changed screen — the scene-change attack — can NEVER be served from the
-  // cache: any pixel difference produces a different capture → different key
-  // → full re-detection. This is the strongest possible "scene has not
-  // materially changed" signal, far stronger than a sampled/perceptual hash.
-  // Semantics preserved:
-  //   • a memo hit re-uses the SAME boxes the detector produced for THESE
-  //     pixels — "skipped" never becomes "assume no sensitive object";
-  //   • the person-only/minScore filters re-apply per call (config may change);
-  //   • stores BOXES ONLY (never pixels beyond the caller's own string ref);
-  //   • 2-entry LRU in the offscreen document, in memory only;
-  //   • cfg.yoloMemo=false disables it entirely (fail-safe switch).
+  // The memo is keyed on the exact capture string, so a hit proves byte-
+  // identical pixels and any change forces re-detection. A hit reuses the same
+  // boxes for those pixels, filters re-apply per call, only boxes are stored,
+  // the LRU holds two entries in memory and cfg.yoloMemo=false disables it.
   let objectDetections = [];
   let yoloAll = [];
   let yoloMemoHit = false;
@@ -256,19 +228,12 @@ export async function runPrivacyPipeline(input, opts = {}) {
     }
   }
 
-  // 3b′) DOM-guided face sweep (— small-profile-photo recall)
-  // USER-REPORTED (field): small profile photos (~48–72 CSS px) repeatedly end
-  // with "Faces detected: 0" and the face stays VISIBLE in the sanitized
-  // capture, while every text/DOM PII family redacts correctly. The pixel
-  // cascade above is probabilistic — tile caps sample positions, YOLO rarely
-  // boxes a thumbnail person, and a head-only crop inside a small <img> can
-  // sit below every stage's firing threshold. The DOM scan (pageContextScan)
-  // now hands us the exact rects of visible <img> elements: crop each one
-  // from the capture, upscale it (min edge ≈256px, ×4 cap — a 64px avatar
-  // face becomes ~200px), and let the SAME detector confirm. Model-confirmed
-  // only: an image with no detectable face is left untouched, so logos and
-  // generic icons are NOT blanket-redacted. Rects arrive in CSS px — the ONE
-  // allowed DPR conversion applies (cssRectToImage, same contract as step 5).
+  // 3b′) DOM-guided face sweep
+  // 3b') DOM-guided face sweep, for small profile photos. The pixel cascade
+  // misses 48-72px avatars, so the DOM scan's visible <img> rects are cropped,
+  // upscaled to ~256px and given to the same detector. Only model-confirmed
+  // faces are redacted, so logos and icons are not blanket-covered. Rects are
+  // CSS px and go through the one allowed DPR conversion.
   let domSweep = null;
   if (cfg.blurFaces && Array.isArray(input.photoCandidates) && input.photoCandidates.length) {
     const t0 = performance.now();
@@ -320,22 +285,12 @@ export async function runPrivacyPipeline(input, opts = {}) {
     }
   }
 
-  // 3b″) AVATAR GUARD (— deterministic small-profile-photo cover)
-  // Closes the recurring small-profile-photo leak: a profile photo is
-  // clearly on screen yet the report says "Faces detected: 0". Root causes
-  // the model-confirmed sweep cannot fully close:
-  //   • avatars painted as CSS background-image (collected as
-  //     bg-avatar-hint candidates, but still model-gated), and
-  //   • portraits the detector genuinely refuses to confirm at any scale —
-  //     head-only crops, heavy compression, faces < ~35px even after ×4
-  //     upscale.
-  // Privacy-first policy: an image the page ITSELF labels as an
-  // avatar/profile photo (avatar-hint / bg-avatar-hint) that no confirmed
-  // face covers is redacted on its element rect EVEN WITHOUT model
-  // confirmation. Asymmetry: a wrongly blurred 64px logo-hinted img costs a
-  // small black square; a missed real face ships the user's identity to the
-  // VLM. Non-hinted icons/logos (the negative controls) are STILL scanned,
-  // never blanket-redacted — the guard keys on the page's own avatar naming.
+  // 3b″) AVATAR GUARD
+  // 3b'') Avatar guard. Some portraits are refused at every scale: head-only
+  // crops, heavy compression, faces under ~35px. An image the page itself
+  // labels as an avatar and that no confirmed face covers is redacted on its
+  // rect without model confirmation. A wrongly blurred 64px logo costs a small
+  // black square; a missed face ships the user's identity to the model.
   let avatarGuard = null;
   if (cfg.blurFaces && Array.isArray(input.photoCandidates) && input.photoCandidates.length) {
     const t0 = performance.now();
@@ -474,19 +429,11 @@ export async function runPrivacyPipeline(input, opts = {}) {
   if (cfg.ocrPii) {
     const t0 = performance.now();
     try {
-      // OCR MEMO — same safety pattern as the YOLO memo:
-      //   • key = the EXACT capture data-URL string + the serialized ROI list
-      //     (the OCR result depends on BOTH — a different crop set is a
-      //     different scan); string equality means a hit proves byte-identical
-      //     pixels AND an identical crop set, so any pixel or DOM-census change
-      //     forces a miss → full re-scan;
-      //   • stores the region list ONLY (no raw OCR text beyond what the
-      //     regions already carry — the same objects the pipeline itself holds
-      //     in memory for this frame);
-      //   • FAILED and SKIPPED scans are never memoized (fail-closed stays
-      //     honest — an unavailable engine re-reports on every call);
-      //   • 2-entry LRU, in-memory in the offscreen document;
-      //   • cfg.ocrMemo=false disables it entirely (fail-safe switch).
+      // OCR MEMO
+      // OCR memo, same safety pattern as the YOLO memo: the key is the capture
+      // string plus the serialized ROI list, so a hit proves identical pixels
+      // and an identical crop set. Failed and skipped scans are never memoized,
+      // only the region list is stored, and cfg.ocrMemo=false disables it.
       const ocrMemoKey = cfg.ocrMemo === false ? null
         : `${input.imageDataUrl}\u0000${JSON.stringify(ocrRois)}`;
       let ocr = ocrMemoKey ? ocrMemoGet(ocrMemoKey) : null;

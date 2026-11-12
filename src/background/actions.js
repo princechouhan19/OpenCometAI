@@ -936,30 +936,18 @@ function verifyMailSendOutcome() {
   return { composeClosed: !composeOpen, sent, toast };
 }
 
-// adds DIALOGS + FOCUS + EDITABLE census. The old fingerprint
-// (url/title/scroll/videos) was BLIND to in-dialog state: in the field log
-// the Gmail compose recipients row expanded ("Recipients" → "To Cc Bcc")
-// with zero fingerprint movement, so verified-dead clicks thrashed the VLM
-// for 17 steps; and the Send click that actually worked couldn't be told
-// apart from the ones that didn't (dialog never closed in the fingerprint).
-// CONTENT + CONTROL + CANVAS signatures for action verification.
-// The structural fingerprint (url/title/scroll/dialogs/focus) is BLIND to the
-// most common effect of a successful click: content that appears IN PLACE —
-// a result list unhidden, a success message revealed, a tab's inner content
-// swapped, a canvas redrawn. Measured false negatives in the E2E benchmark:
-// the newsletter "Subscribe" click revealed #f-ok with zero structural
-// movement → "NO VISIBLE CHANGE" even though the action succeeded.
-//   contentSig — cheap hash of the visible text (normalized, truncated)
-//   controls   — count of toggled states (aria-expanded/pressed, :checked)
-//   canvasSig  — 8×8 downsample hash of the first canvases (canvas apps)
+// adds DIALOGS + FOCUS + EDITABLE census.
+// Adds dialog, focus and editable census, plus content, control and canvas
+// signatures. The structural fingerprint alone missed the commonest effect of
+// a successful click, content appearing in place, and reported "NO VISIBLE
+// CHANGE" for actions that had worked.
+//   contentSig  hash of the visible text
+//   controls    count of toggled states (aria-expanded, :checked)
+//   canvasSig   8x8 downsample of the first canvases
 //
-// PAGE-INJECTED FUNCTIONS MUST BE SELF-CONTAINED.
-// chrome.scripting.executeScript serializes ONLY the `func` it is handed —
-// top-level helpers do not exist in the page's isolated world, and the
-// injected fingerprint would throw ReferenceError for BEFORE *and* AFTER,
-// silently disabling click verification. Every helper lives INSIDE the
-// fingerprint function, matching the convention of the other page-injected
-// functions (domClick, domType, …).
+// This runs inside the page and executeScript serializes only the function it
+// is handed, so every helper lives inside it. A top-level helper would throw
+// ReferenceError for both BEFORE and AFTER and silently disable verification.
 function domPageFingerprint() {
   // self-contained helpers (serialized with the function)
   function shortHash(str) {
@@ -1351,18 +1339,11 @@ function domClick(sel, context = null) {
   ];
 
   // SCORED text matching
-  // The old finder took the FIRST partial match in document order, so the
-  // needle "play" matched the sidebar button "New playlist"
-  // ("new playlist".includes("play") is true) and the click OPENED A DIALOG
-  // that blocked the page for 3 VLM rounds. Candidates are now scored:
-  //   exact label           = 100
-  //   word-boundary match   =  70  ("play" matches "Play" or "Play button",
-  //                                  NOT "playlist" — no word boundary)
-  //   startsWith            =  55
-  //   plain substring       =  35
-  // minus a small penalty for LONG labels (shorter labels are more precise),
-  // and interactive-pool elements always outrank generic ones at equal score.
-  // overlay/agent-owned elements are excluded via visible().
+  // Scored text matching. Taking the first partial match in document order made
+  // "play" hit "New playlist" and opened a dialog that blocked the page for
+  // three rounds. Candidates score exact 100, word boundary 70, starts-with 55,
+  // substring 35, minus a small penalty for long labels; interactive elements
+  // outrank generic ones and agent-owned overlays are excluded.
   const scoreMatch = (labelText, needle) => {
     if (!labelText || !needle) return -1;
     if (labelText === needle) return 100;

@@ -1,0 +1,96 @@
+name: ci
+
+# Unit tests, benchmark suites, comment-style gate, and a packaging run.
+# Separate from bench-gate.yml, which does the p95 regression comparison.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # No `npm ci`: the extension ships no dependencies and there is no lockfile.
+      - name: Unit tests
+        run: npm test
+
+      - name: Benchmark suites
+        run: node OpenCometBench/run-all.js
+
+      - name: Comment style gate
+        run: bash scripts/check-style.sh
+
+      - name: Manifest and package versions agree
+        run: |
+          M="$(node -p "require('./manifest.json').version")"
+          P="$(node -p "require('./package.json').version")"
+          if [ "$M" != "$P" ]; then
+            echo "version drift: manifest.json=$M package.json=$P"
+            exit 1
+          fi
+
+  package:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Runs every gate again in the exact order a release uses.
+      - name: Build package
+        run: bash scripts/package.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opencomet-package
+          path: dist/*.zip
+          if-no-files-found: error
+
+  harness:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Regression harnesses from earlier versions that do not need a browser.
+      # The Playwright suites in scripts/ need a real browser and do not run here.
+      - name: No-browser regression harnesses
+        run: |
+          set -e
+          for f in \
+            scripts/test_v1180_guardian.mjs \
+            scripts/test_v1190_disambiguation.mjs \
+            scripts/test_v1310_verify.mjs \
+            scripts/test_tab_sandbox.mjs \
+            scripts/test_scene_change_attack.mjs \
+            scripts/test_creditfit_402.mjs ; do
+            echo "== $f"
+            node "$f"
+          done

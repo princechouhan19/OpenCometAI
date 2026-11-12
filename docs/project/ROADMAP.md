@@ -1,26 +1,45 @@
-# Project Roadmap
+# Product roadmap
 
-Open Comet is evolving from a browser assistant into a fully realized autonomous operating system for the web.
+What the product should do next, as opposed to the engineering roadmap in
+[`../ROADMAP.md`](../ROADMAP.md), which covers how to measure and sequence the
+work.
 
-## Current State: v1.1.1 (Stable)
-- [x] Multi-provider support (Cloud & Local).
-- [x] High-fidelity visual grounding (Screenshot + DOM).
-- [x] Auto Scraper & Deep Research orchestration.
-- [x] Reusable Skills (Macros with dynamic parameters).
-- [x] Comprehensive Token Tracking and Exporting (JSON/CSV/Markdown).
+Current release: **1.32.0**.
 
----
+## Shipped
 
-## Upcoming: v1.2 (Efficiency & Reliability)
-- [ ] **Proactive Tab Management**: Smarter closing of research tabs once goals are met.
-- [ ] **Context Injection**: Ability to upload PDFs or local text files to provide the agent with static knowledge.
-- [ ] **Speed Optimizations**: Reduced "thinking" latency through parallel perception requests.
-- [ ] **Enhanced Error Recovery**: Automatic retries for failed navigations or pop-up interruptions.
+- Multi-provider support: local model, OpenAI-compatible gateways, Ollama.
+- Visual grounding from a sanitised screenshot plus the DOM.
+- Privacy pipeline: faces, credential fields, text PII, redaction manifest,
+  byte-level wire guard.
+- Verified actions, tab-group sandbox, task authorization daemon.
+- Goal contracts, error classification, loop reflection (1.31.1 and 1.32.0).
+- Scheduling through a work profile: profiles, skills, token accounting.
 
----
+## Next
 
-## Long-term Vision: v2.0 (The Agentic Web)
-- [ ] **Global Web Memory**: A persistent knowledge base that learns your preferences across sites.
-- [ ] **Multi-Agent Swarms**: Spawning multiple agents to complete coordinated tasks (e.g., flight booking + hotel reservation + dinner itinerary simultaneously).
-- [ ] **Native Desktop Integration**: Expanding the agent's reach beyond the browser into OS-level interactions.
-- [ ] **Self-Improving Agents**: Using reinforcement learning from user approvals to sharpen interaction accuracy over time.
+**Distribution.** The extension loads unpacked. Preparing it for the Chrome Web
+Store means resolving the `debugger` permission (move it to optional and
+document what degrades without it), a store listing, and a privacy policy that
+matches the actual data flow.
+
+**Reliability under real pages.** The loop verifies individual actions, but a
+multi-step task can still finish with the wrong end state. Goal contracts cover
+this when the planner declares one; the remaining work is making that
+declaration routine rather than optional.
+
+**Cost and latency transparency.** Per-task token and cost accounting exists.
+Surfacing it before a task runs, not after, would let a user choose between a
+local model and a cloud one on evidence.
+
+**Language coverage.** The task authorization daemon handles Hindi and English
+phrasing. The PII patterns are India-specific by design; other regions would
+need their own identifier families rather than a generic detector.
+
+## Not planned
+
+- Chrome built-in AI (Gemini Nano). Considered and declined in 1.31.0; the
+  integration would not improve on the on-device path already shipped.
+- Detector and OCR model swaps. Any replacement must first pass the quality gate
+  across a device matrix, which no candidate does yet.
+- Training or fine-tuning models. The project ships inference only.

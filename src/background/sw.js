@@ -35,6 +35,10 @@ import { createEmptyAgentState } from './state.js';
 import { executeAction, describeAction, getMonitors, saveMonitors, fetchPageText, isMailHostTab } from './actions.js';
 import { toChatTemplateTools } from '../lib/tool-schemas.js';
 import { runPrivacyAgent } from './privacy-loop.js';
+import { normalizeGoalContract, describeGoalContract, evaluateGoalContract, selectorsForContract } from '../lib/goal-verifier.js';
+import { pageProbe } from '../lib/goal-probe.js';
+import { ERROR_KIND, classifyError, retryDecision, countsAsStepFailure, httpStatusOf, retryAfterMsFrom } from '../lib/error-taxonomy.js';
+import { detectLoop, buildReflectionPrompt, takeReflectionBudget, LOOP_KIND } from '../lib/loop-reflection.js';
 // TAB-GROUP SANDBOX: single source of truth for the task boundary
 // (shared with actions.js so grouping + enforcement can never drift apart).
 import { ensureTaskGroup } from '../lib/tab-sandbox.js';
@@ -438,7 +442,7 @@ async function handleStartInner(msg, respond) {
         preferredSites: s.preferredSites || [],
         doneChecklist: s.doneChecklist || [],
       }))];
-      pushStep(STEP_TYPE.MUTED, `?? Auto-activated skill${autoSkills.length > 1 ? 's' : ''}: ${autoSkills.map(s => s.name).join(', ')}`);
+      pushStep(STEP_TYPE.MUTED, `Auto-activated skill${autoSkills.length > 1 ? 's' : ''}: ${autoSkills.map(s => s.name).join(', ')}`);
     }
   } catch (err) {
     // Non-fatal: skill auto-detection failure must never block the agent.
@@ -494,7 +498,7 @@ async function planPhase() {
     syncPlannedHosts();
     await activatePlannedSkills(plan);
 
-    pushStep(STEP_TYPE.PLAN_READY, '?? Plan ready');
+    pushStep(STEP_TYPE.PLAN_READY, 'Plan ready');
 
     if (agentState.mode === 'ask') {
       agentState.paused = true;
@@ -575,7 +579,7 @@ function updatePlanProgressFromResult(result = {}) {
     agentState.currentPlanItemIndex = 0;
     agentState.planGenerationStep = agentState.iterationCount;
     syncPlannedHosts();
-    pushStep(STEP_TYPE.MUTED, `?? Plan updated at step ${agentState.iterationCount}.`);
+    pushStep(STEP_TYPE.MUTED, `Plan updated at step ${agentState.iterationCount}.`);
     return;
   }
 
@@ -607,6 +611,14 @@ function injectRuntimeNudges() {
   if (agentState.taskMemory.pendingGuardianHint) {
     nudges.push(agentState.taskMemory.pendingGuardianHint);
     agentState.taskMemory.pendingGuardianHint = null;
+  }
+  if (agentState.taskMemory.pendingReflection) {
+    nudges.push(agentState.taskMemory.pendingReflection);
+    agentState.taskMemory.pendingReflection = null;
+  }
+  if (agentState.taskMemory.pendingGoalAsk) {
+    nudges.push(agentState.taskMemory.pendingGoalAsk);
+    agentState.taskMemory.pendingGoalAsk = null;
   }
   if (agentState.plan?.steps?.length && agentState.consecutiveFailures >= 2) {
     nudges.push(`REPLAN SUGGESTED: ${agentState.consecutiveFailures} consecutive failures. Update the plan before repeating the same strategy.`);
@@ -725,7 +737,7 @@ function handleUserNote(note, respond) {
 
 // EXECUTION LOOP
 async function executionPhase() {
-  pushStep(STEP_TYPE.EXECUTING, '?? Starting execution…');
+  pushStep(STEP_TYPE.EXECUTING, 'Starting execution…');
   broadcastStatus(STATUS.EXECUTING);
 
   // authorization evidence is pinned to what the user typed when the
@@ -734,6 +746,9 @@ async function executionPhase() {
   // user may authorize explicitly while the task runs.)
   agentState.guardianTaskSnapshot = String(agentState.task || '');
   agentState.guardianHits = 0;
+  agentState.goalVerifyAttempts = 0;
+  agentState.retryCounts = {};
+  agentState.reflectionBudget = { used: 0 };
   // DAEMON COUNTER: per-run accounting of every gate decision —
   // flushed to the lifetime accumulator exactly once when the run ends.
   agentState.guardianCounter = createGuardianCounter();
@@ -741,7 +756,7 @@ async function executionPhase() {
   while (agentState.running && !agentState.stopRequested) {
     if (agentState.paused) return;
     if (agentState.iterationCount >= agentState.maxIterations) {
-      pushStep(STEP_TYPE.DONE, `?? Reached max steps (${agentState.maxIterations})`);
+      pushStep(STEP_TYPE.DONE, `Reached max steps (${agentState.maxIterations})`);
       break;
     }
 
@@ -749,7 +764,7 @@ async function executionPhase() {
 
     try {
       const tabId = agentState.agentTabId;
-      pushStep(STEP_TYPE.SCREENSHOT, `?? Screenshot #${agentState.iterationCount}`);
+      pushStep(STEP_TYPE.SCREENSHOT, `Screenshot #${agentState.iterationCount}`);
 
       const { screenshot, pageInfo } = await captureContext(tabId);
       agentState.lastPageInfo = pageInfo;
@@ -786,9 +801,32 @@ async function executionPhase() {
         parseChecklistCompletions(result.reasoning || '');
       }
 
+      // First declared goal wins; it must hold before the run can end as done.
+      if (!agentState.goalContract && (result?.goal_checks || result?.goal)) {
+        const declared = normalizeGoalContract(result.goal_checks || result.goal);
+        if (declared) {
+          agentState.goalContract = declared;
+          pushStep(STEP_TYPE.MUTED, `Goal contract: ${describeGoalContract(declared)}`);
+        }
+      }
+
       const action = result.action;
       if (!action || action.type === 'done') {
-        await finishSuccess(result);
+        // One ask per run, and only when no predicate was ever declared: a
+        // second "done" is accepted as unverified rather than interrogated.
+        if (!agentState.goalContract && !agentState.goalAskDone) {
+          agentState.goalAskDone = true;
+          agentState.taskMemory.pendingGoalAsk = 'GOAL CONTRACT MISSING: before this run may close, declare goal_checks for what you just finished (see RESPONSE SHAPES). If the deliverable was text rather than a page change, reply done again and the run closes unverified.';
+          pushStep(STEP_TYPE.MUTED, 'No goal predicate declared; asking for one before completing.');
+          continue;
+        }
+        // "done" is a claim. A failed check means the task is not finished.
+        const verdict = await verifyTaskGoal(tabId);
+        if (verdict.status === 'failed') {
+          pushStep(STEP_TYPE.MUTED, 'The task is NOT complete - continuing, with the failed check as an observation.');
+          continue;
+        }
+        await finishSuccess(result, verdict);
         return;
       }
 
@@ -839,7 +877,7 @@ async function executionPhase() {
         const priorValue = String(typedFields[sel] || '');
         const nextValue = String(action.text ?? action.value ?? '');
         if (sel && priorValue && (priorValue === nextValue || priorValue.includes(nextValue) || nextValue.includes(priorValue))) {
-          pushStep(STEP_TYPE.MUTED, `?? Skipping repeated type into ${sel} — content already entered.`);
+          pushStep(STEP_TYPE.MUTED, `Skipping repeated type into ${sel} — content already entered.`);
           continue;
         }
         const recentTypes = agentState.steps
@@ -848,13 +886,36 @@ async function executionPhase() {
           .map(s => s.text || '')
           .filter(t => t.includes(sel) && (t.startsWith('? Type') || t.startsWith('? Fill')));
         if (recentTypes.length >= 2) {
-          pushStep(STEP_TYPE.MUTED, `?? Skipping repeated type into ${sel} — field already filled. Moving on.`);
+          pushStep(STEP_TYPE.MUTED, `Skipping repeated type into ${sel} — field already filled. Moving on.`);
           agentState.iterationCount++; // still counts as a step
           continue;
         }
       }
 
       updateActionLoop(action);
+
+      // One reflection per detected loop; the budget stops reflection becoming
+      // a loop of its own. Only ACTION steps count, or the screenshot/thinking
+      // entries between two identical clicks would hide the repeat.
+      if (!agentState.taskMemory.pendingReflection) {
+        const actionSteps = agentState.steps.filter((s) => s.type === STEP_TYPE.ACTION);
+        const loop = detectLoop(actionSteps);
+        if (loop.kind !== LOOP_KIND.NONE) {
+          const budget = takeReflectionBudget(agentState.reflectionBudget);
+          if (budget.allowed) {
+            const prompt = buildReflectionPrompt(loop, {
+              task: agentState.task,
+              url: pageInfo?.url,
+              lastAction: describeAction(action),
+            });
+            if (prompt) {
+              agentState.reflectionBudget = { used: budget.used };
+              agentState.taskMemory.pendingReflection = prompt;
+              pushStep(STEP_TYPE.MUTED, `Loop detected (${loop.kind}); reflection queued.`);
+            }
+          }
+        }
+      }
 
       const checkpoint = getCheckpointForAction(action);
       if (checkpoint) await runCheckpoint(checkpoint, { action, pageInfo });
@@ -866,7 +927,7 @@ async function executionPhase() {
         if (verification.pageInfo) agentState.lastPageInfo = verification.pageInfo;
       }
 
-      pushStep(STEP_TYPE.ACTION, `? ${describeAction(action)}`);
+      pushStep(STEP_TYPE.ACTION, `${describeAction(action)}`);
       broadcastStatus(STATUS.ACTING);
 
       const meta = await executeAction(tabId, action, agentState);
@@ -909,7 +970,7 @@ async function executionPhase() {
           await sleep(1800); // let Gmail animate the send
           const sentState = await detectEmailSent(agentState.agentTabId || tabId);
           if (sentState.sent) {
-            await finishSuccess('? Email sent successfully.');
+            await finishSuccess('Email sent successfully.', { status: 'unevaluable', reason: 'mail-send heuristic' });
             return;
           }
         }
@@ -924,13 +985,35 @@ async function executionPhase() {
 
     } catch (err) {
       agentState.consecutiveFailures += 1;
+
+      // Classify before deciding the run is fatal: a 502 is not a task failure.
+      const errKind = classifyError(err, { source: 'loop', status: httpStatusOf(err) });
+      if (!countsAsStepFailure(errKind)) {
+        agentState.consecutiveFailures = Math.max(0, agentState.consecutiveFailures - 1);
+      }
+      const priorRetries = Number(agentState.retryCounts?.[errKind]) || 0;
+      agentState.retryCounts = { ...(agentState.retryCounts || {}), [errKind]: priorRetries + 1 };
+      const retry = retryDecision(errKind, priorRetries + 1, { retryAfterMs: retryAfterMsFrom(err) });
+
+      pushStep(STEP_TYPE.ERROR, `${err.message}`);
+      logAgent.warn(`iteration ${agentState.iterationCount} failed [${errKind}] (consecutive=${agentState.consecutiveFailures}): ${err.message}`);
+
+      if (retry.retry) {
+        pushStep(STEP_TYPE.MUTED, `${errKind}: ${retry.reason}${retry.delayMs ? ` (waiting ${retry.delayMs}ms)` : ''}.`);
+        if (retry.delayMs) await sleep(retry.delayMs);
+        continue;
+      }
+
+      if (errKind === ERROR_KIND.AUTH || errKind === ERROR_KIND.POLICY_BLOCKED) {
+        fatalError(err);
+        return;
+      }
+
       if (isFatalProviderError(err)) {
         const message = `${err.message}${agentState.taskProfile === 'email' || /mail\.google\.com/i.test(agentState.lastPageInfo?.url || '') ? ' Current draft was left as-is.' : ''}`;
         fatalError(new Error(message));
         return;
       }
-      pushStep(STEP_TYPE.ERROR, `?? ${err.message}`);
-      logAgent.warn(`iteration ${agentState.iterationCount} failed (consecutive=${agentState.consecutiveFailures}): ${err.message}`);
       if (agentState.iterationCount <= 3) { fatalError(err); return; }
       await sleep(2000); // allow agent to recover
     }
@@ -967,13 +1050,54 @@ async function flushGuardianLifetime() {
   } catch { /* best-effort accounting — never blocks finalization */ }
 }
 
-async function finishSuccess(result) {
+// Goal verification reads the live tab, not the model's claim. A 'failed'
+// verdict keeps the run going; 'unevaluable' may end it, reported unverified.
+const GOAL_VERIFY_MAX_ATTEMPTS = 2;
+
+async function collectGoalProbe(tabId, selectors) {
+  const [res] = await chrome.scripting.executeScript({
+    target: { tabId },
+    world: 'ISOLATED',
+    func: pageProbe,
+    args: [selectors],
+  });
+  return res?.result || null;
+}
+
+async function verifyTaskGoal(tabId) {
+  const contract = agentState.goalContract;
+  if (!contract) return { status: 'unevaluable', ok: false, reason: 'no goal contract declared' };
+
+  const attempts = Number(agentState.goalVerifyAttempts) || 0;
+  if (attempts >= GOAL_VERIFY_MAX_ATTEMPTS) {
+    return { status: 'unevaluable', ok: false, reason: `verification budget spent (${attempts} attempts)` };
+  }
+  agentState.goalVerifyAttempts = attempts + 1;
+
+  let probe = null;
+  try {
+    probe = await collectGoalProbe(agentState.agentTabId || tabId, selectorsForContract(contract));
+  } catch (err) {
+    logAgent.warn(`Goal probe failed: ${err?.message || err}`);
+    return { status: 'unevaluable', ok: false, reason: `probe failed: ${err?.message || err}` };
+  }
+  if (!probe) return { status: 'unevaluable', ok: false, reason: 'goal probe returned no data' };
+
+  return evaluateGoalContract(contract, probe);
+}
+
+async function finishSuccess(result, verdict = null) {
   const answer = result.answer || 'Task completed.';
+  const verified = verdict?.status === 'verified';
   pushStep(STEP_TYPE.DONE, `? ${answer}`);
+  pushStep(STEP_TYPE.MUTED, verified
+    ? `Goal verified against the live page: ${verdict.reason}`
+    : `Completed unverified${verdict?.reason ? ` - ${verdict.reason}` : ' - no goal predicate was declared'}.`);
   agentState.running = false;
   agentState.finalStatus = 'done';
+  agentState.completion = verified ? 'verified' : 'completed_unverified';
   const guardianData = guardianRunData();   // v1.19.0: surface gate accounting
-  broadcastMessage({ type: MSG.AGENT_DONE, answer, data: { ...(result.data || {}), ...(guardianData ? { guardian: guardianData } : {}) }, steps: agentState.steps, sessionId: agentState.sessionId });
+  broadcastMessage({ type: MSG.AGENT_DONE, answer, data: { ...(result.data || {}), completion: agentState.completion, ...(guardianData ? { guardian: guardianData } : {}) }, steps: agentState.steps, sessionId: agentState.sessionId });
   notify('Open Comet — task complete', answer);
   setBadge('', '#7c6af7');
   stopRunKeepalive();
@@ -1023,7 +1147,7 @@ async function finishGuardianExit(userMessage) {
 
 function fatalError(err) {
   logAgent.error('fatal:', err?.message || String(err));
-  pushStep(STEP_TYPE.ERROR, `? ${err.message}`);
+  pushStep(STEP_TYPE.ERROR, `${err.message}`);
   agentState.running = false;
   agentState.finalStatus = 'error';
   stopRunKeepalive();
@@ -2905,25 +3029,18 @@ async function handlePrivacyCapture(msg, respond) {
 installGlobalErrorTraps(logSW, 'SW');
 
 // build banner
-// Every time this service worker (re)starts it announces its exact build so a
-// stale unpacked copy can never be mistaken for the freshly loaded one.
-console.log(`[OpenComet] v${(chrome.runtime && typeof chrome.runtime.getManifest === 'function') ? chrome.runtime.getManifest().version : 'dev'} · service worker loaded`);
+// Announce the loaded build so a stale unpacked copy shows up in the log.console.log(`[OpenComet] v${(chrome.runtime && typeof chrome.runtime.getManifest === 'function') ? chrome.runtime.getManifest().version : 'dev'} · service worker loaded`);
 
 // Run keepalive (MV3 service-worker lifetime)
-// An MV3 service worker idles out after ~30s without events. Step broadcasts
-// keep it alive BETWEEN phases, but a single long VLM turn (30–180s, zero
-// extension-API traffic) can hit the idle timeout mid-run — the worker shows
-// as "(Inactive)" and the task dies. While any run is active, a 20s heartbeat
-// via chrome.runtime.getPlatformInfo() resets the idle timer; the interval is
-// cleared the moment the run finishes/stops/errors.
+// Run keepalive. An MV3 worker idles out after ~30s without events and a
+// single VLM turn can take 30-180s with no extension API traffic, so the
+// worker would die mid-run. While a run is active a 20s platform-info ping
+// resets the idle timer; it is cleared when the run ends.
 //
-// CRASH RECOVERY (three stacked mechanisms):
-//   1. the 20s interval (primary, as before);
-//   2. a 30s chrome.alarms backstop — the interval cannot survive the SW kill
-//      it is meant to prevent; an alarm wakes the worker even after a crash;
-//   3. a chrome.storage.session run snapshot — boot reconciliation (below)
-//      turns a crash mid-run into an honest finalized error instead of an
-//      orphaned tab group + a sidepanel stuck on "running".
+// Three mechanisms cover a real kill: the 20s interval; a 30s alarm, which
+// wakes a worker the interval cannot survive; and a session-storage snapshot
+// that boot reconciliation turns into a finalized error instead of an orphaned
+// tab group and a panel stuck on "running".
 let _runKeepaliveTimer = null;
 function startRunKeepalive() {
   if (_runKeepaliveTimer) return;

@@ -1,19 +1,10 @@
 // src/lib/privacy-agent.js
-// Bridges the privacy pipeline with the existing OpenComet agent loop in
-// background/sw.js.
+// Wires the privacy pipeline into the agent loop.
 //
-// Exposes one entry point — `captureAndSanitize(tabId, opts)` — which:
-//   1. Captures the visible tab via chrome.tabs.captureVisibleTab (SW-only API)
-//   2. Asks the content script to scan the DOM for sensitive elements
-//      and to ship back the page's textContent (truncated)
-//   3. Forwards everything to the OFFSCREEN document, which runs
-//      runPrivacyPipeline() (MediaPipe faces + YOLO + NER + canvas redaction).
-//      MV3 service workers cannot run any of that (no import(), no canvas),
-//      so the offscreen document is the ML workhorse. See offscreen/offscreen.js.
-//   4. Returns { sanitizedDataUrl, manifest, sanitizedDomText, stats }
-//
-// The agent loop then either uploads the sanitized payload to the companion
-// server (server/server.js) or runs the decision fully on-device.
+// captureAndSanitize(tabId, opts) captures the visible tab, asks the content
+// script for the sensitive-element census and page text, then hands both to the
+// offscreen document, which runs the ML (a service worker cannot: no import(),
+// no canvas). Returns { sanitizedDataUrl, manifest, sanitizedDomText, stats }.
 
 import { callLocalAI, resolveLocalModel } from './local-llm.js';
 import { ensureOffscreen, sendToOffscreen } from './offscreen-client.js';
@@ -661,18 +652,13 @@ function wireGuardScanOutbound(wirePayload, knownValues, fullBytesExtra = '') {
 }
 
 // REDACT-AND-VERIFY OUTBOUND TEXT SWEEP
-// The old last-line policy ABORTED the decision turn when any free-text
-// field carried a secret-shaped fragment — which killed "summarize this
-// page" on ANY page that displays a key (API docs, config viewers, chats
-// about keys). New policy, same guarantee: MASK the fragment locally,
-// RE-VERIFY, and transmit only provably clean text. Fields whose masked
-// text still trips the sweep are reported in residualFields and the caller
-// must refuse to transmit (fail-closed, unchanged).
-// Scans: the task, every history string, and BOTH page-text copies (the
-// pipeline's sanitizedDomText + the envelope's canonical sanitizedText).
-// The image and the safe manifest are untouched (safe by construction);
-// the trusted USER PROFILE trailer is appended AFTER this sweep by design
-// (user-typed data on the user's own backend channel).
+// Outbound text sweep. Aborting the turn on any secret-shaped fragment broke
+// "summarize this page" on pages that display keys, so fragments are masked
+// locally and the result re-checked; a field that still trips the sweep is
+// listed in residualFields and the caller must not transmit.
+// Covers the task, every history string and both page-text copies. The image
+// and the manifest are untouched, and the user-profile trailer is appended
+// after this sweep because it is user-typed data on the user's own channel.
 // Exported for the SIH benchmark suite.
 export function scrubOutboundDecisionText(payload, task, history) {
   const perPattern = {};
@@ -862,25 +848,16 @@ export async function decideViaServer(payload, task, history = [], providerSetti
       console.warn('[Privacy] Provider/model has no vision input — deciding from sanitized page text only.');
     }
     const t0 = performance.now();
-    // callAI drops the image automatically when the provider can't see it.
-    // Provider auth/network errors THROW so the user sees the real cause
-    // (e.g. "Kimi 401: invalid key") instead of a silent ask_user loop.
+    // callAI drops the image automatically
+    // callAI drops the image when the provider has no vision input. Auth and
+    // network errors throw so the user sees the cause instead of a retry loop.
     //
-    // GENERALIZED speed knobs (work on ANY provider):
-    //   • maxTokens from the speed profile (fast 600 / balanced 800 /
-    //     quality 1400; explicit settings.vlmMaxTokens overrides) — decision
-    //     turns emit a small JSON; output tokens are pure TPOT latency.
-    //   • reasoningEffort from the profile ('low' default) — mapped per
-    //     endpoint by buildReasoningParam (OpenRouter reasoning{effort},
-    //     Moonshot/OpenAI reasoning_effort, unknown gateways get the
-    //     de-facto field). '' → null → NOTHING is sent (strict endpoints);
-    //     providers that reject the param get an automatic clean retry.
-    // v1.31.0 PROMPT-CACHE STICKINESS: stable per-conversation session id.
-    // Derived deterministically from the task text (FNV-1a hash — the id that
-    // leaves the device contains no PII, only this hash), so every step of a
-    // run shares one OpenRouter session and sticky routing keeps the prompt
-    // cache warm from the first turn. Gating to openrouter.ai happens in
-    // providers.js (openRouterCacheFeatures) — other providers never see it.
+    // Speed knobs, provider-agnostic: maxTokens comes from the speed profile
+    // (fast 600 / balanced 800 / quality 1400, settings.vlmMaxTokens wins) and
+    // reasoningEffort defaults to 'low', mapped per endpoint.
+    // sessionId is an FNV-1a hash of the task, so it carries no PII and every
+    // step shares one session and keeps the prompt cache warm; providers.js
+    // gates it to openrouter.ai.
     const sessionId = sessionIdForTask(task);
     const actionPlan = await callAI(settings, promptWithProfile, null, {
       images,

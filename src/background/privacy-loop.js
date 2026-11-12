@@ -1,15 +1,7 @@
 // src/background/privacy-loop.js
-// Privacy-aware agent loop — alternative to the standard OpenComet loop.
-// Triggered when the user enables "Privacy Mode" in the side panel.
-//
-// Loop:
-//   1. captureAndSanitize(tab)         → sanitized image + sanitized DOM + manifest
-//   2. decideViaServer(payload, task)  → JSON action plan from VLM
-//   3. executeAction(tab, action)      → click / type / scroll / navigate / done
-//   4. Repeat until is_complete or maxSteps reached.
-//
-// Every screenshot is sanitised BEFORE any network call.  The server only
-// ever sees redacted pixels + redacted text + the redaction manifest.
+// The privacy-mode loop: sanitize, ask the model, act, repeat until complete or
+// out of steps. Every screenshot is sanitized before any network call, so the
+// server only sees redacted pixels, redacted text and the manifest.
 
 import { captureAndSanitize, decideViaServer, configurePrivacy, getPrivacySettings, resolvePrivacyTab } from '../lib/privacy-agent.js';
 import { getProviderCapabilities } from '../lib/providers.js';

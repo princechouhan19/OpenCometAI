@@ -1,32 +1,47 @@
-# FAQ & Troubleshooting
+# FAQ and troubleshooting
 
-### General Questions
+## General
 
-**Q: Is my data shared with anyone?**
-A: No. All API keys, task history, and browser context are stored locally on your machine. The only external communication is between your browser and the AI provider you have selected.
+**Is my data shared with anyone?**
 
-**Q: Does Open Comet support local models?**
-A: Yes! You can use Ollama to run models locally and privately. See the [Features Guide](./FEATURES_GUIDE.md) for more details.
+No. API keys, task history and page context stay on your machine. The only
+external request is to the provider you configured, and it carries the
+sanitized screen context rather than the raw screen.
 
-**Q: Can Open Comet handle multiple tabs?**
-A: Yes. Through the "Deep Research" feature, the agent can spawn and manage multiple background tabs to gather and synthesize information.
+**Can I run a local model?**
 
----
+Yes, through Ollama. See the [Features guide](./FEATURES_GUIDE.md).
 
-### Troubleshooting
+**Can it work across tabs?**
 
-**Q: The agent keeps clicking the wrong things. What should I do?**
-A: This is usually due to a low-resolution screenshot or a model that isn't optimized for vision. We recommend using **Claude 3.5 Sonnet** or **GPT-4o** for the best grounding performance.
+Yes. Research tasks open and switch between background tabs, up to the task tab
+limit.
 
-**Q: I get a "Rate Limit" error.**
-A: This error comes from your AI provider (e.g., OpenAI). Ensure your API key has sufficient balance and that you haven't exceeded the usage limits for your tier.
+## Troubleshooting
 
-**Q: The side panel is blank or won't load.**
-A: Try reloading the extension from `chrome://extensions`. If the issue persists, ensure you are on the latest version of a Chromium-based browser.
+**The agent keeps clicking the wrong element.**
 
----
+Usually the model, not the detector. Vision-capable models with strong
+grounding perform best; a text-only model on a dense page does not. Capturing
+at a higher zoom level also helps.
 
-### Privacy & Safety
+**Rate limit errors.**
 
-**Q: Can the agent buy things for me?**
-A: If instructed, the agent can navigate to a checkout page. However, for your safety, Open Comet is hardcoded to pause and ask for your explicit approval before any transaction-related button (e.g., "Add to Cart", "Pay Now") is clicked.
+These come from your provider. Check the balance and tier limits for the key.
+
+**The side panel is blank.**
+
+Reload the extension from `chrome://extensions`. If it persists, update the
+browser.
+
+**A task stops with an authorization message.**
+
+The action looked like a purchase or a deletion and your task text did not
+authorize it. Reword the task if you meant it.
+
+## Privacy and safety
+
+**Can the agent buy something for me?**
+
+It can reach a checkout page, but purchase and deletion clicks require
+authorization from your own task text, and approval mode can gate every action.

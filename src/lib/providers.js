@@ -660,19 +660,13 @@ export function buildReasoningParam(baseUrl, effort) {
   return { reasoning_effort: String(effort) };
 }
 
-// ── v1.31.0 PROMPT-CACHING SUPPORT (OpenRouter) ──────────────────────────────
-// OpenRouter exposes provider-side prompt caching + provider sticky routing:
-//  • a byte-stable system prompt may carry an Anthropic-style `cache_control`
-//    breakpoint — OpenRouter translates the marker per provider
-//    (prompt_cache_breakpoint on OpenAI-style endpoints) and drops it toward
-//    providers that ignore it, so the static policy prefix is cacheable;
-//  • a stable `session_id` body field makes sticky routing pin subsequent
-//    requests of the same conversation to the same provider endpoint,
-//    keeping that cache warm from the FIRST turn.
-// Both are gated to openrouter.ai hosts — generic OpenAI-compatible gateways
-// never see the extra fields (zero behavior change off OpenRouter). A strict
-// provider that somehow rejects the breakpoint shape gets ONE automatic
-// full-ladder retry without it (see the 400/422 handler below).
+// ── v1.31.0 PROMPT-CACHING SUPPORT (OpenRouter)
+// OpenRouter prompt caching and sticky routing. A byte-stable system prompt can
+// carry an Anthropic-style cache_control breakpoint, which OpenRouter
+// translates per provider, and a stable session_id pins a conversation to one
+// endpoint so the cache stays warm from the first turn. Both are gated to
+// openrouter.ai hosts, so other gateways never see the extra fields; a strict
+// provider that rejects the breakpoint gets one full-ladder retry without it.
 /** Exported for unit tests. */
 export function openRouterCacheFeatures(baseUrl) {
   let host = '';
@@ -876,12 +870,25 @@ export async function callOpenAICompatible(settings, model, prompt, images, opti
           }
           // v1.31.0: a strict provider that rejects the cache_control content
           // shape gets ONE clean full-ladder retry without the breakpoint.
-          if ((res.status === 400 || res.status === 422) && promptCacheOn) {
+          // A 400 that names a parameter we can drop is not a cache-shape
+          // complaint: restarting the ladder for it would spend a call to
+          // re-send the very field that was just rejected.
+          if ((res.status === 400 || res.status === 422) && promptCacheOn && !/response_format|json_object/i.test(errText)) {
             promptCacheOn = false;
             logAPI.warn(`${providerLabel(settings.provider)} ${res.status} with the prompt-cache breakpoint — retrying the ladder without it`);
             i = -1; break;   // restart the attempt ladder, cache disabled
           }
           if ((res.status === 400 || res.status === 422) && i < attempts.length - 1) {
+            // A gateway that names the parameter it rejected should not be
+            // asked to reject it again: jump to the first rung that omits it.
+            if (/response_format|json_object/i.test(errText)) {
+              const k = attempts.findIndex((x, idx) => idx > i && !x.jsonMode);
+              if (k > i) {
+                logAPI.warn(`${providerLabel(settings.provider)} ${res.status} names response_format - skipping to ${attemptTag(attempts[k], null)}`);
+                i = k - 1;   // the outer loop advances onto k
+                break;
+              }
+            }
             logAPI.warn(`${providerLabel(settings.provider)} ${res.status} (${describeHttpError(lastErr)}) on ${attemptTag(a, esc)} — retrying with ${attemptTag(attempts[i + 1], null)}`);
             break; // next rung
           }
