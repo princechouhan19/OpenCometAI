@@ -42,7 +42,7 @@ const curPath = argOf('current', null);
 const baselinePath = argOf('baseline', join(ROOT, 'OpenCometBench', 'baselines', 'v1.30.0-unit.json'));
 const LATENCY_PCT = Number(argOf('latency-pct', '25'));
 const ALPHA = Number(argOf('alpha', '0.01'));
-const MIN_DELTA_MS = Number(argOf('min-delta-ms', '0.2'));
+const MIN_DELTA_MS = Number(argOf('min-delta-ms', '0'));
 
 if (!curPath || !existsSync(curPath)) {
   console.error('regression-gate: --current=<run-all --json output file> is required');
