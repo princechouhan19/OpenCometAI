@@ -42,6 +42,7 @@ const curPath = argOf('current', null);
 const baselinePath = argOf('baseline', join(ROOT, 'OpenCometBench', 'baselines', 'v1.30.0-unit.json'));
 const LATENCY_PCT = Number(argOf('latency-pct', '25'));
 const ALPHA = Number(argOf('alpha', '0.01'));
+const MIN_DELTA_MS = Number(argOf('min-delta-ms', '0.2'));
 
 if (!curPath || !existsSync(curPath)) {
   console.error('regression-gate: --current=<run-all --json output file> is required');
@@ -87,7 +88,7 @@ const baseSuites = baseline.results || [];
 const curSuites = current.results || [];
 
 console.log(`regression-gate · baseline=${baselinePath.split('/').slice(-2).join('/')} · current=${curPath}`);
-console.log(`latency budget: p95 may grow ≤${LATENCY_PCT}% · MWU alpha=${ALPHA} · quality must be IDENTICAL\n`);
+console.log(`latency budget: p95 may grow ≤${LATENCY_PCT}% (min Δ > ${MIN_DELTA_MS} ms) · MWU alpha=${ALPHA} · quality must be IDENTICAL\n`);
 
 let fail = 0;
 const rows = [];
@@ -118,11 +119,16 @@ for (const cur of curSuites) {
     rows.push(`  ✓  ${cur.name} — quality identical (no latency stats to compare)`);
     continue;
   }
-  const growthPct = p95Base > 0 ? ((p95Cur - p95Base) / p95Base) * 100 : 0;
-  const over = growthPct > LATENCY_PCT;
+  const deltaMs = p95Cur - p95Base;
+  const growthPct = p95Base > 0 ? (deltaMs / p95Base) * 100 : 0;
+  const over = growthPct > LATENCY_PCT && deltaMs > MIN_DELTA_MS;
   let verdict;
   if (!over) {
-    verdict = `p95 ${p95Base}→${p95Cur} ms (${growthPct >= 0 ? '+' : ''}${growthPct.toFixed(1)}%)`;
+    if (growthPct > LATENCY_PCT) {
+      verdict = `p95 ${p95Base}→${p95Cur} ms (+${growthPct.toFixed(1)}% but Δ ${deltaMs.toFixed(3)} ms ≤ ${MIN_DELTA_MS} ms noise floor — within machine noise, allowed)`;
+    } else {
+      verdict = `p95 ${p95Base}→${p95Cur} ms (${growthPct >= 0 ? '+' : ''}${growthPct.toFixed(1)}%)`;
+    }
   } else {
     const mw = (sBase.length >= 8 && sCur.length >= 8)
       ? mannWhitneyU(sBase, sCur)

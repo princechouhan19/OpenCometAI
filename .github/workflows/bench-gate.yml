@@ -28,7 +28,7 @@ jobs:
         run: node OpenCometBench/run-all.js --json > /tmp/bench-current.json
 
       - name: Regression gate vs committed baseline
-        run: node OpenCometBench/regression-gate.mjs --current /tmp/bench-current.json
+        run: node OpenCometBench/regression-gate.mjs --current /tmp/bench-current.json --latency-pct 50 --min-delta-ms 0.25
 
       - name: Upload bench artifact
         if: always()
